@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <!-- ==================== Navigation ==================== -->
+  <data name="NavItem_Albums.Content" xml:space="preserve">
+    <value>Albums</value>
+  </data>
+  <data name="NavItem_AllPhotos.Content" xml:space="preserve">
+    <value>All Photos</value>
+  </data>
+  <data name="NavItem_Settings.Content" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+
+  <!-- ==================== Album List Page ==================== -->
+  <data name="AlbumList_Title" xml:space="preserve">
+    <value>Albums</value>
+  </data>
+  <data name="AlbumList_CreateButton_Text" xml:space="preserve">
+    <value>New Album</value>
+  </data>
+  <data name="AlbumList_DeleteDialog_Title" xml:space="preserve">
+    <value>Delete Album</value>
+  </data>
+  <data name="AlbumList_DeleteDialog_Content" xml:space="preserve">
+    <value>Are you sure you want to delete this album? The photos inside will not be deleted.</value>
+  </data>
+
+  <!-- ==================== Photo List Page ==================== -->
+  <data name="PhotoList_AddPhotos_Text" xml:space="preserve">
+    <value>Add Photos</value>
+  </data>
+  <data name="PhotoList_Delete_Text" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="PhotoList_MoveToAlbum_Text" xml:space="preserve">
+    <value>Move to Album</value>
+  </data>
+
+  <!-- ==================== Photo Detail Page ==================== -->
+  <data name="PhotoDetail_FileNotFound" xml:space="preserve">
+    <value>File has been moved or deleted.</value>
+  </data>
+  <data name="PhotoDetail_HeicNotSupported" xml:space="preserve">
+    <value>HEIC/HEIF format requires HEVC Video Extensions. Tap to install from Microsoft Store.</value>
+  </data>
+
+  <!-- ==================== All Photos Page ==================== -->
+  <data name="AllPhotos_Title" xml:space="preserve">
+    <value>All Photos</value>
+  </data>
+  <data name="AllPhotos_SearchPlaceholder" xml:space="preserve">
+    <value>Search by file name…</value>
+  </data>
+
+  <!-- ==================== Settings Page ==================== -->
+  <data name="Settings_Title" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="Settings_ScanDirectories_Header" xml:space="preserve">
+    <value>Scan Directories</value>
+  </data>
+  <data name="Settings_Appearance_Header" xml:space="preserve">
+    <value>Appearance</value>
+  </data>
+  <data name="Settings_Behavior_Header" xml:space="preserve">
+    <value>Behavior</value>
+  </data>
+  <data name="Settings_CacheData_Header" xml:space="preserve">
+    <value>Cache &amp; Data</value>
+  </data>
+  <data name="Settings_About_Header" xml:space="preserve">
+    <value>About</value>
+  </data>
+
+  <!-- ==================== Common ==================== -->
+  <data name="Common_OK" xml:space="preserve">
+    <value>OK</value>
+  </data>
+  <data name="Common_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Common_Delete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="Common_Rename" xml:space="preserve">
+    <value>Rename</value>
+  </data>
+  <data name="Common_Scanning" xml:space="preserve">
+    <value>Scanning…</value>
+  </data>
+
+</root>

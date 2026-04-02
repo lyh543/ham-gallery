@@ -12,9 +12,40 @@ Fluent Gallery is being implemented incrementally from [PROMPT.md](PROMPT.md).
 
 To build the app locally, install:
 
-- .NET 8 SDK
-- WinUI 3 / Windows App SDK development workload in Visual Studio 2022
-- Windows 10 SDK 10.0.19041.0 or newer
+- .NET 9 SDK
+- Windows App SDK 1.8 runtime (bundled via NuGet; no separate installer required)
+- Windows 10 SDK 10.0.19041.0 or newer (comes with Visual Studio 2022)
+
+## Build & Run
+
+All commands are run from the `FluentGallery/FluentGallery/` directory.
+
+### Restore packages
+
+```powershell
+dotnet restore --runtime win-x64
+```
+
+### Build (Debug, x64)
+
+```powershell
+dotnet build -p:Platform=x64 --runtime win-x64 --no-self-contained -c Debug
+```
+
+### Run directly after build
+
+```powershell
+.\bin\x64\Debug\net9.0-windows10.0.19041.0\win-x64\FluentGallery.exe
+```
+
+### Build & run in one step
+
+```powershell
+dotnet build -p:Platform=x64 --runtime win-x64 --no-self-contained -c Debug ; .\bin\x64\Debug\net9.0-windows10.0.19041.0\win-x64\FluentGallery.exe
+```
+
+> **Note:** The project uses `WindowsPackageType=None` (unpackaged) so no MSIX packaging or sideloading is needed during development.  
+> You can also open `FluentGallery/FluentGallery.sln` in Visual Studio 2022, set the platform to **x64**, and press **F5**.
 
 ## Solution layout
 

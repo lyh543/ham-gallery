@@ -1,0 +1,72 @@
+<Window
+    x:Class="FluentGallery.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="Fluent Gallery">
+
+    <!-- Mica background material -->
+    <Window.SystemBackdrop>
+        <MicaBackdrop />
+    </Window.SystemBackdrop>
+
+    <!--
+        NavigationView provides the left-side nav panel.
+        IsSettingsVisible="False" because we add our own Settings item in FooterMenuItems.
+    -->
+    <NavigationView
+        x:Name="NavView"
+        IsBackButtonVisible="Visible"
+        IsBackEnabled="{x:Bind ContentFrame.CanGoBack, Mode=OneWay}"
+        BackRequested="NavView_BackRequested"
+        SelectionChanged="NavView_SelectionChanged"
+        IsSettingsVisible="False"
+        OpenPaneLength="248"
+        PaneDisplayMode="Left"
+        IsTitleBarAutoPaddingEnabled="True">
+
+        <NavigationView.MenuItems>
+
+            <!-- 相册 (Albums) -->
+            <NavigationViewItem
+                x:Name="AlbumsNavItem"
+                Tag="AlbumList"
+                Content="相册">
+                <NavigationViewItem.Icon>
+                    <!-- Segoe Fluent Icons: Photo collection -->
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE93C;" />
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+
+            <!-- 所有照片 (All Photos) -->
+            <NavigationViewItem
+                x:Name="AllPhotosNavItem"
+                Tag="AllPhotos"
+                Content="所有照片">
+                <NavigationViewItem.Icon>
+                    <!-- Segoe Fluent Icons: Pictures -->
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xEB9F;" />
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+
+        </NavigationView.MenuItems>
+
+        <!-- Bottom footer: Settings -->
+        <NavigationView.FooterMenuItems>
+            <NavigationViewItem
+                x:Name="SettingsNavItem"
+                Tag="Settings"
+                Content="设置">
+                <NavigationViewItem.Icon>
+                    <SymbolIcon Symbol="Setting" />
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+        </NavigationView.FooterMenuItems>
+
+        <!-- Main content frame -->
+        <Frame x:Name="ContentFrame" />
+
+    </NavigationView>
+</Window>
