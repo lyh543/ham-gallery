@@ -1,0 +1,34 @@
+生成启动时间为 2026/4/2 12:53:02。
+     1>项目“C:\Users\lyh54\git\github\ham-gallery\FluentGallery\FluentGallery.csproj”在节点 1 上(Restore 个目标)。
+     1>_GetAllRestoreProjectPathItems:
+         正在确定要还原的项目…
+       Restore:
+         X.509 证书链验证将使用 .NET 选择的默认信任存储进行代码签名。
+         X.509 证书链验证将使用 .NET 选择的默认信任存储进行时间戳。
+         资产文件未改变。跳过资产文件写入。路径: C:\Users\lyh54\git\github\ham-gallery\FluentGallery\obj\project.assets.json
+         已还原 C:\Users\lyh54\git\github\ham-gallery\FluentGallery\FluentGallery.csproj (用时 67 毫秒)。
+         
+         使用的 NuGet 配置文件:
+             C:\Users\lyh54\AppData\Roaming\NuGet\NuGet.Config
+             C:\Program Files (x86)\NuGet\Config\Microsoft.VisualStudio.FallbackLocation.config
+         
+         使用的源:
+             https://api.nuget.org/v3/index.json
+         所有项目均是最新的，无法还原。
+     1>已完成生成项目“C:\Users\lyh54\git\github\ham-gallery\FluentGallery\FluentGallery.csproj”(Restore 个目标)的操作。
+   1:7>节点 1 上的项目“C:\Users\lyh54\git\github\ham-gallery\FluentGallery\FluentGallery.csproj”(默认目标)。
+     1>MarkupCompilePass1:
+         "C:\Users\lyh54\.nuget\packages\microsoft.windowsappsdk.winui\1.8.260224000\buildTransitive\..\tools\net6.0\..\net472\XamlCompiler.exe" "obj\x64\Debug\net9.0-windows10.0.19041.0\win-x64\\input.json" "obj\x64\Debug\net9.0-windows10.0.19041.0\win-x64\\output.json"
+     1>C:\Users\lyh54\.nuget\packages\microsoft.windowsappsdk.winui\1.8.260224000\buildTransitive\Microsoft.UI.Xaml.Markup.Compiler.interop.targets(594,9): error MSB3073: 命令“"C:\Users\lyh54\.nuget\packages\microsoft.windowsappsdk.winui\1.8.260224000\buildTransitive\..\tools\net6.0\..\net472\XamlCompiler.exe" "obj\x64\Debug\net9.0-windows10.0.19041.0\win-x64\\input.json" "obj\x64\Debug\net9.0-windows10.0.19041.0\win-x64\\output.json"”已退出，代码为 1。 [C:\Users\lyh54\git\github\ham-gallery\FluentGallery\FluentGallery.csproj]
+     1>已完成生成项目“C:\Users\lyh54\git\github\ham-gallery\FluentGallery\FluentGallery.csproj”(默认目标)的操作 - 失败。
+
+生成失败。
+
+       “C:\Users\lyh54\git\github\ham-gallery\FluentGallery\FluentGallery.csproj”(默认目标) (1:7) ->
+       (MarkupCompilePass1 目标) -> 
+         C:\Users\lyh54\.nuget\packages\microsoft.windowsappsdk.winui\1.8.260224000\buildTransitive\Microsoft.UI.Xaml.Markup.Compiler.interop.targets(594,9): error MSB3073: 命令“"C:\Users\lyh54\.nuget\packages\microsoft.windowsappsdk.winui\1.8.260224000\buildTransitive\..\tools\net6.0\..\net472\XamlCompiler.exe" "obj\x64\Debug\net9.0-windows10.0.19041.0\win-x64\\input.json" "obj\x64\Debug\net9.0-windows10.0.19041.0\win-x64\\output.json"”已退出，代码为 1。 [C:\Users\lyh54\git\github\ham-gallery\FluentGallery\FluentGallery.csproj]
+
+    0 个警告
+    1 个错误
+
+已用时间 00:00:04.05

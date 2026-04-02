@@ -41,3 +41,5 @@ usersecrets.json
 ## --- 单元测试相关 ---
 *.VisualState.xml
 TestResults/
+
+/data

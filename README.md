@@ -18,7 +18,7 @@ To build the app locally, install:
 
 ## Build & Run
 
-All commands are run from the `FluentGallery/FluentGallery/` directory.
+All commands are run from the `FluentGallery/` directory (solution root).
 
 ### Restore packages
 
@@ -35,14 +35,23 @@ dotnet build -p:Platform=x64 --runtime win-x64 --no-self-contained -c Debug
 ### Run directly after build
 
 ```powershell
-.\bin\x64\Debug\net9.0-windows10.0.19041.0\win-x64\FluentGallery.exe
+.\bin\x64\Debug\net10.0-windows10.0.19041.0\win-x64\FluentGallery.exe
 ```
 
 ### Build & run in one step
 
 ```powershell
-dotnet build -p:Platform=x64 --runtime win-x64 --no-self-contained -c Debug ; .\bin\x64\Debug\net9.0-windows10.0.19041.0\win-x64\FluentGallery.exe
+dotnet build -p:Platform=x64 --runtime win-x64 --no-self-contained -c Debug ; .\bin\x64\Debug\net10.0-windows10.0.19041.0\win-x64\FluentGallery.exe
 ```
+
+### Hot reload (C# edits)
+
+```powershell
+dotnet watch run --project FluentGallery.csproj -p:Platform=x64 --runtime win-x64 --no-self-contained -c Debug
+```
+
+> **Note:** `dotnet watch` supports C# hot reload (logic changes take effect without restart).  
+> XAML hot reload requires Visual Studio 2022 with the **XAML Hot Reload** toolbox.
 
 > **Note:** The project uses `WindowsPackageType=None` (unpackaged) so no MSIX packaging or sideloading is needed during development.  
 > You can also open `FluentGallery/FluentGallery.sln` in Visual Studio 2022, set the platform to **x64**, and press **F5**.

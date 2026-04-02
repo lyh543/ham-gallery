@@ -4,29 +4,154 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="using:FluentGallery.ViewModels"
+    xmlns:conv="using:FluentGallery.Converters"
     mc:Ignorable="d"
     Background="Transparent">
 
-    <Grid>
-        <StackPanel
-            HorizontalAlignment="Center"
-            VerticalAlignment="Center"
-            Spacing="12">
-            <FontIcon
-                FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                Glyph="&#xE93C;"
-                FontSize="64"
-                Opacity="0.4" />
-            <TextBlock
-                Text="相册"
-                HorizontalAlignment="Center"
-                Style="{ThemeResource TitleLargeTextBlockStyle}" />
-            <TextBlock
-                Text="（即将实现 · Coming soon）"
-                HorizontalAlignment="Center"
-                Style="{ThemeResource BodyTextBlockStyle}"
-                Opacity="0.6" />
+    <Page.Resources>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVisibility" />
+        <conv:BoolToVisibilityConverter x:Key="InverseBoolToVisibility" />
+
+        <!-- Large-view album card (180×200) -->
+        <DataTemplate x:Key="AlbumCardLargeTemplate" x:DataType="vm:AlbumItemViewModel">
+            <Grid Width="180" Margin="6" CornerRadius="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="140"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Cover placeholder -->
+                <Border Grid.Row="0" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        CornerRadius="8 8 0 0">
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                              Glyph="&#xE93C;" FontSize="48" Opacity="0.3"
+                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+
+                <!-- Info area -->
+                <Border Grid.Row="1" Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
+                        CornerRadius="0 0 8 8" Padding="8 6">
+                    <StackPanel>
+                        <!-- Name label (shown when not editing) -->
+                        <TextBlock Text="{x:Bind Name, Mode=OneWay}"
+                                   Style="{ThemeResource BodyStrongTextBlockStyle}"
+                                   TextTrimming="CharacterEllipsis"/>
+                        <TextBox x:Name="RenameBox"
+                                 Text="{x:Bind EditName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 Visibility="Collapsed"
+                                 KeyDown="RenameBox_KeyDown"
+                                 LostFocus="RenameBox_LostFocus"
+                                 BorderThickness="0" Padding="0"
+                                 Background="Transparent"/>
+                        <TextBlock Opacity="0.6" FontSize="11"
+                                   Style="{ThemeResource CaptionTextBlockStyle}">
+                            <Run Text="{x:Bind PhotoCount.ToString(), Mode=OneWay}"/>
+                            <Run Text=" 张"/>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+
+                <!-- Pin badge -->
+                <FontIcon Grid.Row="0" HorizontalAlignment="Right" VerticalAlignment="Top"
+                          Margin="0 6 8 0"
+                          FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                          Glyph="&#xE840;" FontSize="14"
+                          Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                          Visibility="{x:Bind IsPinned, Mode=OneWay,
+                              Converter={StaticResource BoolToVisibility}}"/>
+            </Grid>
+        </DataTemplate>
+
+        <!-- Small-view album card (120×130) -->
+        <DataTemplate x:Key="AlbumCardSmallTemplate" x:DataType="vm:AlbumItemViewModel">
+            <Grid Width="120" Margin="4" CornerRadius="6">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="90"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        CornerRadius="6 6 0 0">
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                              Glyph="&#xE93C;" FontSize="32" Opacity="0.3"
+                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+
+                <Border Grid.Row="1" Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
+                        CornerRadius="0 0 6 6" Padding="6 4">
+                    <TextBlock Text="{x:Bind Name, Mode=OneWay}"
+                               Style="{ThemeResource CaptionTextBlockStyle}"
+                               TextTrimming="CharacterEllipsis"/>
+                </Border>
+            </Grid>
+        </DataTemplate>
+    </Page.Resources>
+
+    <Grid RowSpacing="0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- toolbar -->
+            <RowDefinition Height="*"/>    <!-- content -->
+        </Grid.RowDefinitions>
+
+        <!-- ── Toolbar ── -->
+        <CommandBar Grid.Row="0" DefaultLabelPosition="Right"
+                    Background="Transparent" OverflowButtonVisibility="Collapsed">
+            <AppBarButton x:Name="CreateAlbumButton"
+                          Icon="Add" Label="新建相册"
+                          Click="CreateAlbumButton_Click"/>
+            <AppBarSeparator/>
+            <AppBarButton Icon="Sort" Label="排序" Click="SortButton_Click">
+                <AppBarButton.Flyout>
+                    <MenuFlyout x:Name="SortFlyout">
+                        <MenuFlyoutItem x:Name="SortByName"       Text="名称"     Click="SortMenuItem_Click" Tag="Name"/>
+                        <MenuFlyoutItem x:Name="SortByCreated"    Text="创建时间" Click="SortMenuItem_Click" Tag="CreatedAt"/>
+                        <MenuFlyoutItem x:Name="SortByModified"   Text="修改时间" Click="SortMenuItem_Click" Tag="ModifiedAt"/>
+                        <MenuFlyoutItem x:Name="SortByPhotoCount" Text="照片数量" Click="SortMenuItem_Click" Tag="PhotoCount"/>
+                        <MenuFlyoutSeparator/>
+                        <ToggleMenuFlyoutItem x:Name="SortDescToggle" Text="降序" Click="SortDescToggle_Click"/>
+                    </MenuFlyout>
+                </AppBarButton.Flyout>
+            </AppBarButton>
+            <AppBarButton x:Name="ToggleViewButton"
+                          Icon="ViewAll" Label="切换大小图"
+                          Click="ToggleViewButton_Click"/>
+        </CommandBar>
+
+        <!-- ── Album grid ── -->
+        <ScrollViewer Grid.Row="1" Padding="8 4 8 0">
+            <GridView x:Name="AlbumGridView"
+                      ItemsSource="{x:Bind ViewModel.Albums}"
+                      SelectionMode="None"
+                      IsItemClickEnabled="True"
+                      ItemClick="AlbumGridView_ItemClick"
+                      Padding="0 0 0 24">
+                <GridView.ItemContainerStyle>
+                    <Style TargetType="GridViewItem" BasedOn="{StaticResource DefaultGridViewItemStyle}">
+                        <Setter Property="Padding" Value="0"/>
+                        <Setter Property="Margin"  Value="0"/>
+                        <Setter Property="CornerRadius" Value="8"/>
+                    </Style>
+                </GridView.ItemContainerStyle>
+                <!-- ItemTemplate swapped from code-behind based on IsLargeView -->
+            </GridView>
+        </ScrollViewer>
+
+        <!-- Loading overlay -->
+        <ProgressRing Grid.Row="1" IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}"
+                      Width="48" Height="48"
+                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+        <!-- Empty state -->
+        <StackPanel Grid.Row="1" x:Name="EmptyStatePanel"
+                    HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12"
+                    Visibility="Collapsed">
+            <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                      Glyph="&#xE93C;" FontSize="64" Opacity="0.3"/>
+            <TextBlock Text="还没有相册" HorizontalAlignment="Center"
+                       Style="{ThemeResource SubtitleTextBlockStyle}"/>
+            <TextBlock Text="点击「新建相册」创建第一个相册" HorizontalAlignment="Center"
+                       Style="{ThemeResource BodyTextBlockStyle}" Opacity="0.6"/>
         </StackPanel>
     </Grid>
-
 </Page>

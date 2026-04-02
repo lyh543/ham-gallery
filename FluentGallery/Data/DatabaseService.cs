@@ -90,6 +90,28 @@ public sealed class DatabaseService
         await db.SaveChangesAsync(ct);
     }
 
+    /// <summary>Returns albums where <see cref="Album.IsPinned"/> is true, ordered by <see cref="Album.SortOrder"/> then name.</summary>
+    public async Task<IReadOnlyList<Album>> GetPinnedAlbumsAsync(CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.Albums
+            .Where(a => a.IsPinned)
+            .OrderBy(a => a.SortOrder)
+            .ThenBy(a => a.Name)
+            .ToListAsync(ct);
+    }
+
+    /// <summary>Sets the <see cref="Album.IsPinned"/> flag for the specified album.</summary>
+    public async Task SetAlbumPinnedAsync(long id, bool isPinned, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var album = await db.Albums.FindAsync(new object[] { id }, ct);
+        if (album is null) return;
+        album.IsPinned   = isPinned;
+        album.ModifiedAt = NowIso();
+        await db.SaveChangesAsync(ct);
+    }
+
     public async Task DeleteAlbumAsync(long id, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);

@@ -1,4 +1,5 @@
 using FluentGallery.Data;
+using FluentGallery.ViewModels;
 using FluentGallery.Views;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -55,7 +56,9 @@ public partial class App : Application
 
         services.AddSingleton<DatabaseService>();
 
-        // ViewModels will be registered here as they are implemented.
+        // ViewModels
+        services.AddTransient<MainWindowViewModel>();
+        services.AddTransient<AlbumListViewModel>();
 
         return services.BuildServiceProvider();
     }

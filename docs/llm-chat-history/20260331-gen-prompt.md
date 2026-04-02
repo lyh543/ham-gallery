@@ -50,24 +50,3 @@
 对于 HEIC 支持，需提醒用户在 Windows 上安装「HEVC 视频扩展」（Microsoft Store 付费，或使用 OEM 预装版）
 
 ```
-
-## User
-
-```
-请阅读 PROMPT.md 以后，逐步实现这个项目。
-
-请按「第十二章·交付顺序」逐步推进，每次只需要完成一步，避免一次生成过多代码导致质量下降。
-
-首先请你初始化项目，创建 WinUI 3 项目结构，并搭建基础的 MainWindow 和导航框架。请确保项目可以成功编译和运行，MainWindow 中包含一个基本的导航栏（NavigationView），并且能够切换到一个空白的「相册列表」页面。
-```
-
-## User
-
-将编译和运行的命令补充在 readme 里
-
-## User
-
-很好，现在请继续参照 PROMPT.md，实现 数据库 Schema 部分
-
-## User
-
