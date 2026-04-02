@@ -47,6 +47,28 @@ dotnet build -p:Platform=x64 --runtime win-x64 --no-self-contained -c Debug ; .\
 > **Note:** The project uses `WindowsPackageType=None` (unpackaged) so no MSIX packaging or sideloading is needed during development.  
 > You can also open `FluentGallery/FluentGallery.sln` in Visual Studio 2022, set the platform to **x64**, and press **F5**.
 
+## Test
+
+All commands are run from the `FluentGallery/` directory (solution root).
+
+### Run all tests
+
+```powershell
+dotnet test FluentGallery.Tests\FluentGallery.Tests.csproj -p:Platform=x64 --runtime win-x64 -c Debug
+```
+
+### Run with detailed output
+
+```powershell
+dotnet test FluentGallery.Tests\FluentGallery.Tests.csproj -p:Platform=x64 --runtime win-x64 -c Debug --logger "console;verbosity=normal"
+```
+
+### Run a single test by name
+
+```powershell
+dotnet test FluentGallery.Tests\FluentGallery.Tests.csproj -p:Platform=x64 --runtime win-x64 -c Debug --filter "FullyQualifiedName~DeletePhoto_CascadeDeletesThumbnail"
+```
+
 ## Solution layout
 
 - [FluentGallery.sln](FluentGallery.sln)

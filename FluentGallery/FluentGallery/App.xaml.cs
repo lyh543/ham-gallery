@@ -1,4 +1,6 @@
+using FluentGallery.Data;
 using FluentGallery.Views;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml;
@@ -34,14 +36,36 @@ public partial class App : Application
 #endif
         });
 
+        // Data layer — EF Core factory + service facade
+        var dbFolder = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "FluentGallery");
+        Directory.CreateDirectory(dbFolder);
+        var dbPath = Path.Combine(dbFolder, "gallery.db");
+
+        services.AddDbContextFactory<GalleryDbContext>(options =>
+        {
+            options.UseSqlite(
+                $"Data Source={dbPath};Mode=ReadWriteCreate;Cache=Shared",
+                sql => sql.CommandTimeout(30));
+#if DEBUG
+            options.EnableSensitiveDataLogging();
+#endif
+        }, ServiceLifetime.Singleton);
+
+        services.AddSingleton<DatabaseService>();
+
         // ViewModels will be registered here as they are implemented.
-        // Services (DatabaseService, ThumbnailService, etc.) will be added in Step 2+.
 
         return services.BuildServiceProvider();
     }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
+        // Initialise DB schema before showing any UI.
+        var db = Services.GetRequiredService<DatabaseService>();
+        _ = db.InitializeAsync();
+
         _window = new MainWindow();
         _window.Activate();
     }

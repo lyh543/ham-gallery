@@ -67,3 +67,7 @@
 
 ## User
 
+很好，现在请继续参照 PROMPT.md，实现 数据库 Schema 部分
+
+## User
+
