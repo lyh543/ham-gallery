@@ -1,11 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net9.0-windows10.0.19041.0</TargetFramework>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
+    <LangVersion>14</LangVersion>
     <!-- Avoid WinExe entry-point clash when referencing the main project -->
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
@@ -22,7 +23,9 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <!-- EF Core + SQLite for test helpers -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.3" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.0" />
+    <!-- MVVM toolkit (needed by SettingsViewModel) -->
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
   </ItemGroup>
 
   <ItemGroup>
@@ -34,6 +37,10 @@
     <Compile Include="..\FluentGallery\Models\AppSettings.cs" />
     <Compile Include="..\FluentGallery\Data\GalleryDbContext.cs" />
     <Compile Include="..\FluentGallery\Data\DatabaseService.cs" />
+    <!-- SettingsViewModel and its dependencies (no WinUI types) -->
+    <Compile Include="..\FluentGallery\Helpers\AppDataPaths.cs" />
+    <Compile Include="..\FluentGallery\Services\IThemeService.cs" />
+    <Compile Include="..\FluentGallery\ViewModels\SettingsViewModel.cs" />
   </ItemGroup>
 
   <!-- Shared using alias so the test project compiles without the full WinUI namespace tree -->

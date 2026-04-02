@@ -4,29 +4,292 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:ctk="using:CommunityToolkit.WinUI.Controls"
+    xmlns:conv="using:FluentGallery.Converters"
     mc:Ignorable="d"
     Background="Transparent">
 
-    <Grid>
-        <StackPanel
-            HorizontalAlignment="Center"
-            VerticalAlignment="Center"
-            Spacing="12">
-            <SymbolIcon
-                Symbol="Setting"
-                Width="64"
-                Height="64"
-                Opacity="0.4" />
-            <TextBlock
-                Text="设置"
-                HorizontalAlignment="Center"
-                Style="{ThemeResource TitleLargeTextBlockStyle}" />
-            <TextBlock
-                Text="（即将实现 · Coming soon）"
-                HorizontalAlignment="Center"
-                Style="{ThemeResource BodyTextBlockStyle}"
-                Opacity="0.6" />
-        </StackPanel>
-    </Grid>
+    <Page.Resources>
+        <!-- ConverterParameter="True" inverts the result -->
+        <conv:BoolToVisibilityConverter x:Key="BoolToVis" />
+    </Page.Resources>
 
+    <ScrollViewer
+        VerticalScrollBarVisibility="Auto"
+        HorizontalScrollBarVisibility="Disabled">
+
+        <StackPanel Spacing="4" Margin="32,16,32,32">
+
+            <!-- ══════════════════════════════════════════════════════════
+                 Status InfoBar — success / info feedback
+            ═══════════════════════════════════════════════════════════ -->
+            <InfoBar
+                x:Name="SuccessBar"
+                IsOpen="{x:Bind ViewModel.HasStatusMessage, Mode=OneWay}"
+                Message="{x:Bind ViewModel.StatusMessage, Mode=OneWay}"
+                Severity="Success"
+                IsClosable="True"
+                Margin="0,0,0,4"
+                Visibility="{x:Bind ViewModel.IsWarningStatus, Converter={StaticResource BoolToVis}, ConverterParameter=True, Mode=OneWay}"
+                Closed="StatusBar_Closed" />
+
+            <!-- Warning / error feedback -->
+            <InfoBar
+                x:Name="WarningBar"
+                IsOpen="{x:Bind ViewModel.HasStatusMessage, Mode=OneWay}"
+                Message="{x:Bind ViewModel.StatusMessage, Mode=OneWay}"
+                Severity="Warning"
+                IsClosable="True"
+                Margin="0,0,0,4"
+                Visibility="{x:Bind ViewModel.IsWarningStatus, Converter={StaticResource BoolToVis}, Mode=OneWay}"
+                Closed="StatusBar_Closed" />
+
+            <!-- ══════════════════════════════════════════════════════════
+                 1. 扫描目录
+            ═══════════════════════════════════════════════════════════ -->
+            <TextBlock
+                Text="扫描目录"
+                Style="{ThemeResource SubtitleTextBlockStyle}"
+                Margin="4,8,0,6" />
+
+            <!--
+                ItemsSource is bound directly to the ObservableCollection<string>.
+                The SettingsExpander's internal ItemsRepeater tracks CollectionChanged
+                automatically, so adding/removing items updates the UI immediately.
+            -->
+            <ctk:SettingsExpander
+                Header="扫描目录"
+                Description="应用启动后将扫描这些目录中的照片"
+                IsExpanded="True"
+                ItemsSource="{x:Bind ViewModel.ScanDirectories, Mode=OneWay}">
+
+                <ctk:SettingsExpander.HeaderIcon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xED25;" />
+                </ctk:SettingsExpander.HeaderIcon>
+
+                <!-- Right side of the header row -->
+                <Button Content="＋ 添加目录" Click="AddScanDir_Click" />
+
+                <ctk:SettingsExpander.ItemTemplate>
+                    <DataTemplate x:DataType="x:String">
+                        <ctk:SettingsCard Header="{x:Bind}">
+                            <Button
+                                Tag="{x:Bind}"
+                                Click="RemoveScanDir_Click"
+                                ToolTipService.ToolTip="删除此目录">
+                                <FontIcon
+                                    FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                                    Glyph="&#xE74D;"
+                                    FontSize="14" />
+                            </Button>
+                        </ctk:SettingsCard>
+                    </DataTemplate>
+                </ctk:SettingsExpander.ItemTemplate>
+            </ctk:SettingsExpander>
+
+            <!-- Exclude dirs -->
+            <ctk:SettingsExpander
+                Header="排除目录"
+                Description="扫描时跳过这些目录（支持绝对路径）"
+                IsExpanded="False"
+                ItemsSource="{x:Bind ViewModel.ExcludeDirectories, Mode=OneWay}">
+
+                <ctk:SettingsExpander.HeaderIcon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xEDA0;" />
+                </ctk:SettingsExpander.HeaderIcon>
+
+                <Button Content="＋ 添加排除目录" Click="AddExcludeDir_Click" />
+
+                <ctk:SettingsExpander.ItemTemplate>
+                    <DataTemplate x:DataType="x:String">
+                        <ctk:SettingsCard Header="{x:Bind}">
+                            <Button
+                                Tag="{x:Bind}"
+                                Click="RemoveExcludeDir_Click"
+                                ToolTipService.ToolTip="删除此目录">
+                                <FontIcon
+                                    FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                                    Glyph="&#xE74D;"
+                                    FontSize="14" />
+                            </Button>
+                        </ctk:SettingsCard>
+                    </DataTemplate>
+                </ctk:SettingsExpander.ItemTemplate>
+            </ctk:SettingsExpander>
+
+            <!-- ══════════════════════════════════════════════════════════
+                 2. 外观
+            ═══════════════════════════════════════════════════════════ -->
+            <TextBlock
+                Text="外观"
+                Style="{ThemeResource SubtitleTextBlockStyle}"
+                Margin="4,16,0,6" />
+
+            <!-- Language -->
+            <ctk:SettingsCard
+                Header="语言"
+                Description="切换语言后需要重新启动应用">
+                <ctk:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xF2B7;" />
+                </ctk:SettingsCard.HeaderIcon>
+                <ComboBox
+                    SelectedIndex="{x:Bind ViewModel.SelectedLanguageIndex, Mode=TwoWay}"
+                    MinWidth="180">
+                    <ComboBoxItem Content="跟随系统" />
+                    <ComboBoxItem Content="English" />
+                    <ComboBoxItem Content="中文（简体）" />
+                </ComboBox>
+            </ctk:SettingsCard>
+
+            <!-- Theme -->
+            <ctk:SettingsCard
+                Header="应用主题"
+                Description="立即生效，无需重启">
+                <ctk:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE771;" />
+                </ctk:SettingsCard.HeaderIcon>
+                <ComboBox
+                    SelectedIndex="{x:Bind ViewModel.Theme, Mode=TwoWay}"
+                    MinWidth="180">
+                    <ComboBoxItem Content="跟随系统" />
+                    <ComboBoxItem Content="浅色" />
+                    <ComboBoxItem Content="深色" />
+                </ComboBox>
+            </ctk:SettingsCard>
+
+            <!-- ══════════════════════════════════════════════════════════
+                 3. 行为
+            ═══════════════════════════════════════════════════════════ -->
+            <TextBlock
+                Text="行为"
+                Style="{ThemeResource SubtitleTextBlockStyle}"
+                Margin="4,16,0,6" />
+
+            <!-- Confirm before delete -->
+            <ctk:SettingsCard
+                Header="删除前确认"
+                Description="将照片移入回收站前弹出确认对话框">
+                <ctk:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE74D;" />
+                </ctk:SettingsCard.HeaderIcon>
+                <ToggleSwitch
+                    IsOn="{x:Bind ViewModel.ConfirmBeforeDelete, Mode=TwoWay}"
+                    OnContent=""
+                    OffContent="" />
+            </ctk:SettingsCard>
+
+            <!-- Preload count -->
+            <ctk:SettingsCard
+                Header="预加载张数"
+                Description="照片详情页中预加载相邻照片的数量（1–5 张）">
+                <ctk:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8C8;" />
+                </ctk:SettingsCard.HeaderIcon>
+                <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                    <Slider
+                        Value="{x:Bind ViewModel.PreloadCount, Mode=TwoWay}"
+                        Minimum="1"
+                        Maximum="5"
+                        StepFrequency="1"
+                        TickFrequency="1"
+                        TickPlacement="Outside"
+                        Width="180" />
+                    <TextBlock
+                        Text="{x:Bind ViewModel.PreloadCount, Mode=OneWay}"
+                        VerticalAlignment="Center"
+                        Style="{ThemeResource BodyStrongTextBlockStyle}"
+                        MinWidth="16" />
+                </StackPanel>
+            </ctk:SettingsCard>
+
+            <!-- ══════════════════════════════════════════════════════════
+                 4. 缓存与数据
+            ═══════════════════════════════════════════════════════════ -->
+            <TextBlock
+                Text="缓存与数据"
+                Style="{ThemeResource SubtitleTextBlockStyle}"
+                Margin="4,16,0,6" />
+
+            <!-- Thumbnail cache size (readonly) -->
+            <ctk:SettingsCard
+                Header="缩略图缓存"
+                Description="{x:Bind ViewModel.ThumbnailCacheSizeText, Mode=OneWay}">
+                <ctk:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8B9;" />
+                </ctk:SettingsCard.HeaderIcon>
+            </ctk:SettingsCard>
+
+            <!-- Clear thumbnail cache -->
+            <ctk:SettingsCard
+                Header="清除缩略图缓存"
+                Description="删除磁盘上的缩略图文件，下次查看照片时将重新生成">
+                <ctk:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xECCE;" />
+                </ctk:SettingsCard.HeaderIcon>
+                <Button Content="清除缩略图" Click="ClearThumbnails_Click" />
+            </ctk:SettingsCard>
+
+            <!-- Clear database cache -->
+            <ctk:SettingsCard
+                Header="清除数据库缓存"
+                Description="清空照片和缩略图记录，相册结构和设置将保留">
+                <ctk:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8E6;" />
+                </ctk:SettingsCard.HeaderIcon>
+                <Button Content="清除数据库" Click="ClearDbCache_Click" />
+            </ctk:SettingsCard>
+
+            <!-- Clear all data -->
+            <ctk:SettingsCard
+                Header="清除全部数据"
+                Description="删除所有应用数据（照片记录、相册、缩略图、设置），恢复出厂状态">
+                <ctk:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE894;" />
+                </ctk:SettingsCard.HeaderIcon>
+                <Button
+                    Content="清除全部数据"
+                    Style="{ThemeResource AccentButtonStyle}"
+                    Click="ClearAll_Click" />
+            </ctk:SettingsCard>
+
+            <!-- ══════════════════════════════════════════════════════════
+                 5. 关于
+            ═══════════════════════════════════════════════════════════ -->
+            <TextBlock
+                Text="关于"
+                Style="{ThemeResource SubtitleTextBlockStyle}"
+                Margin="4,16,0,6" />
+
+            <!-- App version -->
+            <ctk:SettingsCard
+                Header="Fluent Gallery"
+                Description="版本 1.0.0">
+                <ctk:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xEB9F;" />
+                </ctk:SettingsCard.HeaderIcon>
+            </ctk:SettingsCard>
+
+            <!-- Open-source repository -->
+            <ctk:SettingsCard
+                Header="开源仓库"
+                Description="在 GitHub 上查看源代码、提交 Issue 或贡献代码">
+                <ctk:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8A7;" />
+                </ctk:SettingsCard.HeaderIcon>
+                <HyperlinkButton
+                    Content="在 GitHub 上查看"
+                    NavigateUri="https://github.com/lyh54/ham-gallery" />
+            </ctk:SettingsCard>
+
+            <!-- Third-party licenses -->
+            <ctk:SettingsCard
+                Header="第三方许可证"
+                Description="CommunityToolkit.Mvvm · CommunityToolkit.WinUI · EF Core · MetadataExtractor">
+                <ctk:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE82D;" />
+                </ctk:SettingsCard.HeaderIcon>
+            </ctk:SettingsCard>
+
+        </StackPanel>
+    </ScrollViewer>
 </Page>

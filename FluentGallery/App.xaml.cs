@@ -1,4 +1,5 @@
 using FluentGallery.Data;
+using FluentGallery.Services;
 using FluentGallery.ViewModels;
 using FluentGallery.Views;
 using Microsoft.EntityFrameworkCore;
@@ -15,6 +16,11 @@ public partial class App : Application
 
     /// <summary>Gets the DI service provider for the application.</summary>
     public IServiceProvider Services { get; }
+
+
+
+    /// <summary>Gets the application's main window (set after <see cref="OnLaunched"/>).</summary>
+    public Window? MainWindow => _window;
 
     private Window? _window;
 
@@ -56,9 +62,13 @@ public partial class App : Application
 
         services.AddSingleton<DatabaseService>();
 
+        // Services
+        services.AddSingleton<IThemeService, WinUiThemeService>();
+
         // ViewModels
         services.AddTransient<MainWindowViewModel>();
         services.AddTransient<AlbumListViewModel>();
+        services.AddTransient<SettingsViewModel>();
 
         return services.BuildServiceProvider();
     }

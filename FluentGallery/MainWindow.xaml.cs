@@ -30,15 +30,55 @@ public sealed partial class MainWindow : Window
         _vm = App.Current.Services.GetRequiredService<MainWindowViewModel>();
         _vm.PinnedAlbums.CollectionChanged += OnPinnedAlbumsChanged;
 
-        // Initial size and min-size enforcement
-        AppWindow.Resize(new SizeInt32(1200, 800));
+        // Set initial window size using DPI-aware logical pixels,
+        // then centre on the display — the standard pattern for WinUI 3 apps.
+        SetInitialWindowSize(logicalWidth: 1400, logicalHeight: 900);
         AppWindow.Changed += OnAppWindowChanged;
+
+        // WinUI 3: closing the window does NOT exit the process by default.
+        // Subscribe here so the process terminates when the user closes the window.
+        this.Closed += (_, _) => Application.Current.Exit();
 
         // Navigate to default page
         NavView.SelectedItem = AlbumsNavItem;
 
         // Load pinned albums; populates dynamic nav items via CollectionChanged
         _ = _vm.LoadPinnedAlbumsAsync();
+    }
+
+    // ── Initial size + centering ─────────────────────────────────────────
+
+    /// <summary>
+    /// Resizes the window to <paramref name="logicalWidth"/> × <paramref name="logicalHeight"/>
+    /// logical pixels, capped at 90 % of the display work-area, and centres it on screen.
+    /// <para>
+    /// This is the standard approach for WinUI 3 apps: convert logical pixels → physical pixels
+    /// using the current DPI, then use <see cref="DisplayArea"/> for the work-area bounds.
+    /// </para>
+    /// </summary>
+    private void SetInitialWindowSize(int logicalWidth, int logicalHeight)
+    {
+        var hwnd       = WinRT.Interop.WindowNative.GetWindowHandle(this);
+        var windowId   = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
+        var display    = Microsoft.UI.Windowing.DisplayArea.GetFromWindowId(
+                             windowId, Microsoft.UI.Windowing.DisplayAreaFallback.Nearest);
+        var workArea   = display.WorkArea;
+        var dpi        = GetDpiForWindow(hwnd);
+        double scale   = dpi / 96.0;
+
+        // Convert the desired logical size to physical pixels.
+        int physW = (int)Math.Round(logicalWidth  * scale);
+        int physH = (int)Math.Round(logicalHeight * scale);
+
+        // Never exceed 90 % of the display work-area.
+        physW = Math.Min(physW, (int)(workArea.Width  * 0.90));
+        physH = Math.Min(physH, (int)(workArea.Height * 0.90));
+
+        // Centre the window within the work-area.
+        int x = workArea.X + (workArea.Width  - physW) / 2;
+        int y = workArea.Y + (workArea.Height - physH) / 2;
+
+        AppWindow.MoveAndResize(new Windows.Graphics.RectInt32(x, y, physW, physH));
     }
 
     // ── Minimum window size ───────────────────────────────────────────────────

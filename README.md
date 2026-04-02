@@ -44,14 +44,17 @@ dotnet build -p:Platform=x64 --runtime win-x64 --no-self-contained -c Debug
 dotnet build -p:Platform=x64 --runtime win-x64 --no-self-contained -c Debug ; .\bin\x64\Debug\net10.0-windows10.0.19041.0\win-x64\FluentGallery.exe
 ```
 
-### Hot reload (C# edits)
+### Watch mode（文件变更自动重建 + 重启）
+
+任何文件（`.cs` / `.xaml`）变更都会触发全量重建并自动重启。
 
 ```powershell
-dotnet watch run --project FluentGallery.csproj -p:Platform=x64 --runtime win-x64 --no-self-contained -c Debug
+dotnet watch run --no-hot-reload --project FluentGallery.csproj -p:Platform=x64 --runtime win-x64 --no-self-contained -c Debug
 ```
 
-> **Note:** `dotnet watch` supports C# hot reload (logic changes take effect without restart).  
-> XAML hot reload requires Visual Studio 2022 with the **XAML Hot Reload** toolbox.
+> **XAML 实时预览**需要 Visual Studio 2022（安装 **Windows App SDK** 扩展），在调试模式下修改 `.xaml` 可通过 XAML Hot Reload 工具栏即时刷新，无需重启。
+
+> **关闭窗口后进程仍在运行？** WinUI 3 关闭窗口不会自动退出进程（与 WPF/WinForms 不同），需在代码中显式调用 `Application.Current.Exit()`。本项目已在 `MainWindow.Closed` 事件里处理，关闭窗口即退出进程，`dotnet watch` 可正常检测到退出并重启。
 
 > **Note:** The project uses `WindowsPackageType=None` (unpackaged) so no MSIX packaging or sideloading is needed during development.  
 > You can also open `FluentGallery/FluentGallery.sln` in Visual Studio 2022, set the platform to **x64**, and press **F5**.
@@ -77,6 +80,19 @@ dotnet test FluentGallery.Tests\FluentGallery.Tests.csproj -p:Platform=x64 --run
 ```powershell
 dotnet test FluentGallery.Tests\FluentGallery.Tests.csproj -p:Platform=x64 --runtime win-x64 -c Debug --filter "FullyQualifiedName~DeletePhoto_CascadeDeletesThumbnail"
 ```
+
+## 运行时数据目录
+
+应用以非打包模式（unpackaged）运行，所有运行时数据存放在 `%LocalAppData%\FluentGallery\` 下：
+
+| 路径 | 用途 |
+|------|------|
+| `%LocalAppData%\FluentGallery\gallery.db` | SQLite 主数据库（相册、照片、设置） |
+| `%LocalAppData%\FluentGallery\Thumbnails\` | 生成的缩略图 JPEG 文件 |
+| `%LocalAppData%\FluentGallery\logs\` | 滚动日志文件 |
+| `%LocalAppData%\FluentGallery\Temp\` | 临时文件（如裁剪前备份） |
+
+在资源管理器地址栏输入 `%LocalAppData%\FluentGallery` 可直接打开该目录。
 
 ## Solution layout
 
