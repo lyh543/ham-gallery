@@ -6,6 +6,7 @@ using FluentGallery.Models;
 using FluentGallery.Services;
 using Microsoft.Extensions.Logging;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 
 namespace FluentGallery.ViewModels;
 
@@ -323,6 +324,33 @@ public sealed partial class SettingsViewModel : ObservableObject
             _logger.LogError(ex, "Failed to clear all data");
             IsWarningStatus = true;
             StatusMessage   = $"清除失败：{ex.Message}";
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    // Logs folder
+    // ────────────────────────────────────────────────────────────────────
+
+    /// <summary>Opens the logs directory in Windows Explorer.</summary>
+    [RelayCommand]
+    public void OpenLogsFolder()
+    {
+        var logsDir = AppDataPaths.LogsDirectory;
+        Directory.CreateDirectory(logsDir);
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName        = logsDir,
+                UseShellExecute = true,
+            });
+            _logger.LogInformation("用户打开了日志目录: {Dir}", logsDir);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "无法打开日志目录");
+            IsWarningStatus = true;
+            StatusMessage   = $"无法打开日志目录：{ex.Message}";
         }
     }
 

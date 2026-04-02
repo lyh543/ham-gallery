@@ -70,6 +70,85 @@ public sealed class DatabaseService
         return await db.Albums.FindAsync(new object[] { id }, ct);
     }
 
+    /// <summary>
+    /// Finds the album whose <see cref="Album.DirectoryPath"/> matches <paramref name="dirPath"/>,
+    /// creating one (named after the leaf directory) if none exists.
+    /// Uses a serialised retry to handle the rare concurrent-insert race.
+    /// </summary>
+    public async Task<long> GetOrCreateDirectoryAlbumAsync(string dirPath, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        var existing = await db.Albums
+            .Where(a => a.DirectoryPath == dirPath)
+            .Select(a => (long?)a.Id)
+            .FirstOrDefaultAsync(ct);
+
+        if (existing.HasValue) return existing.Value;
+
+        // Derive album name from the leaf folder name
+        var name = Path.GetFileName(
+            dirPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
+            ?? dirPath;
+
+        var now   = NowIso();
+        var album = new Album
+        {
+            Name          = name,
+            DirectoryPath = dirPath,
+            CreatedAt     = now,
+            ModifiedAt    = now,
+        };
+
+        db.Albums.Add(album);
+        await db.SaveChangesAsync(ct);
+        _logger.LogInformation("Created directory album '{Name}' for {Dir}", name, dirPath);
+        return album.Id;
+    }
+
+    /// <summary>
+    /// Finds every photo whose <see cref="Photo.AlbumId"/> is null, groups them by
+    /// their parent directory, creates (or finds) an album for each directory, and
+    /// batch-assigns the <see cref="Photo.AlbumId"/>.
+    /// Call this after a scan to repair photos inserted before album tracking existed.
+    /// </summary>
+    public async Task RepairOrphanAlbumIdsAsync(CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        var orphans = await db.Photos
+            .AsNoTracking()
+            .Where(p => p.AlbumId == null)
+            .Select(p => new { p.Id, p.FilePath })
+            .ToListAsync(ct);
+
+        if (orphans.Count == 0) return;
+
+        // Group by parent directory — each group gets its own album
+        var byDir = orphans
+            .GroupBy(o => Path.GetDirectoryName(o.FilePath) ?? string.Empty,
+                     StringComparer.OrdinalIgnoreCase)
+            .Where(g => !string.IsNullOrEmpty(g.Key));
+
+        int repaired = 0;
+        foreach (var group in byDir)
+        {
+            var albumId = await GetOrCreateDirectoryAlbumAsync(group.Key, ct);
+            var ids     = group.Select(o => o.Id).ToList();
+
+            foreach (var chunk in ids.Chunk(500))
+            {
+                repaired += await db.Photos
+                    .Where(p => chunk.Contains(p.Id))
+                    .ExecuteUpdateAsync(
+                        s => s.SetProperty(p => p.AlbumId, albumId), ct);
+            }
+        }
+
+        if (repaired > 0)
+            _logger.LogInformation("已为 {N} 张孤立照片补齐 AlbumId", repaired);
+    }
+
     /// <summary>Inserts a new album and returns the generated Id.</summary>
     public async Task<long> InsertAlbumAsync(Album album, CancellationToken ct = default)
     {
@@ -145,6 +224,31 @@ public sealed class DatabaseService
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.Photos.FirstOrDefaultAsync(p => p.FilePath == filePath, ct);
+    }
+
+    public async Task<Photo?> GetPhotoByIdAsync(long id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.Photos.FindAsync(new object[] { id }, ct);
+    }
+
+    /// <summary>
+    /// Loads a lightweight snapshot of every photo row — only the columns needed for the
+    /// "skip unchanged / detect changed" decision during a directory scan.
+    /// Avoids issuing one query per file and is safe to call from any thread.
+    /// </summary>
+    public async Task<Dictionary<string, PhotoScanMeta>> GetAllPhotoMetadataAsync(
+        CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.Photos
+            .AsNoTracking()
+            .Select(p => new { p.FilePath, p.Id, p.ModifiedAt })
+            .ToDictionaryAsync(
+                p => p.FilePath,
+                p => new PhotoScanMeta(p.Id, p.ModifiedAt),
+                StringComparer.OrdinalIgnoreCase,
+                ct);
     }
 
     /// <summary>
@@ -294,3 +398,9 @@ public sealed class DatabaseService
 
     private static string NowIso() => DateTime.UtcNow.ToString("O");
 }
+
+/// <summary>
+/// Lightweight projection returned by <see cref="DatabaseService.GetAllPhotoMetadataAsync"/>.
+/// Only carries the columns needed to decide whether a file has changed during a scan.
+/// </summary>
+public sealed record PhotoScanMeta(long Id, string ModifiedAt);

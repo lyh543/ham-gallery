@@ -1,11 +1,15 @@
 using FluentGallery.Data;
+using FluentGallery.Helpers;
 using FluentGallery.Services;
 using FluentGallery.ViewModels;
 using FluentGallery.Views;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
+using Serilog;
+using Serilog.Events;
 
 namespace FluentGallery;
 
@@ -34,13 +38,29 @@ public partial class App : Application
     {
         var services = new ServiceCollection();
 
-        // Logging
+        // ── File logging via Serilog ──────────────────────────────────────────
+        AppDataPaths.EnsureDirectoriesExist();
+        var logPath = Path.Combine(AppDataPaths.LogsDirectory, "app-.log");
+
+        Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Debug()
+            .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
+            .Enrich.FromLogContext()
+            .WriteTo.File(
+                logPath,
+                rollingInterval:        RollingInterval.Day,
+                retainedFileCountLimit: 7,
+                outputTemplate:
+                    "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}")
+#if DEBUG
+            .WriteTo.Debug()
+#endif
+            .CreateLogger();
+
         services.AddLogging(logging =>
         {
             logging.SetMinimumLevel(LogLevel.Debug);
-#if DEBUG
-            logging.AddDebug();
-#endif
+            logging.AddSerilog(dispose: true);
         });
 
         // Data layer — EF Core factory + service facade
@@ -62,12 +82,18 @@ public partial class App : Application
 
         services.AddSingleton<DatabaseService>();
 
+        // Data services
+        services.AddSingleton<ExifService>();
+        services.AddSingleton<ThumbnailService>();
+        services.AddSingleton<ScanService>();
+
         // Services
         services.AddSingleton<IThemeService, WinUiThemeService>();
 
         // ViewModels
+        // AlbumListViewModel is Singleton so it can hold a long-lived ScanService subscription
         services.AddTransient<MainWindowViewModel>();
-        services.AddTransient<AlbumListViewModel>();
+        services.AddSingleton<AlbumListViewModel>();
         services.AddTransient<SettingsViewModel>();
 
         return services.BuildServiceProvider();
@@ -75,11 +101,23 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
-        // Initialise DB schema before showing any UI.
-        var db = Services.GetRequiredService<DatabaseService>();
-        _ = db.InitializeAsync();
-
         _window = new MainWindow();
         _window.Activate();
+
+        // Initialise DB, then kick off background scan — fire-and-forget,
+        // the UI already shows whatever is already in the database.
+        _ = InitAndScanAsync();
+    }
+
+    private async Task InitAndScanAsync()
+    {
+        var db   = Services.GetRequiredService<DatabaseService>();
+        var scan = Services.GetRequiredService<ScanService>();
+
+        await db.InitializeAsync();
+
+        var settings   = await db.LoadSettingsAsync();
+        var dispatcher = _window?.DispatcherQueue;
+        await scan.StartAsync(settings, dispatcher);
     }
 }
