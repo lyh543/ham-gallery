@@ -3,16 +3,23 @@ TEST_PROJ = FluentGallery.Tests\FluentGallery.Tests.csproj
 EXE       = FluentGallery\bin\x64\Debug\net10.0-windows10.0.19041.0\win-x64\FluentGallery.exe
 
 .DEFAULT_GOAL := build
-.PHONY: build run watch build-run test-all test help
+.PHONY: build run watch build-run test-all test help kill
 
-build:
+PID_FILE = .run.pid
+RUN_PS   = powershell -NoProfile -ExecutionPolicy Bypass -File tools/run.ps1 -ExePath $(EXE) -PidFile $(PID_FILE)
+KILL_PS  = powershell -NoProfile -ExecutionPolicy Bypass -File tools/kill.ps1 -PidFile $(PID_FILE)
+
+kill:
+	-$(KILL_PS)
+
+build: kill
 	dotnet build $(PROJ) -p:Platform=x64 --runtime win-x64 --no-self-contained -c Debug
 
 run:
-	$(EXE)
+	$(RUN_PS)
 
 build-run: build
-	$(EXE)
+	$(RUN_PS)
 
 watch:
 	dotnet watch run --no-hot-reload --project $(PROJ) -p:Platform=x64 --runtime win-x64 --no-self-contained -c Debug

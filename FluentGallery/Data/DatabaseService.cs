@@ -29,6 +29,7 @@ public sealed class DatabaseService
 
     /// <summary>
     /// Creates (or validates) the database schema via EF Core.
+    /// Also ensures tables added in later versions exist in older databases.
     /// Call once at application startup before any other method.
     /// </summary>
     public async Task InitializeAsync(CancellationToken ct = default)
@@ -37,6 +38,21 @@ public sealed class DatabaseService
         await db.Database.EnsureCreatedAsync(ct);
         _logger.LogInformation("Database initialised at: {Path}",
             db.Database.GetDbConnection().DataSource);
+
+        // Idempotent: creates the DeletedPhotos table if it doesn't exist yet
+        // (needed for databases created before this table was added).
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS "DeletedPhotos" (
+                "Id"                    INTEGER NOT NULL CONSTRAINT "PK_DeletedPhotos" PRIMARY KEY AUTOINCREMENT,
+                "FilePath"              TEXT    NOT NULL,
+                "PhotoJson"             TEXT    NOT NULL,
+                "ThumbPath"             TEXT,
+                "ThumbSourceModifiedAt" TEXT,
+                "DeletedAt"             TEXT    NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS "idx_deletedphotos_deletedat"
+                ON "DeletedPhotos" ("DeletedAt");
+            """, ct);
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -392,6 +408,63 @@ public sealed class DatabaseService
         await db.Albums.ExecuteDeleteAsync(ct);
         await db.Settings.ExecuteDeleteAsync(ct);
         _logger.LogInformation("All application data cleared");
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // DeletedPhotos (undo history)
+    // ────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Persists a snapshot of <paramref name="photo"/> and its thumbnail so the
+    /// deletion can be undone later.
+    /// </summary>
+    public async Task<long> InsertDeletedPhotoAsync(
+        Photo       photo,
+        string?     thumbPath,
+        string?     thumbSourceModifiedAt,
+        CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var record = new DeletedPhoto
+        {
+            FilePath              = photo.FilePath,
+            PhotoJson             = System.Text.Json.JsonSerializer.Serialize(photo),
+            ThumbPath             = thumbPath,
+            ThumbSourceModifiedAt = thumbSourceModifiedAt,
+            DeletedAt             = NowIso(),
+        };
+        db.DeletedPhotos.Add(record);
+        await db.SaveChangesAsync(ct);
+        return record.Id;
+    }
+
+    /// <summary>Returns the undo record for the given row Id, or <c>null</c> if not found.</summary>
+    public async Task<DeletedPhoto?> GetDeletedPhotoAsync(long id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.DeletedPhotos.FindAsync(new object[] { id }, ct);
+    }
+
+    /// <summary>Removes the undo record after a successful restore.</summary>
+    public async Task DeleteDeletedPhotoAsync(long id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        await db.DeletedPhotos.Where(d => d.Id == id).ExecuteDeleteAsync(ct);
+    }
+
+    /// <summary>
+    /// Deletes all <see cref="DeletedPhoto"/> records whose <c>DeletedAt</c> timestamp
+    /// is older than one month. Call this at application startup.
+    /// </summary>
+    public async Task CleanupOldDeletedPhotosAsync(CancellationToken ct = default)
+    {
+        var cutoff = DateTime.UtcNow.AddMonths(-1).ToString("O");
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        int deleted = await db.DeletedPhotos
+            .Where(d => string.Compare(d.DeletedAt, cutoff, StringComparison.Ordinal) < 0)
+            .ExecuteDeleteAsync(ct);
+        if (deleted > 0)
+            _logger.LogInformation("Cleaned up {N} stale DeletedPhoto records", deleted);
     }
 
     // ────────────────────────────────────────────────────────────────────────

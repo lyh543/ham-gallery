@@ -4,29 +4,211 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="using:FluentGallery.ViewModels"
+    xmlns:conv="using:FluentGallery.Converters"
     mc:Ignorable="d"
     Background="Transparent">
 
+    <Page.Resources>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVisibility"/>
+
+        <!-- Photo thumbnail card -->
+        <DataTemplate x:Key="PhotoCardTemplate" x:DataType="vm:PhotoItemViewModel">
+            <Grid>
+                <!-- Layer 1: background placeholder icon (always present; covered by image when loaded) -->
+                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                    <FontIcon
+                        FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                        Glyph="&#xEB9F;"
+                        FontSize="28"
+                        Opacity="0.2"/>
+                </Border>
+
+                <!-- Layer 2: thumbnail image (covers placeholder when source is set) -->
+                <Image
+                    Source="{x:Bind ThumbnailSource, Mode=OneWay}"
+                    Stretch="UniformToFill"/>
+
+                <!-- Layer 3: loading overlay (shown while thumbnail is being generated) -->
+                <Border
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    Opacity="0.7"
+                    Visibility="{x:Bind IsLoading, Mode=OneWay,
+                                         Converter={StaticResource BoolToVisibility}}">
+                    <ProgressRing
+                        IsActive="{x:Bind IsLoading, Mode=OneWay}"
+                        Width="28" Height="28"/>
+                </Border>
+            </Grid>
+        </DataTemplate>
+    </Page.Resources>
+
     <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- Album title / inline rename -->
+            <RowDefinition Height="Auto"/> <!-- CommandBar toolbar -->
+            <RowDefinition Height="*"/>    <!-- Photo grid -->
+        </Grid.RowDefinitions>
+
+        <!-- ── Album title ── -->
+        <Grid Grid.Row="0" Padding="20 12 20 4">
+            <!-- Normal title (double-tap to rename) -->
+            <TextBlock
+                x:Name="AlbumTitleBlock"
+                Text="{x:Bind ViewModel.AlbumName, Mode=OneWay}"
+                Style="{ThemeResource TitleTextBlockStyle}"
+                DoubleTapped="AlbumTitle_DoubleTapped"
+                ToolTipService.ToolTip="双击以重命名相册"
+                Visibility="{x:Bind ViewModel.IsRenamingAlbum, Mode=OneWay,
+                                     Converter={StaticResource BoolToVisibility},
+                                     ConverterParameter='True'}"/>
+
+            <!-- Rename TextBox (visible during inline edit) -->
+            <TextBox
+                x:Name="AlbumRenameBox"
+                Text="{x:Bind ViewModel.EditAlbumName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                FontSize="20"
+                FontWeight="SemiBold"
+                BorderThickness="0 0 0 2"
+                Background="Transparent"
+                KeyDown="AlbumRenameBox_KeyDown"
+                LostFocus="AlbumRenameBox_LostFocus"
+                Visibility="{x:Bind ViewModel.IsRenamingAlbum, Mode=OneWay,
+                                     Converter={StaticResource BoolToVisibility}}"/>
+        </Grid>
+
+        <!-- ── Toolbar ── -->
+        <CommandBar
+            Grid.Row="1"
+            DefaultLabelPosition="Right"
+            Background="Transparent"
+            OverflowButtonVisibility="Collapsed">
+
+            <!-- Add photos -->
+            <AppBarButton
+                x:Name="AddPhotosButton"
+                Icon="Add"
+                Label="添加照片"
+                Click="AddPhotos_Click"/>
+
+            <!-- Delete (enabled only in multi-select mode with ≥1 selection) -->
+            <AppBarButton
+                x:Name="DeleteButton"
+                Icon="Delete"
+                Label="删除"
+                Click="Delete_Click"
+                IsEnabled="{x:Bind ViewModel.IsMultiSelectMode, Mode=OneWay}"/>
+
+            <!-- Move to album -->
+            <AppBarButton
+                x:Name="MoveToAlbumButton"
+                Icon="MoveToFolder"
+                Label="移到相册"
+                IsEnabled="{x:Bind ViewModel.IsMultiSelectMode, Mode=OneWay}"
+                Click="MoveToAlbum_Click"/>
+
+            <AppBarSeparator/>
+
+            <!-- Sort -->
+            <AppBarButton Icon="Sort" Label="排序">
+                <AppBarButton.Flyout>
+                    <MenuFlyout x:Name="SortFlyout">
+                        <MenuFlyoutItem Text="文件名"   Tag="Name"       Click="SortMenuItem_Click"/>
+                        <MenuFlyoutItem Text="文件大小" Tag="Size"       Click="SortMenuItem_Click"/>
+                        <MenuFlyoutItem Text="创建时间" Tag="CreatedAt"  Click="SortMenuItem_Click"/>
+                        <MenuFlyoutItem Text="修改时间" Tag="ModifiedAt" Click="SortMenuItem_Click"/>
+                        <MenuFlyoutItem Text="拍摄时间" Tag="TakenAt"    Click="SortMenuItem_Click"/>
+                        <MenuFlyoutItem Text="自然排序" Tag="Natural"    Click="SortMenuItem_Click"/>
+                        <MenuFlyoutSeparator/>
+                        <ToggleMenuFlyoutItem
+                            x:Name="SortDescToggle"
+                            Text="降序"
+                            Click="SortDescToggle_Click"/>
+                    </MenuFlyout>
+                </AppBarButton.Flyout>
+            </AppBarButton>
+
+            <!-- Multi-select toggle -->
+            <AppBarToggleButton
+                x:Name="MultiSelectToggle"
+                Label="多选"
+                IsChecked="{x:Bind ViewModel.IsMultiSelectMode, Mode=OneWay}"
+                Click="MultiSelectToggle_Click">
+                <AppBarToggleButton.Icon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE762;"/>
+                </AppBarToggleButton.Icon>
+            </AppBarToggleButton>
+        </CommandBar>
+
+        <!-- ── Photo grid ── -->
+        <GridView
+            x:Name="PhotoGridView"
+            Grid.Row="2"
+            ItemsSource="{x:Bind ViewModel.Photos}"
+            SelectionMode="None"
+            IsItemClickEnabled="True"
+            ItemClick="PhotoGridView_ItemClick"
+            ContainerContentChanging="PhotoGridView_ContainerContentChanging"
+            SizeChanged="PhotoGridView_SizeChanged"
+            ManipulationMode="Scale,System"
+            ManipulationDelta="PhotoGridView_ManipulationDelta"
+            Padding="4 0 4 24">
+
+            <GridView.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <ItemsWrapGrid
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Left"
+                        ItemWidth="180"
+                        ItemHeight="180"/>
+                </ItemsPanelTemplate>
+            </GridView.ItemsPanel>
+
+            <GridView.ItemContainerStyle>
+                <Style TargetType="GridViewItem" BasedOn="{StaticResource DefaultGridViewItemStyle}">
+                    <Setter Property="Padding"       Value="0"/>
+                    <Setter Property="Margin"        Value="2"/>
+                    <Setter Property="CornerRadius"  Value="6"/>
+                    <Setter Property="MinWidth"      Value="0"/>
+                    <Setter Property="MinHeight"     Value="0"/>
+                </Style>
+            </GridView.ItemContainerStyle>
+
+            <GridView.ItemTemplate>
+                <StaticResource ResourceKey="PhotoCardTemplate"/>
+            </GridView.ItemTemplate>
+        </GridView>
+
+        <!-- Loading overlay -->
+        <ProgressRing
+            Grid.Row="2"
+            IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}"
+            Width="48" Height="48"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"/>
+
+        <!-- Empty state -->
         <StackPanel
+            x:Name="EmptyStatePanel"
+            Grid.Row="2"
             HorizontalAlignment="Center"
             VerticalAlignment="Center"
-            Spacing="12">
+            Spacing="12"
+            Visibility="Collapsed">
             <FontIcon
                 FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
                 Glyph="&#xEB9F;"
                 FontSize="64"
-                Opacity="0.4" />
+                Opacity="0.3"/>
             <TextBlock
-                Text="照片列表"
+                Text="相册中还没有照片"
                 HorizontalAlignment="Center"
-                Style="{ThemeResource TitleLargeTextBlockStyle}" />
+                Style="{ThemeResource SubtitleTextBlockStyle}"/>
             <TextBlock
-                Text="（即将实现 · Coming soon）"
+                Text="点击「添加照片」将照片加入此相册"
                 HorizontalAlignment="Center"
                 Style="{ThemeResource BodyTextBlockStyle}"
-                Opacity="0.6" />
+                Opacity="0.6"/>
         </StackPanel>
     </Grid>
-
 </Page>

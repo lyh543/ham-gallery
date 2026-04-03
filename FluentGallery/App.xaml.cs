@@ -94,7 +94,10 @@ public partial class App : Application
         // AlbumListViewModel is Singleton so it can hold a long-lived ScanService subscription
         services.AddTransient<MainWindowViewModel>();
         services.AddSingleton<AlbumListViewModel>();
+        services.AddTransient<PhotoListViewModel>();
         services.AddTransient<SettingsViewModel>();
+        // PhotoDetailViewModel is Transient: each navigation creates a fresh instance
+        services.AddTransient<PhotoDetailViewModel>();
 
         return services.BuildServiceProvider();
     }
@@ -115,6 +118,9 @@ public partial class App : Application
         var scan = Services.GetRequiredService<ScanService>();
 
         await db.InitializeAsync();
+
+        // Remove DeletedPhoto snapshots older than one month (fire-and-forget)
+        _ = db.CleanupOldDeletedPhotosAsync();
 
         var settings   = await db.LoadSettingsAsync();
         var dispatcher = _window?.DispatcherQueue;

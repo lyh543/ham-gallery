@@ -26,6 +26,8 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.0" />
     <!-- MVVM toolkit (needed by SettingsViewModel) -->
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <!-- Windows App SDK: provides Windows.Graphics.Imaging and WinRT interop for ThumbnailService tests -->
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260317003" />
   </ItemGroup>
 
   <ItemGroup>
@@ -35,12 +37,21 @@
     <Compile Include="..\FluentGallery\Models\Thumbnail.cs" />
     <Compile Include="..\FluentGallery\Models\Setting.cs" />
     <Compile Include="..\FluentGallery\Models\AppSettings.cs" />
+    <Compile Include="..\FluentGallery\Models\DeletedPhoto.cs" />
     <Compile Include="..\FluentGallery\Data\GalleryDbContext.cs" />
     <Compile Include="..\FluentGallery\Data\DatabaseService.cs" />
+    <Compile Include="..\FluentGallery\Data\ThumbnailService.cs" />
     <!-- SettingsViewModel and its dependencies (no WinUI types) -->
     <Compile Include="..\FluentGallery\Helpers\AppDataPaths.cs" />
     <Compile Include="..\FluentGallery\Services\IThemeService.cs" />
     <Compile Include="..\FluentGallery\ViewModels\SettingsViewModel.cs" />
+  </ItemGroup>
+
+  <!-- Test data: images used as regression fixtures -->
+  <ItemGroup>
+    <Content Include="TestData\**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
   <!-- Shared using alias so the test project compiles without the full WinUI namespace tree -->

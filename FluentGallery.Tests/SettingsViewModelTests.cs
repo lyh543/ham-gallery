@@ -222,7 +222,7 @@ public sealed class SettingsViewModelTests : IAsyncLifetime
         Assert.Empty(Sut.ScanDirectories);
         Assert.Empty(Sut.ExcludeDirectories);
         Assert.Equal(0, Sut.Theme);           // default = system
-        Assert.Equal(2, Sut.PreloadCount);    // default = 2
+        Assert.Equal(5, Sut.PreloadCount);    // default = 2
         Assert.True(Sut.ConfirmBeforeDelete); // default = true
     }
 

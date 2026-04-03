@@ -2,6 +2,7 @@ using MetadataExtractor;
 using MetadataExtractor.Formats.Exif;
 using MetadataExtractor.Formats.Jpeg;
 using MetadataExtractor.Formats.Png;
+using MetadataExtractor.Formats.WebP;
 using Microsoft.Extensions.Logging;
 
 namespace FluentGallery.Data;
@@ -31,6 +32,7 @@ public sealed class ExifService
             ExtractExifSubIfd(directories, result);
             ExtractExifIfd0(directories, result);
             ExtractGps(directories, result);
+            ExtractColorInfo(directories, result);
         }
         catch (Exception ex)
         {
@@ -64,7 +66,7 @@ public sealed class ExifService
         }
     }
 
-    // ── EXIF SubIFD (date/time, lens, pixel dimensions) ─────────────────────
+    // ── EXIF SubIFD (date/time, lens, exposure, pixel dimensions) ───────────
 
     private static void ExtractExifSubIfd(IReadOnlyList<MetadataExtractor.Directory> dirs, ExifData result)
     {
@@ -80,6 +82,35 @@ public sealed class ExifService
             result.Width = sub.GetInt32(ExifSubIfdDirectory.TagExifImageWidth);
         if (!result.Height.HasValue && sub.ContainsTag(ExifSubIfdDirectory.TagExifImageHeight))
             result.Height = sub.GetInt32(ExifSubIfdDirectory.TagExifImageHeight);
+
+        // Aperture (f-number)
+        if (sub.ContainsTag(ExifSubIfdDirectory.TagFNumber))
+        {
+            var r = sub.GetRational(ExifSubIfdDirectory.TagFNumber);
+            if (r.Denominator != 0) result.Aperture = r.ToDouble();
+        }
+
+        // Exposure time (shutter speed) in seconds
+        if (sub.ContainsTag(ExifSubIfdDirectory.TagExposureTime))
+        {
+            var r = sub.GetRational(ExifSubIfdDirectory.TagExposureTime);
+            if (r.Denominator != 0) result.ShutterSpeed = r.ToDouble();
+        }
+
+        // ISO sensitivity
+        if (sub.ContainsTag(ExifSubIfdDirectory.TagIsoEquivalent))
+            result.Iso = sub.GetInt32(ExifSubIfdDirectory.TagIsoEquivalent);
+
+        // Focal length in mm
+        if (sub.ContainsTag(ExifSubIfdDirectory.TagFocalLength))
+        {
+            var r = sub.GetRational(ExifSubIfdDirectory.TagFocalLength);
+            if (r.Denominator != 0) result.FocalLength = r.ToDouble();
+        }
+
+        // Lens model (usually in SubIFD)
+        if (sub.ContainsTag(ExifSubIfdDirectory.TagLensModel))
+            result.LensModel = TrimOrNull(sub.GetDescription(ExifSubIfdDirectory.TagLensModel));
     }
 
     // ── EXIF IFD0 (camera, orientation, fallback date) ──────────────────────
@@ -115,6 +146,37 @@ public sealed class ExifService
         }
     }
 
+    // ── Color space & bit depth ──────────────────────────────────────────────
+
+    private static void ExtractColorInfo(IReadOnlyList<MetadataExtractor.Directory> dirs, ExifData result)
+    {
+        // Color space from EXIF SubIFD (1=sRGB, 65535=uncalibrated/Adobe RGB)
+        var sub = dirs.OfType<ExifSubIfdDirectory>().FirstOrDefault();
+        if (sub is not null && sub.ContainsTag(ExifSubIfdDirectory.TagColorSpace))
+        {
+            result.ColorSpace = sub.GetInt32(ExifSubIfdDirectory.TagColorSpace) switch
+            {
+                1     => "sRGB",
+                65535 => "Uncalibrated",
+                _     => null
+            };
+        }
+
+        // Bit depth: JPEG uses data precision (bits per sample = per channel)
+        var jpeg = dirs.OfType<JpegDirectory>().FirstOrDefault();
+        if (jpeg is not null && jpeg.ContainsTag(JpegDirectory.TagDataPrecision))
+        {
+            result.BitDepth = jpeg.GetInt32(JpegDirectory.TagDataPrecision);
+            return;
+        }
+
+        // PNG: bits per sample (per channel)
+        var png = dirs.OfType<PngDirectory>()
+            .FirstOrDefault(d => d.ContainsTag(PngDirectory.TagBitsPerSample));
+        if (png is not null)
+            result.BitDepth = png.GetInt32(PngDirectory.TagBitsPerSample);
+    }
+
     // ────────────────────────────────────────────────────────────────────────
 
     private static string? TrimOrNull(string? s) =>
@@ -134,10 +196,29 @@ public sealed class ExifData
 
     public string? CameraMake  { get; set; }
     public string? CameraModel { get; set; }
+    public string? LensModel   { get; set; }
 
     /// <summary>EXIF Orientation tag value (1–8), or null if absent.</summary>
-    public int?    Orientation { get; set; }
+    public int?    Orientation  { get; set; }
 
-    public double? Latitude    { get; set; }
-    public double? Longitude   { get; set; }
+    public double? Latitude     { get; set; }
+    public double? Longitude    { get; set; }
+
+    /// <summary>f-number (e.g. 2.8 for f/2.8).</summary>
+    public double? Aperture     { get; set; }
+
+    /// <summary>Exposure time in seconds (e.g. 0.001 for 1/1000 s).</summary>
+    public double? ShutterSpeed { get; set; }
+
+    /// <summary>ISO sensitivity equivalent.</summary>
+    public int?    Iso          { get; set; }
+
+    /// <summary>Focal length in millimetres.</summary>
+    public double? FocalLength  { get; set; }
+
+    /// <summary>Color space (e.g. "sRGB", "Uncalibrated").</summary>
+    public string? ColorSpace   { get; set; }
+
+    /// <summary>Bits per sample / channel (e.g. 8 for most JPEGs).</summary>
+    public int?    BitDepth     { get; set; }
 }

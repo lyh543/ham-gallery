@@ -33,8 +33,8 @@ public sealed class AppSettings
     /// <summary>Show a confirmation dialog before deleting a photo.</summary>
     public bool ConfirmBeforeDelete { get; set; } = true;
 
-    /// <summary>Number of adjacent photos to pre-load in the detail view (1–5).</summary>
-    public int PreloadCount { get; set; } = 2;
+    /// <summary>Number of adjacent photos to pre-load in the detail view (1–10).</summary>
+    public int PreloadCount { get; set; } = 5;
 
     /// <summary>Maximum in-memory image cache size in bytes. Default 512 MB.</summary>
     public long MemoryCacheLimitBytes { get; set; } = 512L * 1024 * 1024;

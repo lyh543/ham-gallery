@@ -9,10 +9,11 @@ namespace FluentGallery.Data;
 /// </summary>
 public sealed class GalleryDbContext : DbContext
 {
-    public DbSet<Album>     Albums     => Set<Album>();
-    public DbSet<Photo>     Photos     => Set<Photo>();
-    public DbSet<Thumbnail> Thumbnails => Set<Thumbnail>();
-    public DbSet<Setting>   Settings   => Set<Setting>();
+    public DbSet<Album>        Albums        => Set<Album>();
+    public DbSet<Photo>        Photos        => Set<Photo>();
+    public DbSet<Thumbnail>    Thumbnails    => Set<Thumbnail>();
+    public DbSet<Setting>      Settings      => Set<Setting>();
+    public DbSet<DeletedPhoto> DeletedPhotos => Set<DeletedPhoto>();
 
     public GalleryDbContext(DbContextOptions<GalleryDbContext> options) : base(options) { }
 
@@ -79,6 +80,16 @@ public sealed class GalleryDbContext : DbContext
         mb.Entity<Setting>(e =>
         {
             e.HasKey(s => s.Key);
+        });
+
+        // ── DeletedPhotos ─────────────────────────────────────────────────────
+        mb.Entity<DeletedPhoto>(e =>
+        {
+            e.HasKey(d => d.Id);
+            e.Property(d => d.FilePath).IsRequired();
+            e.Property(d => d.PhotoJson).IsRequired();
+            e.Property(d => d.DeletedAt).IsRequired();
+            e.HasIndex(d => d.DeletedAt).HasDatabaseName("idx_deletedphotos_deletedat");
         });
     }
 }

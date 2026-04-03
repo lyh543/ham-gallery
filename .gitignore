@@ -29,6 +29,9 @@ publish/
 # 实体框架 (EF) 迁移生成的缓存
 .unfave/
 
+## --- Make run PID file ---
+.run.pid
+
 ## --- 操作系统临时文件 ---
 .DS_Store
 Thumbs.db

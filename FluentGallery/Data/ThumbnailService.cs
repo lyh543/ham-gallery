@@ -38,6 +38,16 @@ public sealed class ThumbnailService
         _logger = logger;
     }
 
+    // ── Formats that crash Windows.Graphics.Imaging rather than throwing ────────
+    //
+    // HEIC/HEIF files: when the HEVC codec is absent (or partially installed),
+    // BitmapDecoder.GetPixelDataAsync triggers a native SEH access violation
+    // (0xc0000005) inside Windows.Graphics.dll that .NET cannot catch, causing
+    // an immediate process termination.  Skip them entirely so the placeholder
+    // icon is shown instead of crashing.
+    private static readonly HashSet<string> _noCrashSkipExtensions =
+        new(StringComparer.OrdinalIgnoreCase) { ".heic", ".heif" };
+
     // ── Public API ───────────────────────────────────────────────────────────
 
     /// <summary>
@@ -46,6 +56,11 @@ public sealed class ThumbnailService
     /// </summary>
     public async Task<string?> GetOrCreateThumbnailAsync(Photo photo, CancellationToken ct = default)
     {
+        // Bail out early for formats known to crash the Windows.Graphics codec
+        // layer with a native access violation rather than a managed exception.
+        if (_noCrashSkipExtensions.Contains(Path.GetExtension(photo.FilePath)))
+            return null;
+
         var thumbPath        = GetThumbPath(photo.FilePath);
         var sourceModifiedAt = photo.ModifiedAt;
 
@@ -117,10 +132,15 @@ public sealed class ThumbnailService
     /// <summary>
     /// Decodes <paramref name="sourcePath"/> with WIC, scales it to fit inside
     /// <see cref="ThumbSize"/>×<see cref="ThumbSize"/> (preserving aspect ratio),
-    /// respects EXIF orientation, and writes a JPEG to <paramref name="destPath"/>.
-    /// Runs fully on the calling (background) thread.
+    /// applies EXIF orientation, and writes a JPEG to <paramref name="destPath"/>.
+    ///
+    /// EXIF rotation is handled manually via <see cref="BitmapTransform.Rotation"/>
+    /// and <see cref="BitmapTransform.Flip"/> rather than
+    /// <see cref="ExifOrientationMode.RespectExifOrientation"/>, because WIC's
+    /// built-in EXIF handling produces garbled output on certain images when
+    /// combined with scaling.
     /// </summary>
-    private static async Task GenerateAsync(string sourcePath, string destPath, CancellationToken ct)
+    internal static async Task GenerateAsync(string sourcePath, string destPath, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
 
@@ -129,21 +149,34 @@ public sealed class ThumbnailService
         var srcRas  = srcStream.AsRandomAccessStream();
         var decoder = await BitmapDecoder.CreateAsync(srcRas).AsTask(ct);
 
-        // Compute fit-inside dimensions
-        (uint dstW, uint dstH) = FitInside(decoder.PixelWidth, decoder.PixelHeight, ThumbSize);
+        uint physW = decoder.PixelWidth;
+        uint physH = decoder.PixelHeight;
+
+        ushort exifOrient = await ReadExifOrientationAsync(decoder, ct);
+        bool   rotSwaps   = exifOrient is 5 or 6 or 7 or 8;
+
+        // FitInside targets the final (post-rotation) logical dimensions.
+        (uint logW, uint logH) = rotSwaps ? (physH, physW) : (physW, physH);
+        (uint finalW, uint finalH) = FitInside(logW, logH, ThumbSize);
+
+        // BitmapTransform scales BEFORE rotating, so pre-rotation scale dims
+        // must be swapped back when a 90°/270° rotation is involved.
+        (uint scaleW, uint scaleH) = rotSwaps ? (finalH, finalW) : (finalW, finalH);
 
         var transform = new BitmapTransform
         {
-            ScaledWidth        = dstW,
-            ScaledHeight       = dstH,
-            InterpolationMode  = BitmapInterpolationMode.Fant,
+            ScaledWidth       = scaleW,
+            ScaledHeight      = scaleH,
+            InterpolationMode = BitmapInterpolationMode.Fant,
+            Rotation          = ExifToRotation(exifOrient),
+            Flip              = ExifToFlip(exifOrient),
         };
 
         var pixelData = await decoder.GetPixelDataAsync(
             BitmapPixelFormat.Bgra8,
-            BitmapAlphaMode.Premultiplied,
+            BitmapAlphaMode.Ignore,
             transform,
-            ExifOrientationMode.RespectExifOrientation,
+            ExifOrientationMode.IgnoreExifOrientation,
             ColorManagementMode.ColorManageToSRgb).AsTask(ct);
 
         var pixels = pixelData.DetachPixelData();
@@ -156,8 +189,8 @@ public sealed class ThumbnailService
 
         encoder.SetPixelData(
             BitmapPixelFormat.Bgra8,
-            BitmapAlphaMode.Premultiplied,
-            dstW, dstH,
+            BitmapAlphaMode.Ignore,
+            finalW, finalH,
             decoder.DpiX, decoder.DpiY,
             pixels);
 
@@ -176,7 +209,7 @@ public sealed class ThumbnailService
         await memRas.AsStreamForRead().CopyToAsync(dstStream, ct);
     }
 
-    // ── Geometry helper ──────────────────────────────────────────────────────
+    // ── Geometry helpers ─────────────────────────────────────────────────────
 
     /// <summary>
     /// Returns the largest (w, h) pair that fits inside a <paramref name="box"/>×<paramref name="box"/>
@@ -191,4 +224,37 @@ public sealed class ThumbnailService
         else
             return ((uint)Math.Max(1, Math.Round(box * (double)srcW / srcH)), box);
     }
+
+    // ── EXIF helpers ─────────────────────────────────────────────────────────
+
+    private static async Task<ushort> ReadExifOrientationAsync(
+        BitmapDecoder decoder, CancellationToken ct)
+    {
+        try
+        {
+            var props = await decoder.BitmapProperties
+                .GetPropertiesAsync(new[] { "System.Photo.Orientation" }).AsTask(ct);
+
+            if (props.TryGetValue("System.Photo.Orientation", out var v) && v.Value is ushort orient)
+                return orient;
+        }
+        catch { /* no EXIF tag or unreadable — treat as normal orientation */ }
+
+        return 1; // Normal / absent
+    }
+
+    private static BitmapRotation ExifToRotation(ushort orient) => orient switch
+    {
+        3 or 4 => BitmapRotation.Clockwise180Degrees,
+        5 or 6 => BitmapRotation.Clockwise90Degrees,
+        7 or 8 => BitmapRotation.Clockwise270Degrees,
+        _      => BitmapRotation.None,
+    };
+
+    private static BitmapFlip ExifToFlip(ushort orient) => orient switch
+    {
+        2 or 7 => BitmapFlip.Horizontal,
+        4 or 5 => BitmapFlip.Vertical,
+        _      => BitmapFlip.None,
+    };
 }

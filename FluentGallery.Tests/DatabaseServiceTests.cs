@@ -322,7 +322,7 @@ public sealed class DatabaseServiceTests : IAsyncLifetime
 
         Assert.Equal(string.Empty, settings.Language);
         Assert.Equal(0,            settings.Theme);
-        Assert.Equal(2,            settings.PreloadCount);
+        Assert.Equal(5,            settings.PreloadCount);
         Assert.True(settings.RecursiveScan);
     }
 

@@ -4,29 +4,424 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:controls="using:FluentGallery.Controls"
+    xmlns:vm="using:FluentGallery.ViewModels"
+    xmlns:converters="using:FluentGallery.Converters"
     mc:Ignorable="d"
-    Background="Transparent">
+    Background="Black"
+    KeyDown="Page_KeyDown"
+    PointerMoved="Page_PointerMoved"
+    GotFocus="Page_GotFocus">
 
+    <Page.Resources>
+        <converters:BoolToVisibilityConverter   x:Key="BoolToVisibilityConverter" />
+        <converters:StringToImageSourceConverter x:Key="StringToImageSourceConverter" />
+
+        <!-- Filmstrip item template -->
+        <DataTemplate x:Key="FilmStripItemTemplate" x:DataType="vm:PhotoThumbItem">
+            <Grid Width="80" Height="80" Margin="2,0">
+                <Image Source="{x:Bind ThumbPath, Mode=OneWay,
+                               Converter={StaticResource StringToImageSourceConverter}}"
+                       Stretch="UniformToFill" />
+                <!-- Selection highlight ring -->
+                <Border BorderBrush="{ThemeResource SystemAccentColor}"
+                        BorderThickness="3"
+                        Visibility="{x:Bind IsSelected, Mode=OneWay,
+                                     Converter={StaticResource BoolToVisibilityConverter}}" />
+                <!-- Dim overlay for unselected items -->
+                <Border Background="#60000000"
+                        Visibility="{x:Bind IsSelected, Mode=OneWay,
+                                     Converter={StaticResource BoolToVisibilityConverter},
+                                     ConverterParameter=True}" />
+            </Grid>
+        </DataTemplate>
+
+        <!-- Info-panel label / value text styles -->
+        <Style x:Key="InfoLabelStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+            <Setter Property="FontSize"   Value="11" />
+            <Setter Property="Margin"     Value="0,8,0,1" />
+        </Style>
+        <Style x:Key="InfoValueStyle" TargetType="TextBlock">
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="FontSize"     Value="13" />
+        </Style>
+    </Page.Resources>
+
+    <!--
+        Root layout:
+          Column 0 (*) — image + overlays
+          Column 1 (0→300 controlled by code-behind) — info panel
+
+          Row 0 (*) — main image area
+          Row 1 (Auto) — filmstrip
+    -->
     <Grid>
-        <StackPanel
-            HorizontalAlignment="Center"
-            VerticalAlignment="Center"
-            Spacing="12">
-            <FontIcon
-                FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                Glyph="&#xE7C5;"
-                FontSize="64"
-                Opacity="0.4" />
-            <TextBlock
-                Text="照片详情"
-                HorizontalAlignment="Center"
-                Style="{ThemeResource TitleLargeTextBlockStyle}" />
-            <TextBlock
-                Text="（即将实现 · Coming soon）"
-                HorizontalAlignment="Center"
-                Style="{ThemeResource BodyTextBlockStyle}"
-                Opacity="0.6" />
-        </StackPanel>
-    </Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition x:Name="InfoPanelColumn" Width="0" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition x:Name="FilmStripRow" Height="0" />
+        </Grid.RowDefinitions>
 
+        <!-- ─────────────────────────────────────────────────────────────────
+             ZoomableImage — fills entire Col 0 / Row 0
+        ───────────────────────────────────────────────────────────────────── -->
+        <controls:ZoomableImage
+            x:Name="ZoomImage"
+            Grid.Column="0"
+            Grid.Row="0" />
+
+        <!-- ─────────────────────────────────────────────────────────────────
+             Top toolbar  (overlaid, auto-hides after 3 s)
+        ───────────────────────────────────────────────────────────────────── -->
+        <Border
+            x:Name="Toolbar"
+            Grid.Column="0"
+            Grid.Row="0"
+            VerticalAlignment="Top"
+            Background="{ThemeResource NavigationViewContentBackground}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="0,0,0,1"
+            Opacity="0"
+            Padding="8,4"
+            Canvas.ZIndex="10">
+
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Left: Back + file name -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4">
+                    <Button x:Name="BackButton"
+                            Style="{ThemeResource NavigationBackButtonNormalStyle}"
+                            Click="BackButton_Click"
+                            ToolTipService.ToolTip="返回"
+                            Width="40" Height="40" />
+                    <TextBlock x:Name="TitleText"
+                               VerticalAlignment="Center"
+                               MaxWidth="360"
+                               TextTrimming="CharacterEllipsis"
+                               Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                </StackPanel>
+
+                <!-- Center: X / N counter -->
+                <TextBlock Grid.Column="1"
+                           x:Name="CounterText"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           Style="{ThemeResource CaptionTextBlockStyle}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+
+                <!-- Right: action buttons -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2">
+
+                    <Button Click="RotateCcw_Click"
+                            Width="40" Height="40"
+                            ToolTipService.ToolTip="逆时针旋转 90°">
+                        <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                                  Glyph="&#xE7AD;" FontSize="16" />
+                    </Button>
+
+                    <Button Click="RotateCw_Click"
+                            Width="40" Height="40"
+                            ToolTipService.ToolTip="顺时针旋转 90°">
+                        <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                                  Glyph="&#xE7AE;" FontSize="16" />
+                    </Button>
+
+                    <Button Click="OpenExternal_Click"
+                            Width="40" Height="40"
+                            ToolTipService.ToolTip="在外部应用中编辑">
+                        <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                                  Glyph="&#xE749;" FontSize="16" />
+                    </Button>
+
+                    <Button Click="Delete_Click"
+                            Width="40" Height="40"
+                            ToolTipService.ToolTip="删除（移入回收站）">
+                        <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                                  Glyph="&#xE74D;" FontSize="16" />
+                    </Button>
+
+                    <Button x:Name="FullscreenButton"
+                            Click="Fullscreen_Click"
+                            Width="40" Height="40"
+                            ToolTipService.ToolTip="全屏">
+                        <FontIcon x:Name="FullscreenIcon"
+                                  FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                                  Glyph="&#xE740;" FontSize="16" />
+                    </Button>
+
+                    <ToggleButton x:Name="InfoToggleButton"
+                                  Click="InfoToggle_Click"
+                                  Width="40" Height="40"
+                                  ToolTipService.ToolTip="照片信息">
+                        <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                                  Glyph="&#xE946;" FontSize="16" />
+                    </ToggleButton>
+
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ─────────────────────────────────────────────────────────────────
+             Left navigation arrow  (overlaid)
+        ───────────────────────────────────────────────────────────────────── -->
+        <Button
+            x:Name="PrevButton"
+            Grid.Column="0"
+            Grid.Row="0"
+            HorizontalAlignment="Left"
+            VerticalAlignment="Center"
+            Margin="12,0"
+            Width="48" Height="48"
+            CornerRadius="24"
+            Background="#80000000"
+            Foreground="White"
+            BorderBrush="Transparent"
+            Command="{x:Bind ViewModel.PreviousPhotoCommand}"
+            Canvas.ZIndex="10"
+            Opacity="0">
+            <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                      Glyph="&#xE76B;" FontSize="18" />
+        </Button>
+
+        <!-- ─────────────────────────────────────────────────────────────────
+             Right navigation arrow  (overlaid)
+        ───────────────────────────────────────────────────────────────────── -->
+        <Button
+            x:Name="NextButton"
+            Grid.Column="0"
+            Grid.Row="0"
+            HorizontalAlignment="Right"
+            VerticalAlignment="Center"
+            Margin="12,0"
+            Width="48" Height="48"
+            CornerRadius="24"
+            Background="#80000000"
+            Foreground="White"
+            BorderBrush="Transparent"
+            Command="{x:Bind ViewModel.NextPhotoCommand}"
+            Canvas.ZIndex="10"
+            Opacity="0">
+            <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                      Glyph="&#xE76C;" FontSize="18" />
+        </Button>
+
+        <!-- ─────────────────────────────────────────────────────────────────
+             Filmstrip  (Col 0, Row 1 — height toggled by code-behind)
+        ───────────────────────────────────────────────────────────────────── -->
+        <Border
+            x:Name="FilmStripBorder"
+            Grid.Column="0"
+            Grid.Row="1"
+            Background="#CC000000"
+            Canvas.ZIndex="10">
+
+            <ListView
+                x:Name="FilmStrip"
+                ItemsSource="{x:Bind ViewModel.FilmStripItems}"
+                ItemTemplate="{StaticResource FilmStripItemTemplate}"
+                ScrollViewer.HorizontalScrollBarVisibility="Hidden"
+                ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                ScrollViewer.HorizontalScrollMode="Enabled"
+                ScrollViewer.VerticalScrollMode="Disabled"
+                SelectionChanged="FilmStrip_SelectionChanged"
+                Height="80"
+                Padding="4,0">
+                <ListView.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ListView.ItemsPanel>
+                <ListView.ItemContainerStyle>
+                    <Style TargetType="ListViewItem">
+                        <Setter Property="Padding"   Value="0" />
+                        <Setter Property="Margin"    Value="0" />
+                        <Setter Property="MinWidth"  Value="0" />
+                        <Setter Property="MinHeight" Value="0" />
+                    </Style>
+                </ListView.ItemContainerStyle>
+            </ListView>
+
+        </Border>
+
+        <!-- ─────────────────────────────────────────────────────────────────
+             Toast / Snackbar overlay  (Col 0, Row 0+1, bottom-center)
+             Shown by code-behind; auto-dismissed after 3 s.
+             Two visual modes:
+               Normal  — dark semi-transparent, optional Undo button
+               Error   — red, warning icon
+        ───────────────────────────────────────────────────────────────────── -->
+        <Border
+            x:Name="ToastHost"
+            Grid.Column="0"
+            Grid.Row="0"
+            Grid.RowSpan="2"
+            VerticalAlignment="Bottom"
+            HorizontalAlignment="Center"
+            Margin="0,0,0,28"
+            Canvas.ZIndex="30"
+            Opacity="0"
+            IsHitTestVisible="False">
+
+            <Border
+                x:Name="ToastCard"
+                Background="#E0202020"
+                CornerRadius="8"
+                Padding="14,10"
+                MinWidth="240"
+                MaxWidth="520">
+
+                <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+
+                    <!-- Warning icon (visible only for error toasts) -->
+                    <FontIcon
+                        x:Name="ToastIcon"
+                        FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                        Glyph="&#xE7BA;"
+                        FontSize="16"
+                        Foreground="White"
+                        VerticalAlignment="Center"
+                        Visibility="Collapsed" />
+
+                    <TextBlock
+                        x:Name="ToastText"
+                        Foreground="White"
+                        VerticalAlignment="Center"
+                        TextWrapping="NoWrap"
+                        MaxWidth="340"
+                        TextTrimming="CharacterEllipsis" />
+
+                    <!-- Undo button (visible for deletion toasts) -->
+                    <Button
+                        x:Name="ToastUndoButton"
+                        Background="Transparent"
+                        BorderBrush="Transparent"
+                        Foreground="White"
+                        Padding="6,4"
+                        Visibility="Collapsed"
+                        Click="ToastUndo_Click">
+                        <StackPanel Orientation="Horizontal" Spacing="5">
+                            <FontIcon
+                                FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                                Glyph="&#xE7A7;"
+                                FontSize="14"
+                                Foreground="White" />
+                            <TextBlock Text="撤销" Foreground="White" FontSize="13" />
+                        </StackPanel>
+                    </Button>
+
+                </StackPanel>
+            </Border>
+        </Border>
+
+        <!-- ─────────────────────────────────────────────────────────────────
+             Info panel  (Col 1, Row 0+1)
+        ───────────────────────────────────────────────────────────────────── -->
+        <Border
+            Grid.Column="1"
+            Grid.Row="0"
+            Grid.RowSpan="2"
+            Background="{ThemeResource NavigationViewContentBackground}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="1,0,0,0"
+            MinWidth="0">
+
+            <ScrollViewer
+                VerticalScrollBarVisibility="Auto"
+                HorizontalScrollBarVisibility="Disabled">
+
+                <StackPanel Padding="16,12" Spacing="0">
+
+                    <TextBlock Text="照片信息"
+                               Style="{ThemeResource TitleTextBlockStyle}"
+                               Margin="0,0,0,12" />
+
+                    <!-- ── 文件信息 ── -->
+                    <TextBlock Text="文件名" Style="{StaticResource InfoLabelStyle}" />
+                    <TextBlock x:Name="InfoFileName"
+                               Style="{StaticResource InfoValueStyle}" />
+
+                    <TextBlock Text="路径" Style="{StaticResource InfoLabelStyle}" />
+                    <TextBlock x:Name="InfoFilePath"
+                               Style="{StaticResource InfoValueStyle}"
+                               IsTextSelectionEnabled="True" />
+
+                    <TextBlock Text="文件大小" Style="{StaticResource InfoLabelStyle}" />
+                    <TextBlock x:Name="InfoFileSize"
+                               Style="{StaticResource InfoValueStyle}" />
+
+                    <TextBlock Text="分辨率" Style="{StaticResource InfoLabelStyle}" />
+                    <TextBlock x:Name="InfoResolution"
+                               Style="{StaticResource InfoValueStyle}" />
+
+                    <MenuFlyoutSeparator Margin="0,10" />
+
+                    <!-- ── EXIF 基础 ── -->
+                    <TextBlock Text="拍摄时间" Style="{StaticResource InfoLabelStyle}" />
+                    <TextBlock x:Name="InfoTakenAt"
+                               Style="{StaticResource InfoValueStyle}" />
+
+                    <TextBlock Text="相机" Style="{StaticResource InfoLabelStyle}" />
+                    <TextBlock x:Name="InfoCamera"
+                               Style="{StaticResource InfoValueStyle}" />
+
+                    <TextBlock Text="镜头" Style="{StaticResource InfoLabelStyle}" />
+                    <TextBlock x:Name="InfoLens"
+                               Style="{StaticResource InfoValueStyle}" />
+
+                    <MenuFlyoutSeparator Margin="0,10" />
+
+                    <!-- ── 曝光参数 ── -->
+                    <TextBlock Text="光圈" Style="{StaticResource InfoLabelStyle}" />
+                    <TextBlock x:Name="InfoAperture"
+                               Style="{StaticResource InfoValueStyle}" />
+
+                    <TextBlock Text="快门速度" Style="{StaticResource InfoLabelStyle}" />
+                    <TextBlock x:Name="InfoShutter"
+                               Style="{StaticResource InfoValueStyle}" />
+
+                    <TextBlock Text="ISO" Style="{StaticResource InfoLabelStyle}" />
+                    <TextBlock x:Name="InfoIso"
+                               Style="{StaticResource InfoValueStyle}" />
+
+                    <TextBlock Text="焦距" Style="{StaticResource InfoLabelStyle}" />
+                    <TextBlock x:Name="InfoFocalLength"
+                               Style="{StaticResource InfoValueStyle}" />
+
+                    <!-- ── 颜色信息 ── -->
+                    <TextBlock Text="颜色空间" Style="{StaticResource InfoLabelStyle}" />
+                    <TextBlock x:Name="InfoColorSpace"
+                               Style="{StaticResource InfoValueStyle}" />
+
+                    <TextBlock Text="位深" Style="{StaticResource InfoLabelStyle}" />
+                    <TextBlock x:Name="InfoBitDepth"
+                               Style="{StaticResource InfoValueStyle}" />
+
+                    <TextBlock Text="方向" Style="{StaticResource InfoLabelStyle}" />
+                    <TextBlock x:Name="InfoOrientation"
+                               Style="{StaticResource InfoValueStyle}" />
+
+                    <!-- ── GPS ── -->
+                    <TextBlock x:Name="GpsLabel"
+                               Text="GPS 坐标"
+                               Style="{StaticResource InfoLabelStyle}"
+                               Visibility="Collapsed" />
+                    <TextBlock x:Name="InfoGps"
+                               Style="{StaticResource InfoValueStyle}"
+                               IsTextSelectionEnabled="True"
+                               Visibility="Collapsed" />
+
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+    </Grid>
 </Page>
