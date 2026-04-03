@@ -250,6 +250,21 @@ public sealed class DatabaseService
     }
 
     /// <summary>
+    /// Returns photos that have no thumbnail record, or whose thumbnail record is stale
+    /// (the source file was modified after the thumbnail was generated).
+    /// These are the candidates for batch thumbnail generation.
+    /// </summary>
+    public async Task<IReadOnlyList<Photo>> GetPhotosWithoutThumbnailAsync(CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.Photos
+            .Where(p => !db.Thumbnails.Any(t =>
+                t.PhotoId == p.Id && t.SourceModifiedAt == p.ModifiedAt))
+            .OrderBy(p => p.FileName)
+            .ToListAsync(ct);
+    }
+
+    /// <summary>
     /// Searches photos by file name keyword and/or a date range on a chosen date field.
     /// All parameters are optional; omitting all returns nothing (caller should validate).
     /// </summary>

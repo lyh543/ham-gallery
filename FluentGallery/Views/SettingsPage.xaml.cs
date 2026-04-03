@@ -3,7 +3,9 @@ using FluentGallery.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Navigation;
+using System.ComponentModel;
 using WinRT.Interop;
 
 namespace FluentGallery.Views;
@@ -26,6 +28,13 @@ public sealed partial class SettingsPage : Page
     {
         base.OnNavigatedTo(e);
         await ViewModel.LoadAsync();
+        ViewModel.PropertyChanged += ViewModel_PropertyChanged;
+    }
+
+    protected override void OnNavigatedFrom(NavigationEventArgs e)
+    {
+        base.OnNavigatedFrom(e);
+        ViewModel.PropertyChanged -= ViewModel_PropertyChanged;
     }
 
     // ────────────────────────────────────────────────────────────────────
@@ -140,4 +149,113 @@ public sealed partial class SettingsPage : Page
 
     private void StatusBar_Closed(InfoBar sender, InfoBarClosedEventArgs args)
         => ViewModel.StatusMessage = null;
+
+    // ────────────────────────────────────────────────────────────────────
+    // Thumbnail batch generation — progress & done animation
+    // ────────────────────────────────────────────────────────────────────
+
+    private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        switch (e.PropertyName)
+        {
+            case nameof(ViewModel.IsBuildingThumbnails):
+                UpdateThumbGenArea();
+                break;
+
+            case nameof(ViewModel.IsThumbnailBuildDone):
+                if (ViewModel.IsThumbnailBuildDone)
+                {
+                    ThumbDoneSubText.Text = ViewModel.ThumbnailBuildTotal == 0
+                        ? "所有照片均已有缩略图，无需生成"
+                        : $"共生成了 {ViewModel.ThumbnailBuildTotal} 张缩略图";
+                    ShowAndAnimateThumbDone();
+                }
+                else
+                {
+                    HideThumbDonePanel();
+                    UpdateThumbGenArea();
+                }
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Shows/hides the progress border and building panel based on current VM state.
+    /// Called when <c>IsBuildingThumbnails</c> changes.
+    /// </summary>
+    private void UpdateThumbGenArea()
+    {
+        bool showArea = ViewModel.IsBuildingThumbnails || ViewModel.IsThumbnailBuildDone;
+        ThumbGenProgressBorder.Visibility = showArea ? Visibility.Visible : Visibility.Collapsed;
+        ThumbBuildingPanel.Visibility     = ViewModel.IsBuildingThumbnails
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+    }
+
+    private void ShowAndAnimateThumbDone()
+    {
+        ThumbGenProgressBorder.Visibility = Visibility.Visible;
+        ThumbBuildingPanel.Visibility     = Visibility.Collapsed;
+        ThumbDonePanel.Visibility         = Visibility.Visible;
+
+        // Reset transforms so the animation always plays from scratch
+        ThumbDoneCircleScale.ScaleX    = 0;
+        ThumbDoneCircleScale.ScaleY    = 0;
+        ThumbDoneTextPanel.Opacity     = 0;
+        ThumbDoneTextTranslate.X       = 20;
+
+        var sb = new Storyboard();
+
+        // ── Circle bounces in ─────────────────────────────────────────
+        foreach (var prop in new[] { "ScaleX", "ScaleY" })
+        {
+            var anim = new DoubleAnimationUsingKeyFrames();
+            Storyboard.SetTarget(anim, ThumbDoneCircleScale);
+            Storyboard.SetTargetProperty(anim, prop);
+            anim.KeyFrames.Add(new DiscreteDoubleKeyFrame
+            {
+                KeyTime = KeyTime.FromTimeSpan(TimeSpan.Zero),
+                Value   = 0,
+            });
+            anim.KeyFrames.Add(new EasingDoubleKeyFrame
+            {
+                KeyTime        = KeyTime.FromTimeSpan(TimeSpan.FromSeconds(0.45)),
+                Value          = 1.0,
+                EasingFunction = new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.5 },
+            });
+            sb.Children.Add(anim);
+        }
+
+        // ── Text panel fades and slides in (slight delay) ─────────────
+        var opacityAnim = new DoubleAnimation
+        {
+            From           = 0,
+            To             = 1,
+            Duration       = new Duration(TimeSpan.FromSeconds(0.3)),
+            BeginTime      = TimeSpan.FromSeconds(0.3),
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+        };
+        Storyboard.SetTarget(opacityAnim, ThumbDoneTextPanel);
+        Storyboard.SetTargetProperty(opacityAnim, "Opacity");
+        sb.Children.Add(opacityAnim);
+
+        var slideAnim = new DoubleAnimation
+        {
+            From           = 20,
+            To             = 0,
+            Duration       = new Duration(TimeSpan.FromSeconds(0.35)),
+            BeginTime      = TimeSpan.FromSeconds(0.3),
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+        };
+        Storyboard.SetTarget(slideAnim, ThumbDoneTextTranslate);
+        Storyboard.SetTargetProperty(slideAnim, "X");
+        sb.Children.Add(slideAnim);
+
+        sb.Begin();
+    }
+
+    private void HideThumbDonePanel()
+    {
+        ThumbDonePanel.Visibility = Visibility.Collapsed;
+    }
 }

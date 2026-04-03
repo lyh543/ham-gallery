@@ -46,8 +46,13 @@ public sealed partial class PhotoDetailPage : Page
     private PhotoDetailArgs? _pendingArgs;
 
     // ── Image preload cache (LRU-evicted, size = PreloadCount + 1) ────────────
+    // HEIC/HEIF images are not cached here because they are displayed via
+    // SoftwareBitmapSource (not BitmapImage) and are decoded on demand.
 
     private readonly Dictionary<string, BitmapImage> _imageCache = new(StringComparer.OrdinalIgnoreCase);
+
+    private static readonly HashSet<string> _noBitmapCacheExtensions =
+        new(StringComparer.OrdinalIgnoreCase) { ".heic", ".heif" };
 
     // ── Toast ─────────────────────────────────────────────────────────────────
 
@@ -130,14 +135,17 @@ public sealed partial class PhotoDetailPage : Page
 
         try
         {
-            if (_imageCache.TryGetValue(path, out var cached))
+            bool useCache = !_noBitmapCacheExtensions.Contains(Path.GetExtension(path));
+
+            if (useCache && _imageCache.TryGetValue(path, out var cached))
             {
                 await ZoomImage.LoadImageFromCacheAsync(cached, _cts.Token);
             }
             else
             {
                 await ZoomImage.LoadImageAsync(path, _cts.Token);
-                if (ZoomImage.CurrentBitmap is { } bmp)
+                // Only add BitmapImage results (non-HEIC) to the preload cache
+                if (useCache && ZoomImage.CurrentBitmap is { } bmp)
                     AddToCache(path, bmp);
             }
         }
@@ -151,6 +159,8 @@ public sealed partial class PhotoDetailPage : Page
         var paths = ViewModel.GetPreloadPaths(currentIndex);
         foreach (var path in paths)
         {
+            // HEIC/HEIF images cannot be preloaded as BitmapImage; skip them
+            if (_noBitmapCacheExtensions.Contains(Path.GetExtension(path))) continue;
             if (_imageCache.ContainsKey(path)) continue;
             try
             {

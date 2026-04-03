@@ -73,6 +73,65 @@ public sealed partial class SettingsViewModel : ObservableObject
     /// <summary>True → show as warning/error; false → show as success/informational.</summary>
     [ObservableProperty] public partial bool    IsWarningStatus  { get; set; }
 
+    // ── Thumbnail batch generation ───────────────────────────────────────
+    private CancellationTokenSource? _buildCts;
+
+    [ObservableProperty] public partial bool   IsBuildingThumbnails    { get; set; }
+    [ObservableProperty] public partial bool   IsThumbnailBuildDone    { get; set; }
+    [ObservableProperty] public partial int    ThumbnailBuildTotal     { get; set; }
+    [ObservableProperty] public partial int    ThumbnailBuildCompleted { get; set; }
+    [ObservableProperty] public partial double ThumbnailBuildSpeed     { get; set; }
+    [ObservableProperty] public partial string ThumbnailBuildEtaText   { get; set; } = "";
+
+    /// <summary>True when the "立即生成" button should be enabled.</summary>
+    public bool ShowGenerateButton => !IsBuildingThumbnails && !IsThumbnailBuildDone;
+
+    /// <summary>True while querying the database (total not yet known).</summary>
+    public bool IsThumbnailBuildIndeterminate => IsBuildingThumbnails && ThumbnailBuildTotal == 0;
+
+    /// <summary>0–100 value for the ProgressBar.</summary>
+    public double ThumbnailBuildProgress
+        => ThumbnailBuildTotal > 0 ? ThumbnailBuildCompleted * 100.0 / ThumbnailBuildTotal : 0;
+
+    public string ThumbnailBuildProgressText
+        => ThumbnailBuildTotal > 0
+            ? $"已生成 {ThumbnailBuildCompleted} / {ThumbnailBuildTotal} 张"
+            : (IsBuildingThumbnails ? "正在查询…" : "");
+
+    public string ThumbnailBuildStatsText
+        => IsBuildingThumbnails && ThumbnailBuildSpeed > 0
+            ? $"速度：{ThumbnailBuildSpeed:F1} 张/秒　{ThumbnailBuildEtaText}"
+            : "";
+
+    partial void OnIsBuildingThumbnailsChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShowGenerateButton));
+        OnPropertyChanged(nameof(IsThumbnailBuildIndeterminate));
+        OnPropertyChanged(nameof(ThumbnailBuildProgressText));
+    }
+
+    partial void OnIsThumbnailBuildDoneChanged(bool value)
+        => OnPropertyChanged(nameof(ShowGenerateButton));
+
+    partial void OnThumbnailBuildTotalChanged(int value)
+    {
+        OnPropertyChanged(nameof(ThumbnailBuildProgress));
+        OnPropertyChanged(nameof(ThumbnailBuildProgressText));
+        OnPropertyChanged(nameof(IsThumbnailBuildIndeterminate));
+    }
+
+    partial void OnThumbnailBuildCompletedChanged(int value)
+    {
+        OnPropertyChanged(nameof(ThumbnailBuildProgress));
+        OnPropertyChanged(nameof(ThumbnailBuildProgressText));
+    }
+
+    partial void OnThumbnailBuildSpeedChanged(double value)
+        => OnPropertyChanged(nameof(ThumbnailBuildStatsText));
+
+    partial void OnThumbnailBuildEtaTextChanged(string value)
+        => OnPropertyChanged(nameof(ThumbnailBuildStatsText));
+
     partial void OnStatusMessageChanged(string? value)
         => HasStatusMessage = !string.IsNullOrEmpty(value);
 
@@ -417,4 +476,83 @@ public sealed partial class SettingsViewModel : ObservableObject
         < 1024L * 1024 * 1024   => $"{bytes / (1024.0 * 1024):F1} MB",
         _                       => $"{bytes / (1024.0 * 1024 * 1024):F2} GB",
     };
+
+    // ────────────────────────────────────────────────────────────────────
+    // Batch thumbnail generation
+    // ────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Queries photos with missing or stale thumbnails and generates them all,
+    /// reporting speed and ETA throughout. Shows a completion animation when done.
+    /// Always shows the animation even when there is nothing to generate.
+    /// </summary>
+    [RelayCommand]
+    public async Task GenerateMissingThumbnailsAsync()
+    {
+        if (IsBuildingThumbnails) return;
+
+        IsBuildingThumbnails    = true;
+        IsThumbnailBuildDone    = false;
+        ThumbnailBuildTotal     = 0;
+        ThumbnailBuildCompleted = 0;
+        ThumbnailBuildSpeed     = 0;
+        ThumbnailBuildEtaText   = "";
+
+        _buildCts?.Dispose();
+        _buildCts = new CancellationTokenSource();
+        var localCts  = _buildCts;
+        bool completed = false;
+
+        try
+        {
+            var photos = await _db.GetPhotosWithoutThumbnailAsync(localCts.Token);
+            ThumbnailBuildTotal = photos.Count;
+
+            if (photos.Count > 0)
+            {
+                var progress = new Progress<ThumbnailBatchProgress>(p =>
+                {
+                    ThumbnailBuildCompleted = p.Done;
+                    ThumbnailBuildSpeed     = p.SpeedPerSec;
+                    ThumbnailBuildEtaText   = p.Eta.HasValue ? FormatEta(p.Eta.Value) : "";
+                });
+
+                await _thumbnailService.GenerateMissingAsync(photos, progress, localCts.Token);
+            }
+
+            completed = true;
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "批量生成缩略图失败");
+            IsWarningStatus = true;
+            StatusMessage   = $"生成缩略图失败：{ex.Message}";
+        }
+        finally
+        {
+            IsBuildingThumbnails = false;
+            localCts.Dispose();
+            if (ReferenceEquals(_buildCts, localCts))
+                _buildCts = null;
+        }
+
+        if (completed)
+        {
+            IsThumbnailBuildDone = true;
+            await Task.Delay(4500);   // hold the done animation before auto-dismiss
+            IsThumbnailBuildDone = false;
+        }
+    }
+
+    /// <summary>Cancels an in-progress batch thumbnail generation.</summary>
+    [RelayCommand]
+    public void CancelThumbnailBuild() => _buildCts?.Cancel();
+
+    private static string FormatEta(TimeSpan eta)
+    {
+        if (eta.TotalSeconds < 60)  return $"预计剩余 {(int)eta.TotalSeconds} 秒";
+        if (eta.TotalMinutes < 60)  return $"预计剩余 {(int)eta.TotalMinutes} 分 {eta.Seconds} 秒";
+        return $"预计剩余 {(int)eta.TotalHours} 小时 {eta.Minutes} 分";
+    }
 }

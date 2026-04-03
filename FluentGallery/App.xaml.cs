@@ -1,4 +1,5 @@
 using FluentGallery.Data;
+using FluentGallery.Decoders;
 using FluentGallery.Helpers;
 using FluentGallery.Services;
 using FluentGallery.ViewModels;
@@ -81,6 +82,18 @@ public partial class App : Application
         }, ServiceLifetime.Singleton);
 
         services.AddSingleton<DatabaseService>();
+
+        // ── Image decoder pipeline ────────────────────────────────────────────
+        // Register decoders in descending priority order per extension.
+        // For HEIC/HEIF: WIC first (requires system HEVC codec), Magick.NET fallback.
+        services.AddSingleton<ImageDecoderPipeline>(_ =>
+        {
+            var pipeline = new ImageDecoderPipeline();
+            pipeline.Register(WicImageDecoder.CreateForStandardFormats()); // jpg/png/bmp/gif/webp/tif
+            pipeline.Register(WicImageDecoder.CreateForHeic());            // heic/heif via WIC (if codec present)
+            pipeline.Register(new MagickImageDecoder());                   // heic/heif built-in fallback
+            return pipeline;
+        });
 
         // Data services
         services.AddSingleton<ExifService>();

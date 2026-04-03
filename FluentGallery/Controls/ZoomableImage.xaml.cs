@@ -1,10 +1,14 @@
+using FluentGallery.Decoders;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Media.Imaging;
+using System.Runtime.InteropServices.WindowsRuntime;
 using Windows.Foundation;
+using Windows.Graphics.Imaging;
 using Windows.System;
 using Windows.UI.Core;
 
@@ -26,6 +30,15 @@ public sealed partial class ZoomableImage : UserControl
 
     private float _fitZoom        = 1f;
     private bool  _isAt100Percent = false;
+
+    // Extensions that require the decoder pipeline instead of BitmapImage.UriSource
+    private static readonly HashSet<string> _pipelineExtensions =
+        new(StringComparer.OrdinalIgnoreCase) { ".heic", ".heif" };
+
+    // Lazy-resolved decoder pipeline (avoids App dependency at construction time)
+    private ImageDecoderPipeline? _decoderPipeline;
+    private ImageDecoderPipeline DecoderPipeline =>
+        _decoderPipeline ??= App.Current.Services.GetRequiredService<ImageDecoderPipeline>();
 
     // ── Swipe-to-navigate events (fired when at fit-zoom + horizontal swipe) ─
 
@@ -105,9 +118,13 @@ public sealed partial class ZoomableImage : UserControl
 
     /// <summary>
     /// Loads the image at <paramref name="filePath"/> and fits it to the viewport.
-    /// Decoding is performed in the background by WinUI (via UriSource); this method
-    /// returns immediately so the page transition is not blocked by the codec.
-    /// A <see cref="ProgressRing"/> is shown while decoding and hidden on completion.
+    /// <list type="bullet">
+    ///   <item>Standard formats (JPEG, PNG, …): uses <see cref="BitmapImage.UriSource"/>
+    ///     for non-blocking background decode.</item>
+    ///   <item>HEIC/HEIF: uses <see cref="ImageDecoderPipeline"/> (WIC if available,
+    ///     otherwise the built-in Magick.NET decoder) and displays via
+    ///     <see cref="SoftwareBitmapSource"/>.</item>
+    /// </list>
     /// </summary>
     public Task LoadImageAsync(string filePath, CancellationToken ct = default)
     {
@@ -118,6 +135,61 @@ public sealed partial class ZoomableImage : UserControl
         CurrentBitmap     = null;
         ShowLoading();
 
+        if (_pipelineExtensions.Contains(Path.GetExtension(filePath)))
+            return LoadViaDecoderPipelineAsync(filePath, ct);
+
+        return LoadViaBitmapImageAsync(filePath, ct);
+    }
+
+    /// <summary>
+    /// HEIC/HEIF path: decodes via <see cref="ImageDecoderPipeline"/> and renders
+    /// using a <see cref="SoftwareBitmapSource"/> (no temporary file, no re-encoding,
+    /// fully lossless).
+    /// </summary>
+    private async Task LoadViaDecoderPipelineAsync(string filePath, CancellationToken ct)
+    {
+        try
+        {
+            var decoded = await DecoderPipeline.TryDecodeAsync(filePath, 0, 0, ct);
+            if (decoded is null)
+            {
+                HideLoading();
+                return;
+            }
+
+            // Create SoftwareBitmap from raw BGRA8 pixels (un-premultiplied)
+            using var sbIgnore = SoftwareBitmap.CreateCopyFromBuffer(
+                decoded.Pixels.AsBuffer(),
+                BitmapPixelFormat.Bgra8,
+                (int)decoded.Width,
+                (int)decoded.Height,
+                BitmapAlphaMode.Ignore);
+
+            // SoftwareBitmapSource requires Premultiplied alpha
+            using var sbPremul = SoftwareBitmap.Convert(
+                sbIgnore, BitmapPixelFormat.Bgra8, BitmapAlphaMode.Premultiplied);
+
+            var source = new SoftwareBitmapSource();
+            await source.SetBitmapAsync(sbPremul);
+
+            MainImage.Width  = decoded.Width;
+            MainImage.Height = decoded.Height;
+            MainImage.Source = source;
+            _isAt100Percent  = false;
+            FitToWindow();
+            HideLoading();
+            FadeInImage();
+        }
+        catch (OperationCanceledException) { HideLoading(); throw; }
+        catch { HideLoading(); }
+    }
+
+    /// <summary>
+    /// Standard-format path: uses <see cref="BitmapImage.UriSource"/> for
+    /// non-blocking background decode (returns immediately).
+    /// </summary>
+    private Task LoadViaBitmapImageAsync(string filePath, CancellationToken ct)
+    {
         try
         {
             var bmp = new BitmapImage();
@@ -139,11 +211,7 @@ public sealed partial class ZoomableImage : UserControl
             CurrentBitmap    = bmp;
         }
         catch (OperationCanceledException) { HideLoading(); throw; }
-        catch
-        {
-            MainImage.Source = null;
-            HideLoading();
-        }
+        catch { MainImage.Source = null; HideLoading(); }
 
         return Task.CompletedTask;
     }
@@ -195,20 +263,32 @@ public sealed partial class ZoomableImage : UserControl
     /// <summary>Scales the image so it fits entirely within the current viewport.</summary>
     public void FitToWindow()
     {
-        if (MainImage.Source is not BitmapImage bmp || bmp.PixelWidth == 0) return;
+        // Resolve image dimensions: BitmapImage carries its own, SoftwareBitmapSource
+        // does not, so we fall back to the explicitly set MainImage.Width/Height
+        // (set before calling FitToWindow in both loading paths).
+        double imgW, imgH;
+        if (MainImage.Source is BitmapImage bmp)
+        {
+            if (bmp.PixelWidth == 0) return;
+            imgW = bmp.PixelWidth;
+            imgH = bmp.PixelHeight;
+        }
+        else if (MainImage.Width > 0 && MainImage.Height > 0)
+        {
+            imgW = MainImage.Width;
+            imgH = MainImage.Height;
+        }
+        else return;
 
         double vpW = Scroll.ViewportWidth;
         double vpH = Scroll.ViewportHeight;
         if (vpW <= 0 || vpH <= 0) return;
 
-        float scaleX = (float)(vpW / bmp.PixelWidth);
-        float scaleY = (float)(vpH / bmp.PixelHeight);
-        _fitZoom        = Math.Clamp(Math.Min(scaleX, scaleY), 0.1f, 10f);
+        _fitZoom        = Math.Clamp((float)Math.Min(vpW / imgW, vpH / imgH), 0.1f, 10f);
         _isAt100Percent = false;
 
         Scroll.ChangeView(null, null, _fitZoom, disableAnimation: true);
-        // Centre the image
-        CentreViewport(bmp.PixelWidth * _fitZoom, bmp.PixelHeight * _fitZoom);
+        CentreViewport(imgW * _fitZoom, imgH * _fitZoom);
     }
 
     // ── Double-tap to toggle zoom ─────────────────────────────────────────────

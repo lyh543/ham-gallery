@@ -1,6 +1,8 @@
+using FluentGallery.Decoders;
 using FluentGallery.Helpers;
 using FluentGallery.Models;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using Windows.Foundation;
@@ -8,6 +10,13 @@ using Windows.Graphics.Imaging;
 using Windows.Storage.Streams;
 
 namespace FluentGallery.Data;
+
+/// <summary>Progress snapshot emitted during <see cref="ThumbnailService.GenerateMissingAsync"/>.</summary>
+/// <param name="Done">Number of thumbnails successfully processed so far.</param>
+/// <param name="Total">Total number of photos in this batch.</param>
+/// <param name="SpeedPerSec">Throughput in thumbnails per second (smoothed over elapsed time).</param>
+/// <param name="Eta">Estimated time to completion, or <c>null</c> if speed is not yet known.</param>
+public record ThumbnailBatchProgress(int Done, int Total, double SpeedPerSec, TimeSpan? Eta);
 
 /// <summary>
 /// Generates and caches JPEG thumbnails using WIC (Windows.Graphics.Imaging).
@@ -39,22 +48,17 @@ public sealed class ThumbnailService
     private readonly SemaphoreSlim              _semaphore = new(MaxConcurrent, MaxConcurrent);
     private readonly DatabaseService            _db;
     private readonly ILogger<ThumbnailService>  _logger;
+    private readonly ImageDecoderPipeline       _pipeline;
 
-    public ThumbnailService(DatabaseService db, ILogger<ThumbnailService> logger)
+    public ThumbnailService(
+        DatabaseService           db,
+        ILogger<ThumbnailService> logger,
+        ImageDecoderPipeline      pipeline)
     {
-        _db     = db;
-        _logger = logger;
+        _db       = db;
+        _logger   = logger;
+        _pipeline = pipeline;
     }
-
-    // ── Formats that crash Windows.Graphics.Imaging rather than throwing ────────
-    //
-    // HEIC/HEIF files: when the HEVC codec is absent (or partially installed),
-    // BitmapDecoder.GetPixelDataAsync triggers a native SEH access violation
-    // (0xc0000005) inside Windows.Graphics.dll that .NET cannot catch, causing
-    // an immediate process termination.  Skip them entirely so the placeholder
-    // icon is shown instead of crashing.
-    private static readonly HashSet<string> _noCrashSkipExtensions =
-        new(StringComparer.OrdinalIgnoreCase) { ".heic", ".heif" };
 
     // ── Public API ───────────────────────────────────────────────────────────
 
@@ -64,9 +68,8 @@ public sealed class ThumbnailService
     /// </summary>
     public async Task<string?> GetOrCreateThumbnailAsync(Photo photo, CancellationToken ct = default)
     {
-        // Bail out early for formats known to crash the Windows.Graphics codec
-        // layer with a native access violation rather than a managed exception.
-        if (_noCrashSkipExtensions.Contains(Path.GetExtension(photo.FilePath)))
+        // Skip formats with no registered decoder (avoids attempting WIC on unsupported types)
+        if (!_pipeline.CanDecode(photo.FilePath))
             return null;
 
         var thumbPath        = GetThumbPath(photo.FilePath);
@@ -94,7 +97,7 @@ public sealed class ThumbnailService
                 return cached.ThumbPath;
             }
 
-            await GenerateAsync(photo.FilePath, thumbPath, ThumbSize, ct);
+            await GenerateViaDecoderAsync(photo.FilePath, thumbPath, ThumbSize, ct);
 
             await _db.UpsertThumbnailAsync(new Thumbnail
             {
@@ -120,6 +123,38 @@ public sealed class ThumbnailService
         }
     }
 
+    /// <summary>
+    /// Generates thumbnails for all <paramref name="photos"/> that don't already have a
+    /// valid cached thumbnail, reporting progress after each photo completes.
+    /// Parallelism is bounded by <see cref="MaxConcurrent"/> — the same limit that
+    /// governs on-demand generation, so the two workloads don't compete.
+    /// </summary>
+    public async Task GenerateMissingAsync(
+        IReadOnlyList<Photo>              photos,
+        IProgress<ThumbnailBatchProgress> progress,
+        CancellationToken                 ct)
+    {
+        int total    = photos.Count;
+        int doneCount = 0;
+        var sw       = Stopwatch.StartNew();
+
+        await Parallel.ForEachAsync(
+            photos,
+            new ParallelOptions { MaxDegreeOfParallelism = MaxConcurrent, CancellationToken = ct },
+            async (photo, innerCt) =>
+            {
+                await GetOrCreateThumbnailAsync(photo, innerCt);
+
+                int    done      = Interlocked.Increment(ref doneCount);
+                double elapsed   = sw.Elapsed.TotalSeconds;
+                double speed     = elapsed > 0.1 ? done / elapsed : 0;
+                int    remaining = total - done;
+                TimeSpan? eta    = speed > 0 ? TimeSpan.FromSeconds(remaining / speed) : null;
+
+                progress.Report(new ThumbnailBatchProgress(done, total, speed, eta));
+            });
+    }
+
     // ── Path helper ──────────────────────────────────────────────────────────
 
     /// <summary>
@@ -135,7 +170,24 @@ public sealed class ThumbnailService
         return Path.Combine(AppDataPaths.ThumbnailsDirectory, $"{hash}.jpg");
     }
 
-    // ── WIC thumbnail generation ─────────────────────────────────────────────
+    // ── Decoder-pipeline thumbnail generation ────────────────────────────────
+
+    /// <summary>
+    /// Decodes <paramref name="sourcePath"/> via <see cref="ImageDecoderPipeline"/>
+    /// (WIC for standard formats; built-in Magick.NET fallback for HEIC/HEIF),
+    /// then encodes the scaled pixels as JPEG to <paramref name="destPath"/>.
+    /// </summary>
+    private async Task GenerateViaDecoderAsync(
+        string sourcePath, string destPath, uint thumbSize, CancellationToken ct)
+    {
+        var decoded = await _pipeline.TryDecodeAsync(sourcePath, thumbSize, thumbSize, ct)
+            ?? throw new NotSupportedException(
+                $"No decoder available for '{Path.GetExtension(sourcePath)}'");
+
+        await EncodeToJpegAsync(decoded, destPath, ct);
+    }
+
+    // ── WIC thumbnail generation (kept as internal static for unit tests) ────
 
     /// <summary>
     /// Decodes <paramref name="sourcePath"/> with WIC, scales it to fit inside
@@ -191,16 +243,30 @@ public sealed class ThumbnailService
 
         ct.ThrowIfCancellationRequested();
 
-        // ── Encode to in-memory stream ────────────────────────────────────────
+        var decoded = new Decoders.DecodedImageData(pixels, finalW, finalH, decoder.DpiX, decoder.DpiY);
+        await EncodeToJpegAsync(decoded, destPath, ct);
+    }
+
+    // ── JPEG encoding helper ─────────────────────────────────────────────────
+
+    /// <summary>
+    /// Encodes <paramref name="decoded"/> pixels (BGRA8) as a JPEG file at
+    /// <paramref name="destPath"/> using an in-memory WIC encoder.
+    /// </summary>
+    private static async Task EncodeToJpegAsync(
+        Decoders.DecodedImageData decoded, string destPath, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
         using var memRas  = new InMemoryRandomAccessStream();
         var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.JpegEncoderId, memRas).AsTask(ct);
 
         encoder.SetPixelData(
             BitmapPixelFormat.Bgra8,
             BitmapAlphaMode.Ignore,
-            finalW, finalH,
-            decoder.DpiX, decoder.DpiY,
-            pixels);
+            decoded.Width, decoded.Height,
+            decoded.DpiX, decoded.DpiY,
+            decoded.Pixels);
 
         await encoder.BitmapProperties.SetPropertiesAsync(new BitmapPropertySet
         {
@@ -209,7 +275,6 @@ public sealed class ThumbnailService
 
         await encoder.FlushAsync().AsTask(ct);
 
-        // ── Write to disk ─────────────────────────────────────────────────────
         Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
         memRas.Seek(0);
 

@@ -48,7 +48,6 @@ public sealed class ScanService : IDisposable
 
     private readonly DatabaseService          _db;
     private readonly ExifService              _exif;
-    private readonly ThumbnailService         _thumbnails;
     private readonly ILogger<ScanService>     _logger;
 
     // ── Scan lifecycle ────────────────────────────────────────────────────────
@@ -106,13 +105,11 @@ public sealed class ScanService : IDisposable
     public ScanService(
         DatabaseService      db,
         ExifService          exif,
-        ThumbnailService     thumbnails,
         ILogger<ScanService> logger)
     {
-        _db         = db;
-        _exif       = exif;
-        _thumbnails = thumbnails;
-        _logger     = logger;
+        _db     = db;
+        _exif   = exif;
+        _logger = logger;
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -384,9 +381,6 @@ public sealed class ScanService : IDisposable
         var id = await _db.InsertPhotoAsync(photo, ct);
         photo.Id = id;
 
-        // Fire-and-forget thumbnail — concurrency-limited inside ThumbnailService
-        _ = _thumbnails.GetOrCreateThumbnailAsync(photo, ct);
-
         _pendingDiscovered.Enqueue(photo);
         _logger.LogDebug("[新增] {File}  AlbumId={AlbumId}  Id={Id}", photo.FileName, photo.AlbumId, photo.Id);
     }
@@ -414,8 +408,6 @@ public sealed class ScanService : IDisposable
         existing.Orientation = exif.Orientation;
 
         await _db.UpdatePhotoAsync(existing, ct);
-
-        _ = _thumbnails.GetOrCreateThumbnailAsync(existing, ct);
 
         _pendingUpdated.Enqueue(existing);
         _logger.LogDebug("[更新] {File}  AlbumId={AlbumId}  Id={Id}", existing.FileName, existing.AlbumId, existing.Id);

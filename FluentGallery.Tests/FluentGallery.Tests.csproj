@@ -28,9 +28,17 @@
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <!-- Windows App SDK: provides Windows.Graphics.Imaging and WinRT interop for ThumbnailService tests -->
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260317003" />
+    <!-- Magick.NET: needed by MagickImageDecoder (HEIC/HEIF built-in decoder) -->
+    <PackageReference Include="Magick.NET-Q8-AnyCPU" Version="14.11.1" />
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Decoder pipeline (HEIC/HEIF support) -->
+    <Compile Include="..\FluentGallery\Decoders\IImageDecoder.cs" />
+    <Compile Include="..\FluentGallery\Decoders\WicImageDecoder.cs" />
+    <Compile Include="..\FluentGallery\Decoders\MagickImageDecoder.cs" />
+    <Compile Include="..\FluentGallery\Decoders\ImageDecoderPipeline.cs" />
+
     <!-- Reference data-layer source files directly to avoid the WinExe entry point -->
     <Compile Include="..\FluentGallery\Models\Album.cs" />
     <Compile Include="..\FluentGallery\Models\Photo.cs" />

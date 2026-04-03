@@ -36,7 +36,13 @@ public sealed class SettingsViewModelTests : IAsyncLifetime
     }
 
     private SettingsViewModel BuildSut()
-        => new(_db!, new NullThemeService(), NullLogger<SettingsViewModel>.Instance);
+    {
+        var pipeline        = new FluentGallery.Decoders.ImageDecoderPipeline();
+        var thumbnailService = new ThumbnailService(
+            _db!, NullLogger<ThumbnailService>.Instance, pipeline);
+        return new SettingsViewModel(
+            _db!, thumbnailService, new NullThemeService(), NullLogger<SettingsViewModel>.Instance);
+    }
 
     private SettingsViewModel Sut => _sut!;
 

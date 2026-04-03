@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <!-- Windows App SDK (WinUI 3) -->
+    <PackageReference Include="Magick.NET-Q8-AnyCPU" Version="14.11.1" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260317003" />
 
     <!-- MVVM -->

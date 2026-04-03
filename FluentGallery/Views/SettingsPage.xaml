@@ -258,6 +258,119 @@
                 Style="{ThemeResource SubtitleTextBlockStyle}"
                 Margin="4,16,0,6" />
 
+            <!-- Generate missing thumbnails -->
+            <ctk:SettingsCard
+                Header="生成缩略图"
+                Description="为所有尚未生成缩略图的照片立即生成，扫描后或清除缓存后可用">
+                <ctk:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xEB9F;" />
+                </ctk:SettingsCard.HeaderIcon>
+                <Button
+                    Content="立即生成"
+                    IsEnabled="{x:Bind ViewModel.ShowGenerateButton, Mode=OneWay}"
+                    Command="{x:Bind ViewModel.GenerateMissingThumbnailsCommand}" />
+            </ctk:SettingsCard>
+
+            <!-- Progress / Done area — managed entirely from code-behind -->
+            <Border
+                x:Name="ThumbGenProgressBorder"
+                Visibility="Collapsed"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="4"
+                Padding="20,14"
+                Margin="0,2,0,0">
+                <Grid>
+
+                    <!-- Building state -->
+                    <StackPanel
+                        x:Name="ThumbBuildingPanel"
+                        Spacing="10"
+                        Visibility="Collapsed">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Spacing="3" VerticalAlignment="Center">
+                                <TextBlock
+                                    Text="{x:Bind ViewModel.ThumbnailBuildProgressText, Mode=OneWay}"
+                                    Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                <TextBlock
+                                    Text="{x:Bind ViewModel.ThumbnailBuildStatsText, Mode=OneWay}"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    FontSize="12" />
+                            </StackPanel>
+                            <Button
+                                Grid.Column="1"
+                                Content="取消"
+                                VerticalAlignment="Center"
+                                Margin="12,0,0,0"
+                                Command="{x:Bind ViewModel.CancelThumbnailBuildCommand}" />
+                        </Grid>
+                        <ProgressBar
+                            Value="{x:Bind ViewModel.ThumbnailBuildProgress, Mode=OneWay}"
+                            Maximum="100"
+                            IsIndeterminate="{x:Bind ViewModel.IsThumbnailBuildIndeterminate, Mode=OneWay}" />
+                    </StackPanel>
+
+                    <!-- Done state — animated from code-behind -->
+                    <Grid
+                        x:Name="ThumbDonePanel"
+                        Visibility="Collapsed"
+                        HorizontalAlignment="Center"
+                        Padding="0,6">
+                        <StackPanel
+                            Orientation="Horizontal"
+                            Spacing="16"
+                            HorizontalAlignment="Center">
+
+                            <!-- Animated success circle -->
+                            <Border
+                                Width="52" Height="52"
+                                CornerRadius="26"
+                                Background="{ThemeResource SystemFillColorSuccessBrush}"
+                                VerticalAlignment="Center"
+                                RenderTransformOrigin="0.5,0.5">
+                                <Border.RenderTransform>
+                                    <ScaleTransform x:Name="ThumbDoneCircleScale" ScaleX="0" ScaleY="0" />
+                                </Border.RenderTransform>
+                                <FontIcon
+                                    Glyph="&#xE73E;"
+                                    FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                                    FontSize="24"
+                                    Foreground="White"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center" />
+                            </Border>
+
+                            <!-- Text that slides in from the right -->
+                            <StackPanel
+                                x:Name="ThumbDoneTextPanel"
+                                VerticalAlignment="Center"
+                                Opacity="0"
+                                RenderTransformOrigin="0,0.5">
+                                <StackPanel.RenderTransform>
+                                    <TranslateTransform x:Name="ThumbDoneTextTranslate" X="20" />
+                                </StackPanel.RenderTransform>
+                                <TextBlock
+                                    Text="全部完成！"
+                                    Style="{ThemeResource BodyStrongTextBlockStyle}"
+                                    FontSize="15" />
+                                <TextBlock
+                                    x:Name="ThumbDoneSubText"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    FontSize="12"
+                                    Margin="0,2,0,0" />
+                            </StackPanel>
+
+                        </StackPanel>
+                    </Grid>
+
+                </Grid>
+            </Border>
+
             <!-- Thumbnail cache size (readonly) -->
             <ctk:SettingsCard
                 Header="缩略图缓存"
