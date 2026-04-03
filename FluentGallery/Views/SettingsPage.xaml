@@ -178,10 +178,18 @@
                     OffContent="" />
             </ctk:SettingsCard>
 
+            <!-- ══════════════════════════════════════════════════════════
+                 4. 性能
+            ═══════════════════════════════════════════════════════════ -->
+            <TextBlock
+                Text="性能"
+                Style="{ThemeResource SubtitleTextBlockStyle}"
+                Margin="4,16,0,6" />
+
             <!-- Preload count -->
             <ctk:SettingsCard
                 Header="预加载张数"
-                Description="照片详情页中预加载相邻照片的数量（1–5 张）">
+                Description="预加载更多张数，快速翻看时更流畅，但会占用更多内存（1–5 张）">
                 <ctk:SettingsCard.HeaderIcon>
                     <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8C8;" />
                 </ctk:SettingsCard.HeaderIcon>
@@ -202,8 +210,48 @@
                 </StackPanel>
             </ctk:SettingsCard>
 
+            <!-- Thumbnail size -->
+            <ctk:SettingsCard
+                Header="缩略图尺寸"
+                Description="尺寸越大，缩略图越清晰，但会占用更多存储空间，生成速度也更慢">
+                <ctk:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xEB9F;" />
+                </ctk:SettingsCard.HeaderIcon>
+                <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                    <Slider
+                        Value="{x:Bind ViewModel.ThumbnailSizeIndex, Mode=TwoWay}"
+                        Minimum="0"
+                        Maximum="7"
+                        StepFrequency="1"
+                        TickFrequency="1"
+                        TickPlacement="Outside"
+                        IsThumbToolTipEnabled="False"
+                        Width="200" />
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        Style="{ThemeResource BodyStrongTextBlockStyle}"
+                        MinWidth="56">
+                        <Run Text="{x:Bind ViewModel.ThumbnailSizePixels, Mode=OneWay}" />
+                        <Run Text=" px" />
+                    </TextBlock>
+                </StackPanel>
+            </ctk:SettingsCard>
+
+            <!-- Thumbnail-size hint: shown after debounce, dismissed by clearing cache or closing -->
+            <InfoBar
+                IsOpen="{x:Bind ViewModel.ShowThumbnailSizeHint, Mode=TwoWay}"
+                Title="缩略图尺寸已更改"
+                Message="历史缩略图将继续以旧尺寸展示，清理缓存后才会按新尺寸重新生成"
+                Severity="Warning"
+                IsClosable="True"
+                Margin="0,4,0,0">
+                <InfoBar.ActionButton>
+                    <Button Content="立即清理" Click="ClearThumbnailsFromHint_Click" />
+                </InfoBar.ActionButton>
+            </InfoBar>
+
             <!-- ══════════════════════════════════════════════════════════
-                 4. 缓存与数据
+                 5. 缓存与数据
             ═══════════════════════════════════════════════════════════ -->
             <TextBlock
                 Text="缓存与数据"
@@ -265,7 +313,7 @@
             </ctk:SettingsCard>
 
             <!-- ══════════════════════════════════════════════════════════
-                 5. 关于
+                 6. 关于
             ═══════════════════════════════════════════════════════════ -->
             <TextBlock
                 Text="关于"

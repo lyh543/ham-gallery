@@ -10,7 +10,8 @@ using Windows.Storage.Streams;
 namespace FluentGallery.Data;
 
 /// <summary>
-/// Generates and caches 256×256 JPEG thumbnails using WIC (Windows.Graphics.Imaging).
+/// Generates and caches JPEG thumbnails using WIC (Windows.Graphics.Imaging).
+/// The fit-inside box size is configurable via <see cref="ThumbSize"/> (default 512 px).
 /// Thumbnail files are stored under <see cref="AppDataPaths.ThumbnailsDirectory"/>;
 /// their paths and source modification times are persisted in the Thumbnails table.
 ///
@@ -19,8 +20,15 @@ namespace FluentGallery.Data;
 /// </summary>
 public sealed class ThumbnailService
 {
-    private const uint   ThumbSize    = 256;
-    private const float  JpegQuality  = 0.80f;
+    private const float JpegQuality = 0.80f;
+
+    /// <summary>
+    /// Fit-inside box size in pixels used when generating new thumbnails.
+    /// Changing this at runtime does not invalidate the existing file cache;
+    /// call <c>ClearThumbnailCacheAsync</c> in <see cref="FluentGallery.Data.DatabaseService"/>
+    /// after updating this value so thumbnails are regenerated at the new size.
+    /// </summary>
+    public uint ThumbSize { get; set; } = 512;
 
     /// <summary>
     /// Maximum number of thumbnails generated simultaneously.
@@ -86,7 +94,7 @@ public sealed class ThumbnailService
                 return cached.ThumbPath;
             }
 
-            await GenerateAsync(photo.FilePath, thumbPath, ct);
+            await GenerateAsync(photo.FilePath, thumbPath, ThumbSize, ct);
 
             await _db.UpsertThumbnailAsync(new Thumbnail
             {
@@ -131,7 +139,7 @@ public sealed class ThumbnailService
 
     /// <summary>
     /// Decodes <paramref name="sourcePath"/> with WIC, scales it to fit inside
-    /// <see cref="ThumbSize"/>×<see cref="ThumbSize"/> (preserving aspect ratio),
+    /// <paramref name="thumbSize"/>×<paramref name="thumbSize"/> (preserving aspect ratio),
     /// applies EXIF orientation, and writes a JPEG to <paramref name="destPath"/>.
     ///
     /// EXIF rotation is handled manually via <see cref="BitmapTransform.Rotation"/>
@@ -140,7 +148,7 @@ public sealed class ThumbnailService
     /// built-in EXIF handling produces garbled output on certain images when
     /// combined with scaling.
     /// </summary>
-    internal static async Task GenerateAsync(string sourcePath, string destPath, CancellationToken ct)
+    internal static async Task GenerateAsync(string sourcePath, string destPath, uint thumbSize, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
 
@@ -157,7 +165,7 @@ public sealed class ThumbnailService
 
         // FitInside targets the final (post-rotation) logical dimensions.
         (uint logW, uint logH) = rotSwaps ? (physH, physW) : (physW, physH);
-        (uint finalW, uint finalH) = FitInside(logW, logH, ThumbSize);
+        (uint finalW, uint finalH) = FitInside(logW, logH, thumbSize);
 
         // BitmapTransform scales BEFORE rotating, so pre-rotation scale dims
         // must be swapped back when a 90°/270° rotation is involved.

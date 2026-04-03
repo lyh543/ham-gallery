@@ -12,7 +12,7 @@ using Windows.Foundation;
 using Windows.Graphics.Imaging;
 using Windows.Storage.Streams;
 
-const uint  ThumbSize    = 256;
+const uint  ThumbSize    = 512;
 const float JpegQuality  = 0.80f;
 
 string inputPath = args.Length > 0

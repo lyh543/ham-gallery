@@ -24,7 +24,7 @@ public sealed class ThumbnailServiceTests : IAsyncLifetime
     /// <summary>
     /// 4032×3024 phone photo with EXIF orientation 6 (90° CW).
     /// After EXIF correction the logical display size is 3024×4032 (portrait).
-    /// FitInside(3024, 4032, 256) → expected thumbnail size 192×256.
+    /// FitInside(3024, 4032, 512) → expected thumbnail size 384×512.
     /// </summary>
     private static readonly string ExifOrient6Image = Path.Combine(
         AppContext.BaseDirectory, "TestData", "regression_exif_orient6_4032x3024.jpg");
@@ -142,7 +142,7 @@ public sealed class ThumbnailServiceTests : IAsyncLifetime
     public async Task GenerateAsync_ExifOrientation6_ContentIsNotGarbled()
     {
         var dest = TempOutput("no_garble.jpg");
-        await ThumbnailService.GenerateAsync(ExifOrient6Image, dest, CancellationToken.None);
+        await ThumbnailService.GenerateAsync(ExifOrient6Image, dest, 512, CancellationToken.None);
 
         double score = await ComputeStripeScoreAsync(dest);
         Assert.True(score < 0.3,
@@ -153,34 +153,34 @@ public sealed class ThumbnailServiceTests : IAsyncLifetime
     /// <summary>
     /// Regression guard for bug #2:
     /// FitInside used physical (pre-EXIF) dimensions (4032×3024) instead of logical
-    /// (3024×4032), producing a landscape 256×192 thumbnail for a portrait photo.
-    /// The correct output for this image is portrait 192×256.
+    /// (3024×4032), producing a landscape 512×384 thumbnail for a portrait photo.
+    /// The correct output for this image is portrait 384×512.
     /// </summary>
     [Fact]
     public async Task GenerateAsync_ExifOrientation6_ProducesPortraitThumbnail()
     {
         var dest = TempOutput("portrait_dims.jpg");
-        await ThumbnailService.GenerateAsync(ExifOrient6Image, dest, CancellationToken.None);
+        await ThumbnailService.GenerateAsync(ExifOrient6Image, dest, 512, CancellationToken.None);
 
         var (w, h) = await ReadJpegDimensionsAsync(dest);
 
-        Assert.Equal(192u, w);
-        Assert.Equal(256u, h);
+        Assert.Equal(384u, w);
+        Assert.Equal(512u, h);
     }
 
     /// <summary>
-    /// Both output dimensions must fit within the 256-pixel box.
+    /// Both output dimensions must fit within the 512-pixel box.
     /// </summary>
     [Fact]
     public async Task GenerateAsync_ExifOrientation6_FitsWithinBox()
     {
         var dest = TempOutput("fit_box.jpg");
-        await ThumbnailService.GenerateAsync(ExifOrient6Image, dest, CancellationToken.None);
+        await ThumbnailService.GenerateAsync(ExifOrient6Image, dest, 512, CancellationToken.None);
 
         var (w, h) = await ReadJpegDimensionsAsync(dest);
 
-        Assert.True(w <= 256, $"Width {w} exceeds the 256-pixel box");
-        Assert.True(h <= 256, $"Height {h} exceeds the 256-pixel box");
+        Assert.True(w <= 512, $"Width {w} exceeds the 512-pixel box");
+        Assert.True(h <= 512, $"Height {h} exceeds the 512-pixel box");
     }
 
     /// <summary>
@@ -193,7 +193,7 @@ public sealed class ThumbnailServiceTests : IAsyncLifetime
         const double logicalAspect = 3024.0 / 4032.0; // ≈ 0.750
 
         var dest = TempOutput("aspect_ratio.jpg");
-        await ThumbnailService.GenerateAsync(ExifOrient6Image, dest, CancellationToken.None);
+        await ThumbnailService.GenerateAsync(ExifOrient6Image, dest, 512, CancellationToken.None);
 
         var (w, h) = await ReadJpegDimensionsAsync(dest);
         double thumbAspect = (double)w / h;

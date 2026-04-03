@@ -83,6 +83,12 @@ public sealed partial class SettingsPage : Page
             await ViewModel.ClearThumbnailCacheAsync();
     }
 
+    private async void ClearThumbnailsFromHint_Click(object sender, RoutedEventArgs e)
+    {
+        ViewModel.ShowThumbnailSizeHint = false;
+        await ViewModel.ClearThumbnailCacheAsync();
+    }
+
     private async void ClearDbCache_Click(object sender, RoutedEventArgs e)
     {
         if (await ShowConfirmAsync(

@@ -38,4 +38,13 @@ public sealed class AppSettings
 
     /// <summary>Maximum in-memory image cache size in bytes. Default 512 MB.</summary>
     public long MemoryCacheLimitBytes { get; set; } = 512L * 1024 * 1024;
+
+    // ── Thumbnail ────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Fit-inside box size (px) used when generating thumbnails.
+    /// Must be one of: 128, 256, 384, 512, 768, 1024, 1536, 2048.
+    /// Default 512.
+    /// </summary>
+    public int ThumbnailSize { get; set; } = 512;
 }

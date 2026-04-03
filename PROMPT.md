@@ -297,7 +297,7 @@ CREATE INDEX IF NOT EXISTS idx_photos_modifiedAt ON Photos(ModifiedAt);
 2. 对比文件系统的 LastWriteTime
 3. 若一致 → 直接使用缓存路径
 4. 若不一致或不存在 → 后台线程生成，写入磁盘，更新数据库
-5. 生成尺寸：256×256（保持宽高比，不拉伸），JPEG 质量 80
+5. 生成尺寸：512×512（保持宽高比，不拉伸），JPEG 质量 80
 6. 使用 WIC BitmapDecoder 解码，BitmapTransform 缩放，BitmapEncoder 编码到磁盘
 ```
 

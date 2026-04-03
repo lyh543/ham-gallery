@@ -18,6 +18,7 @@ namespace FluentGallery.ViewModels;
 public sealed partial class SettingsViewModel : ObservableObject
 {
     private readonly DatabaseService _db;
+    private readonly ThumbnailService _thumbnailService;
     private readonly IThemeService   _themeService;
     private readonly ILogger<SettingsViewModel> _logger;
     private AppSettings _settings = new();
@@ -26,9 +27,16 @@ public sealed partial class SettingsViewModel : ObservableObject
     // the initial values are being loaded.
     private bool _isInitialized;
 
+    // Debounce token for thumbnail-size slider: cancelled on each new tick,
+    // so save + hint only fire after the user stops dragging.
+    private CancellationTokenSource? _sizeDebounce;
+
     // ── Language index mapping ──────────────────────────────────────────
     // Index 0 = follow system, 1 = en-US, 2 = zh-CN
     private static readonly string[] LanguageTags = ["", "en-US", "zh-CN"];
+
+    // ── Thumbnail size options ──────────────────────────────────────────
+    public static readonly int[] ThumbnailSizeOptions = [128, 256, 384, 512, 768, 1024, 1536, 2048];
 
     // ── Scan ────────────────────────────────────────────────────────────
     public ObservableCollection<string> ScanDirectories    { get; } = [];
@@ -39,8 +47,20 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] public partial int Theme                 { get; set; }
 
     // ── Behaviour ───────────────────────────────────────────────────────
-    [ObservableProperty] public partial bool ConfirmBeforeDelete { get; set; }
-    [ObservableProperty] public partial int  PreloadCount        { get; set; }
+    [ObservableProperty] public partial bool ConfirmBeforeDelete  { get; set; }
+    [ObservableProperty] public partial int  PreloadCount         { get; set; }
+    [ObservableProperty] public partial int  ThumbnailSizeIndex   { get; set; }
+
+    /// <summary>Actual pixel value for the currently selected thumbnail size index.</summary>
+    public int ThumbnailSizePixels
+        => ThumbnailSizeOptions[Math.Clamp(ThumbnailSizeIndex, 0, ThumbnailSizeOptions.Length - 1)];
+
+    // ── Thumbnail-size hint bar ──────────────────────────────────────────
+    /// <summary>
+    /// True while the "thumbnail size changed – clear cache?" InfoBar is visible.
+    /// Bind IsOpen TwoWay so the InfoBar hides itself when the user closes it.
+    /// </summary>
+    [ObservableProperty] public partial bool ShowThumbnailSizeHint { get; set; }
 
     // ── Cache display ───────────────────────────────────────────────────
     [ObservableProperty] public partial string ThumbnailCacheSizeText { get; set; } = "计算中…";
@@ -58,12 +78,14 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public SettingsViewModel(
         DatabaseService db,
+        ThumbnailService thumbnailService,
         IThemeService themeService,
         ILogger<SettingsViewModel> logger)
     {
-        _db           = db;
-        _themeService = themeService;
-        _logger       = logger;
+        _db               = db;
+        _thumbnailService = thumbnailService;
+        _themeService     = themeService;
+        _logger           = logger;
     }
 
     // ────────────────────────────────────────────────────────────────────
@@ -91,9 +113,14 @@ public sealed partial class SettingsViewModel : ObservableObject
             ConfirmBeforeDelete = _settings.ConfirmBeforeDelete;
             PreloadCount        = _settings.PreloadCount;
 
+            var sizeIdx = Array.IndexOf(ThumbnailSizeOptions, _settings.ThumbnailSize);
+            ThumbnailSizeIndex = sizeIdx >= 0 ? sizeIdx : Array.IndexOf(ThumbnailSizeOptions, 512);
+
             var tag = _settings.Language ?? string.Empty;
             var idx = Array.IndexOf(LanguageTags, tag);
             SelectedLanguageIndex = idx >= 0 ? idx : 0;
+
+            _thumbnailService.ThumbSize = (uint)ThumbnailSizePixels;
 
             await RefreshThumbnailCacheSizeAsync(ct);
         }
@@ -112,6 +139,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         _settings.Theme               = Theme;
         _settings.ConfirmBeforeDelete = ConfirmBeforeDelete;
         _settings.PreloadCount        = PreloadCount;
+        _settings.ThumbnailSize       = ThumbnailSizePixels;
 
         var langIdx = SelectedLanguageIndex;
         _settings.Language = langIdx >= 0 && langIdx < LanguageTags.Length
@@ -217,6 +245,30 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         if (!_isInitialized) return;
         _ = SaveAsync();
+    }
+
+    partial void OnThumbnailSizeIndexChanged(int value)
+    {
+        OnPropertyChanged(nameof(ThumbnailSizePixels));
+        if (!_isInitialized) return;
+
+        // Debounce: cancel any pending delayed commit and start a new one.
+        _sizeDebounce?.Cancel();
+        _sizeDebounce = new CancellationTokenSource();
+        _ = CommitThumbnailSizeAsync(_sizeDebounce.Token);
+    }
+
+    private async Task CommitThumbnailSizeAsync(CancellationToken ct)
+    {
+        try
+        {
+            await Task.Delay(600, ct);          // wait for slider to settle
+
+            _thumbnailService.ThumbSize = (uint)ThumbnailSizePixels;
+            await SaveAsync(ct);
+            ShowThumbnailSizeHint = true;       // show the "clear cache?" bar
+        }
+        catch (OperationCanceledException) { }  // user moved slider again — ignore
     }
 
     // ────────────────────────────────────────────────────────────────────
