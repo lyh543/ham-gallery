@@ -228,12 +228,93 @@ public sealed class DatabaseService
             .ToListAsync(ct);
     }
 
+    /// <summary>
+    /// Returns the most recently inserted photo in the album (by row Id),
+    /// or <c>null</c> if the album is empty. Used to derive the album cover thumbnail.
+    /// </summary>
+    public async Task<Photo?> GetLatestPhotoByAlbumAsync(long albumId, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.Photos
+            .Where(p => p.AlbumId == albumId)
+            .OrderByDescending(p => p.Id)
+            .FirstOrDefaultAsync(ct);
+    }
+
     public async Task<IReadOnlyList<Photo>> GetAllPhotosAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.Photos
             .OrderByDescending(p => p.TakenAt).ThenBy(p => p.FileName)
             .ToListAsync(ct);
+    }
+
+    /// <summary>
+    /// Searches photos by file name keyword and/or a date range on a chosen date field.
+    /// All parameters are optional; omitting all returns nothing (caller should validate).
+    /// </summary>
+    /// <param name="keyword">Case-insensitive substring match on <see cref="Photo.FileName"/>.</param>
+    /// <param name="dateField">
+    ///   Which date field to filter on: <c>"TakenAt"</c>, <c>"ModifiedAt"</c>, or <c>"CreatedAt"</c>.
+    ///   Ignored when both <paramref name="dateFrom"/> and <paramref name="dateTo"/> are null.
+    /// </param>
+    /// <param name="dateFrom">Inclusive lower bound as <c>yyyy-MM-dd</c> string, or null.</param>
+    /// <param name="dateTo">Inclusive upper bound as <c>yyyy-MM-dd</c> string, or null.</param>
+    /// <param name="albumId">When supplied, restricts results to the specified album.</param>
+    public async Task<IReadOnlyList<Photo>> SearchPhotosAsync(
+        string?  keyword,
+        string?  dateField,
+        string?  dateFrom,
+        string?  dateTo,
+        long?    albumId   = null,
+        CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        IQueryable<Photo> query = db.Photos.AsNoTracking();
+
+        if (albumId.HasValue)
+            query = query.Where(p => p.AlbumId == albumId.Value);
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+            query = query.Where(p => EF.Functions.Like(p.FileName, $"%{keyword}%"));
+
+        // Pull matching rows first, then apply date-range filter in memory.
+        // ISO 8601 strings are lexicographically sortable so this is safe.
+        var photos = await query
+            .OrderBy(p => p.FileName)
+            .ToListAsync(ct);
+
+        bool hasDateFilter = !string.IsNullOrWhiteSpace(dateFrom) || !string.IsNullOrWhiteSpace(dateTo);
+        if (hasDateFilter && !string.IsNullOrWhiteSpace(dateField))
+        {
+            photos = photos.Where(p =>
+            {
+                var raw = dateField switch
+                {
+                    "TakenAt"    => p.TakenAt,
+                    "ModifiedAt" => p.ModifiedAt,
+                    _            => p.CreatedAt,
+                };
+
+                if (string.IsNullOrEmpty(raw)) return false;
+
+                // Take only the date portion (first 10 chars) for yyyy-MM-dd comparison.
+                var dateOnly = raw.Length >= 10 ? raw[..10] : raw;
+
+                if (!string.IsNullOrWhiteSpace(dateFrom) &&
+                    string.Compare(dateOnly, dateFrom, StringComparison.Ordinal) < 0)
+                    return false;
+
+                if (!string.IsNullOrWhiteSpace(dateTo) &&
+                    string.Compare(dateOnly, dateTo, StringComparison.Ordinal) > 0)
+                    return false;
+
+                return true;
+            }).ToList();
+        }
+
+        return photos;
     }
 
     public async Task<Photo?> GetPhotoByPathAsync(string filePath, CancellationToken ct = default)

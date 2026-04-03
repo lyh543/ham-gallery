@@ -1,3 +1,4 @@
+using FluentGallery.Models;
 using FluentGallery.ViewModels;
 using FluentGallery.Views;
 using Microsoft.Extensions.DependencyInjection;
@@ -172,6 +173,14 @@ public sealed partial class MainWindow : Window
             return;
         }
 
+        // Global search (no album scope)
+        if (tag == "Search")
+        {
+            ContentFrame.Navigate(typeof(SearchPage), new SearchArgs());
+            NavView.Header = "搜索";
+            return;
+        }
+
         var pageType = tag switch
         {
             "AlbumList" => typeof(AlbumListPage),
@@ -188,6 +197,12 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>
+    /// Allows pages to override the NavigationView header text
+    /// (e.g. PhotoListPage sets it to the album name).
+    /// </summary>
+    public void SetNavHeader(string header) => NavView.Header = header;
+
+    /// <summary>
     /// Re-selects the nav item that corresponds to the page currently shown in the Frame
     /// (called after back-navigation).
     /// </summary>
@@ -200,6 +215,7 @@ public sealed partial class MainWindow : Window
             nameof(AlbumListPage) => AlbumsNavItem,
             nameof(AllPhotosPage) => AllPhotosNavItem,
             nameof(SettingsPage)  => SettingsNavItem,
+            nameof(SearchPage)    => SearchNavItem,
             _                     => null,
         };
 

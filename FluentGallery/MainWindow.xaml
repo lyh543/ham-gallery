@@ -51,6 +51,16 @@
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
 
+            <!-- 搜索 (Search) -->
+            <NavigationViewItem
+                x:Name="SearchNavItem"
+                Tag="Search"
+                Content="搜索">
+                <NavigationViewItem.Icon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE721;" />
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+
         </NavigationView.MenuItems>
 
         <!-- Bottom footer: Settings -->

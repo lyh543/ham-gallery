@@ -21,12 +21,25 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <!-- Cover placeholder -->
+                <!-- Cover area: placeholder icon + thumbnail image layered inside Border -->
                 <Border Grid.Row="0" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                         CornerRadius="8 8 0 0">
-                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                              Glyph="&#xE93C;" FontSize="48" Opacity="0.3"
-                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <Grid>
+                        <!-- Layer 1: album icon placeholder (always visible until thumbnail loads) -->
+                        <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                                  Glyph="&#xE93C;" FontSize="48" Opacity="0.3"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <!-- Layer 2: cover thumbnail (covers placeholder once loaded) -->
+                        <Image Source="{x:Bind CoverThumbnailSource, Mode=OneWay}"
+                               Stretch="UniformToFill"/>
+                        <!-- Layer 3: loading ring while thumbnail is being generated -->
+                        <ProgressRing
+                            IsActive="{x:Bind IsCoverLoading, Mode=OneWay}"
+                            Visibility="{x:Bind IsCoverLoading, Mode=OneWay,
+                                                 Converter={StaticResource BoolToVisibility}}"
+                            Width="24" Height="24"
+                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Grid>
                 </Border>
 
                 <!-- Info area -->
@@ -73,9 +86,13 @@
 
                 <Border Grid.Row="0" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                         CornerRadius="6 6 0 0">
-                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                              Glyph="&#xE93C;" FontSize="32" Opacity="0.3"
-                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <Grid>
+                        <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                                  Glyph="&#xE93C;" FontSize="32" Opacity="0.3"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <Image Source="{x:Bind CoverThumbnailSource, Mode=OneWay}"
+                               Stretch="UniformToFill"/>
+                    </Grid>
                 </Border>
 
                 <Border Grid.Row="1" Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
@@ -125,6 +142,7 @@
                       SelectionMode="None"
                       IsItemClickEnabled="True"
                       ItemClick="AlbumGridView_ItemClick"
+                      ContainerContentChanging="AlbumGridView_ContainerContentChanging"
                       Padding="0 0 0 24">
                 <GridView.ItemContainerStyle>
                     <Style TargetType="GridViewItem" BasedOn="{StaticResource DefaultGridViewItemStyle}">

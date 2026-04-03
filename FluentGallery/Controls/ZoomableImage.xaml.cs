@@ -2,9 +2,9 @@ using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Windows.Foundation;
-using Windows.Storage;
 using Windows.System;
 using Windows.UI.Core;
 
@@ -104,18 +104,22 @@ public sealed partial class ZoomableImage : UserControl
     public BitmapImage? CurrentBitmap { get; private set; }
 
     /// <summary>
-    /// Asynchronously loads the image at <paramref name="filePath"/> and fits it to the viewport.
+    /// Loads the image at <paramref name="filePath"/> and fits it to the viewport.
+    /// Decoding is performed in the background by WinUI (via UriSource); this method
+    /// returns immediately so the page transition is not blocked by the codec.
+    /// A <see cref="ProgressRing"/> is shown while decoding and hidden on completion.
     /// </summary>
-    public async Task LoadImageAsync(string filePath, CancellationToken ct = default)
+    public Task LoadImageAsync(string filePath, CancellationToken ct = default)
     {
-        MainImage.Source = null;
-        CurrentBitmap    = null;
+        ct.ThrowIfCancellationRequested();
+
+        MainImage.Opacity = 0;
+        MainImage.Source  = null;
+        CurrentBitmap     = null;
+        ShowLoading();
 
         try
         {
-            var file   = await StorageFile.GetFileFromPathAsync(filePath);
-            using var stream = await file.OpenReadAsync();
-
             var bmp = new BitmapImage();
             bmp.ImageOpened += (_, _) =>
             {
@@ -124,49 +128,68 @@ public sealed partial class ZoomableImage : UserControl
                 MainImage.Height = bmp.PixelHeight;
                 _isAt100Percent  = false;
                 FitToWindow();
+                HideLoading();
+                FadeInImage();
             };
-            await bmp.SetSourceAsync(stream).AsTask(ct);
+            bmp.ImageFailed += (_, _) => HideLoading();
+            // UriSource triggers background decode without blocking the UI thread,
+            // unlike SetSourceAsync which awaits full decode before returning.
+            bmp.UriSource    = new Uri(filePath);
             MainImage.Source = bmp;
             CurrentBitmap    = bmp;
         }
-        catch (OperationCanceledException) { throw; }
+        catch (OperationCanceledException) { HideLoading(); throw; }
         catch
         {
             MainImage.Source = null;
+            HideLoading();
         }
+
+        return Task.CompletedTask;
     }
 
     /// <summary>
     /// Displays a pre-loaded <see cref="BitmapImage"/> from the caller's cache.
     /// Falls back to path-based loading if the cached bitmap has no pixel data yet.
     /// </summary>
-    public async Task LoadImageFromCacheAsync(BitmapImage cached, CancellationToken ct = default)
+    public Task LoadImageFromCacheAsync(BitmapImage cached, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
 
         if (cached.PixelWidth > 0)
         {
-            // Already decoded — display immediately.
-            MainImage.Source = cached;
-            CurrentBitmap    = cached;
-            MainImage.Width  = cached.PixelWidth;
-            MainImage.Height = cached.PixelHeight;
-            _isAt100Percent  = false;
+            // Already decoded — display immediately with a quick fade-in.
+            MainImage.Opacity = 0;
+            MainImage.Source  = cached;
+            CurrentBitmap     = cached;
+            MainImage.Width   = cached.PixelWidth;
+            MainImage.Height  = cached.PixelHeight;
+            _isAt100Percent   = false;
             FitToWindow();
+            HideLoading();
+            FadeInImage();
         }
         else
         {
-            // Still loading — attach ImageOpened and display once ready.
-            MainImage.Source = cached;
-            CurrentBitmap    = cached;
+            // Still decoding in background — show ring until ImageOpened fires.
+            MainImage.Opacity = 0;
+            MainImage.Source  = null;
+            CurrentBitmap     = cached;
+            ShowLoading();
             cached.ImageOpened += (_, _) =>
             {
+                MainImage.Source = cached;
                 MainImage.Width  = cached.PixelWidth;
                 MainImage.Height = cached.PixelHeight;
                 _isAt100Percent  = false;
                 FitToWindow();
+                HideLoading();
+                FadeInImage();
             };
+            cached.ImageFailed += (_, _) => HideLoading();
         }
+
+        return Task.CompletedTask;
     }
 
     /// <summary>Scales the image so it fits entirely within the current viewport.</summary>
@@ -278,5 +301,37 @@ public sealed partial class ZoomableImage : UserControl
         double offX = Math.Max(0, (contentW  - Scroll.ViewportWidth)  / 2.0);
         double offY = Math.Max(0, (contentH - Scroll.ViewportHeight) / 2.0);
         Scroll.ChangeView(offX, offY, null, disableAnimation: true);
+    }
+
+    // ── Loading indicator ─────────────────────────────────────────────────────
+
+    private void ShowLoading()
+    {
+        LoadingRing.Visibility = Visibility.Visible;
+        LoadingRing.IsActive   = true;
+    }
+
+    private void HideLoading()
+    {
+        LoadingRing.IsActive   = false;
+        LoadingRing.Visibility = Visibility.Collapsed;
+    }
+
+    // ── Image fade-in ─────────────────────────────────────────────────────────
+
+    private void FadeInImage()
+    {
+        var anim = new DoubleAnimation
+        {
+            From           = 0.0,
+            To             = 1.0,
+            Duration       = TimeSpan.FromMilliseconds(200),
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+        };
+        Storyboard.SetTarget(anim, MainImage);
+        Storyboard.SetTargetProperty(anim, "Opacity");
+        var sb = new Storyboard();
+        sb.Children.Add(anim);
+        sb.Begin();
     }
 }

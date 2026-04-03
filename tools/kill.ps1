@@ -8,7 +8,7 @@ $id = [int](Get-Content $PidFile | Select-Object -First 1)
 $proc = Get-Process -Id $id -ErrorAction SilentlyContinue
 
 if ($proc -and $proc.ProcessName -eq "FluentGallery") {
-    taskkill /PID $id /T /F 2>$null
+    taskkill /PID $id /T /F 2>$null | Out-Null
     Write-Host "Killed FluentGallery (PID $id)"
 }
 

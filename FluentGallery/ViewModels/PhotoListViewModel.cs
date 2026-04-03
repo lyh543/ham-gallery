@@ -21,6 +21,9 @@ public sealed partial class PhotoListViewModel : ObservableObject
 
     private long _albumId;
 
+    /// <summary>Id of the album currently loaded. Set by <see cref="LoadAsync"/>.</summary>
+    public long AlbumId => _albumId;
+
     // ── Collections ──────────────────────────────────────────────────────────
 
     public ObservableCollection<PhotoItemViewModel> Photos { get; } = new();

@@ -1,4 +1,5 @@
 using FluentGallery.Data;
+using FluentGallery.Models;
 using FluentGallery.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
@@ -39,6 +40,8 @@ public sealed partial class PhotoListPage : Page
                 ApplySelectionMode();
             else if (e.PropertyName == nameof(PhotoListViewModel.Photos))
                 UpdateEmptyState();
+            else if (e.PropertyName == nameof(PhotoListViewModel.AlbumName))
+                SyncNavHeader();
         };
 
         ViewModel.Photos.CollectionChanged += (_, _) => UpdateEmptyState();
@@ -58,6 +61,7 @@ public sealed partial class PhotoListPage : Page
             {
                 await ViewModel.LoadAsync(albumId, _pageCts.Token);
                 UpdateEmptyState();
+                SyncNavHeader();
             };
         }
     }
@@ -277,9 +281,17 @@ public sealed partial class PhotoListPage : Page
         ViewModel.SortDirection = t.IsChecked ? SortDirection.Descending : SortDirection.Ascending;
     }
 
+    // ── Nav header sync ───────────────────────────────────────────────────────
+
+    private void SyncNavHeader()
+    {
+        if (App.Current.MainWindow is MainWindow mw)
+            mw.SetNavHeader(ViewModel.AlbumName);
+    }
+
     // ── Album inline rename ───────────────────────────────────────────────────
 
-    private void AlbumTitle_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+    private void RenameAlbum_Click(object sender, RoutedEventArgs e)
     {
         ViewModel.BeginRenameAlbum();
         DispatcherQueue.TryEnqueue(() =>
@@ -307,6 +319,15 @@ public sealed partial class PhotoListPage : Page
     {
         if (ViewModel.IsRenamingAlbum)
             await ViewModel.CommitRenameAlbumAsync();
+    }
+
+    // ── Search within album ───────────────────────────────────────────────────
+
+    private void Search_Click(object sender, RoutedEventArgs e)
+    {
+        Frame.Navigate(
+            typeof(SearchPage),
+            new SearchArgs(AlbumId: ViewModel.AlbumId, AlbumName: ViewModel.AlbumName));
     }
 
     // ── Empty state ───────────────────────────────────────────────────────────

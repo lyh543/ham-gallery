@@ -15,22 +15,35 @@
         Mouse wheel   → zoom in / out (no Ctrl required when cursor is over the image)
         Pinch gesture → built-in by ScrollViewer.ZoomMode="Enabled"
     -->
-    <ScrollViewer
-        x:Name="Scroll"
-        ZoomMode="Enabled"
-        HorizontalScrollMode="Enabled"
-        VerticalScrollMode="Enabled"
-        HorizontalScrollBarVisibility="Hidden"
-        VerticalScrollBarVisibility="Hidden"
-        MinZoomFactor="0.1"
-        MaxZoomFactor="10"
-        Background="Transparent">
+    <Grid>
 
-        <Image
-            x:Name="MainImage"
-            Stretch="None"
-            DoubleTapped="MainImage_DoubleTapped" />
+        <ScrollViewer
+            x:Name="Scroll"
+            ZoomMode="Enabled"
+            HorizontalScrollMode="Enabled"
+            VerticalScrollMode="Enabled"
+            HorizontalScrollBarVisibility="Hidden"
+            VerticalScrollBarVisibility="Hidden"
+            MinZoomFactor="0.1"
+            MaxZoomFactor="10"
+            Background="Transparent">
 
-    </ScrollViewer>
+            <Image
+                x:Name="MainImage"
+                Stretch="None"
+                DoubleTapped="MainImage_DoubleTapped" />
+
+        </ScrollViewer>
+
+        <!-- Loading indicator — shown while image decodes in background -->
+        <ProgressRing
+            x:Name="LoadingRing"
+            Width="52" Height="52"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            IsActive="False"
+            Visibility="Collapsed" />
+
+    </Grid>
 
 </UserControl>

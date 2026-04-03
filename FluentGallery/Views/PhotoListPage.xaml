@@ -50,20 +50,11 @@
             <RowDefinition Height="*"/>    <!-- Photo grid -->
         </Grid.RowDefinitions>
 
-        <!-- ── Album title ── -->
-        <Grid Grid.Row="0" Padding="20 12 20 4">
-            <!-- Normal title (double-tap to rename) -->
-            <TextBlock
-                x:Name="AlbumTitleBlock"
-                Text="{x:Bind ViewModel.AlbumName, Mode=OneWay}"
-                Style="{ThemeResource TitleTextBlockStyle}"
-                DoubleTapped="AlbumTitle_DoubleTapped"
-                ToolTipService.ToolTip="双击以重命名相册"
-                Visibility="{x:Bind ViewModel.IsRenamingAlbum, Mode=OneWay,
-                                     Converter={StaticResource BoolToVisibility},
-                                     ConverterParameter='True'}"/>
-
-            <!-- Rename TextBox (visible during inline edit) -->
+        <!-- ── Inline rename TextBox (only visible during rename) ── -->
+        <Grid Grid.Row="0"
+              Padding="20 8 20 4"
+              Visibility="{x:Bind ViewModel.IsRenamingAlbum, Mode=OneWay,
+                                   Converter={StaticResource BoolToVisibility}}">
             <TextBox
                 x:Name="AlbumRenameBox"
                 Text="{x:Bind ViewModel.EditAlbumName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
@@ -72,9 +63,7 @@
                 BorderThickness="0 0 0 2"
                 Background="Transparent"
                 KeyDown="AlbumRenameBox_KeyDown"
-                LostFocus="AlbumRenameBox_LostFocus"
-                Visibility="{x:Bind ViewModel.IsRenamingAlbum, Mode=OneWay,
-                                     Converter={StaticResource BoolToVisibility}}"/>
+                LostFocus="AlbumRenameBox_LostFocus"/>
         </Grid>
 
         <!-- ── Toolbar ── -->
@@ -109,6 +98,13 @@
 
             <AppBarSeparator/>
 
+            <!-- Rename album -->
+            <AppBarButton
+                x:Name="RenameAlbumButton"
+                Icon="Rename"
+                Label="重命名"
+                Click="RenameAlbum_Click"/>
+
             <!-- Sort -->
             <AppBarButton Icon="Sort" Label="排序">
                 <AppBarButton.Flyout>
@@ -138,6 +134,18 @@
                     <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE762;"/>
                 </AppBarToggleButton.Icon>
             </AppBarToggleButton>
+
+            <AppBarSeparator/>
+
+            <!-- Search within this album -->
+            <AppBarButton
+                x:Name="SearchButton"
+                Label="搜索"
+                Click="Search_Click">
+                <AppBarButton.Icon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE721;"/>
+                </AppBarButton.Icon>
+            </AppBarButton>
         </CommandBar>
 
         <!-- ── Photo grid ── -->

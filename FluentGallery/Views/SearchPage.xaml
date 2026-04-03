@@ -1,0 +1,272 @@
+<Page
+    x:Class="FluentGallery.Views.SearchPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="using:FluentGallery.ViewModels"
+    xmlns:conv="using:FluentGallery.Converters"
+    mc:Ignorable="d"
+    Background="Transparent">
+
+    <Page.Resources>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVisibility"/>
+
+        <!-- Photo thumbnail card (same style as PhotoListPage) -->
+        <DataTemplate x:Key="PhotoCardTemplate" x:DataType="vm:PhotoItemViewModel">
+            <Grid>
+                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                    <FontIcon
+                        FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                        Glyph="&#xEB9F;"
+                        FontSize="28"
+                        Opacity="0.2"/>
+                </Border>
+
+                <Image
+                    Source="{x:Bind ThumbnailSource, Mode=OneWay}"
+                    Stretch="UniformToFill"/>
+
+                <Border
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    Opacity="0.7"
+                    Visibility="{x:Bind IsLoading, Mode=OneWay,
+                                         Converter={StaticResource BoolToVisibility}}">
+                    <ProgressRing
+                        IsActive="{x:Bind IsLoading, Mode=OneWay}"
+                        Width="28" Height="28"/>
+                </Border>
+            </Grid>
+        </DataTemplate>
+    </Page.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- Filter panel -->
+            <RowDefinition Height="Auto"/> <!-- Result count bar -->
+            <RowDefinition Height="*"/>    <!-- Photo grid -->
+        </Grid.RowDefinitions>
+
+        <!-- ── Filter panel ─────────────────────────────────────────────────── -->
+        <Border
+            Grid.Row="0"
+            Padding="16 12 16 12"
+            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="0 0 0 1">
+
+            <StackPanel Spacing="10">
+
+                <!-- Scope hint (only shown for album-scoped search) -->
+                <TextBlock
+                    x:Name="ScopeHintText"
+                    Visibility="Collapsed"
+                    Style="{ThemeResource CaptionTextBlockStyle}"
+                    Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+
+                <!-- Row 1: keyword -->
+                <Grid ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock
+                        Grid.Column="0"
+                        Text="文件名"
+                        VerticalAlignment="Center"
+                        Style="{ThemeResource BodyTextBlockStyle}"/>
+
+                    <TextBox
+                        x:Name="KeywordBox"
+                        Grid.Column="1"
+                        PlaceholderText="输入文件名关键词（支持模糊匹配）"
+                        Text="{x:Bind ViewModel.Keyword, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                        KeyDown="KeywordBox_KeyDown"/>
+                </Grid>
+
+                <!-- Row 2: date field + range -->
+                <Grid ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>   <!-- label -->
+                        <ColumnDefinition Width="160"/>    <!-- field selector -->
+                        <ColumnDefinition Width="Auto"/>   <!-- from label -->
+                        <ColumnDefinition Width="160"/>    <!-- from date -->
+                        <ColumnDefinition Width="Auto"/>   <!-- to label -->
+                        <ColumnDefinition Width="160"/>    <!-- to date -->
+                        <ColumnDefinition Width="Auto"/>   <!-- clear button -->
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock
+                        Grid.Column="0"
+                        Text="时间字段"
+                        VerticalAlignment="Center"
+                        Style="{ThemeResource BodyTextBlockStyle}"/>
+
+                    <ComboBox
+                        x:Name="DateFieldCombo"
+                        Grid.Column="1"
+                        HorizontalAlignment="Stretch"
+                        SelectionChanged="DateFieldCombo_SelectionChanged">
+                        <ComboBoxItem Content="拍摄时间" Tag="TakenAt"/>
+                        <ComboBoxItem Content="修改时间" Tag="ModifiedAt"/>
+                        <ComboBoxItem Content="创建时间" Tag="CreatedAt"/>
+                    </ComboBox>
+
+                    <TextBlock
+                        Grid.Column="2"
+                        Text="从"
+                        VerticalAlignment="Center"
+                        Margin="4 0 0 0"
+                        Style="{ThemeResource BodyTextBlockStyle}"/>
+
+                    <CalendarDatePicker
+                        x:Name="DateFromPicker"
+                        Grid.Column="3"
+                        PlaceholderText="开始日期"
+                        HorizontalAlignment="Stretch"
+                        DateChanged="DateFromPicker_DateChanged"/>
+
+                    <TextBlock
+                        Grid.Column="4"
+                        Text="至"
+                        VerticalAlignment="Center"
+                        Margin="4 0 0 0"
+                        Style="{ThemeResource BodyTextBlockStyle}"/>
+
+                    <CalendarDatePicker
+                        x:Name="DateToPicker"
+                        Grid.Column="5"
+                        PlaceholderText="结束日期"
+                        HorizontalAlignment="Stretch"
+                        DateChanged="DateToPicker_DateChanged"/>
+
+                    <Button
+                        Grid.Column="6"
+                        Content="清除日期"
+                        Margin="4 0 0 0"
+                        Click="ClearDates_Click"
+                        Style="{ThemeResource DefaultButtonStyle}"/>
+                </Grid>
+
+                <!-- Row 3: search button -->
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button
+                        x:Name="SearchButton"
+                        Content="搜索"
+                        Style="{ThemeResource AccentButtonStyle}"
+                        Click="SearchButton_Click"
+                        MinWidth="100"/>
+
+                    <ProgressRing
+                        x:Name="SearchProgress"
+                        IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}"
+                        Width="20" Height="20"
+                        VerticalAlignment="Center"/>
+                </StackPanel>
+
+            </StackPanel>
+        </Border>
+
+        <!-- ── Result count bar ─────────────────────────────────────────────── -->
+        <Border
+            Grid.Row="1"
+            Padding="20 6 20 6"
+            Visibility="{x:Bind ViewModel.HasSearched, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
+            <TextBlock
+                x:Name="ResultCountText"
+                Style="{ThemeResource CaptionTextBlockStyle}"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+        </Border>
+
+        <!-- ── Photo grid ────────────────────────────────────────────────────── -->
+        <GridView
+            x:Name="ResultsGridView"
+            Grid.Row="2"
+            ItemsSource="{x:Bind ViewModel.Results}"
+            SelectionMode="None"
+            IsItemClickEnabled="True"
+            ItemClick="ResultsGridView_ItemClick"
+            ContainerContentChanging="ResultsGridView_ContainerContentChanging"
+            SizeChanged="ResultsGridView_SizeChanged"
+            ManipulationMode="Scale,System"
+            ManipulationDelta="ResultsGridView_ManipulationDelta"
+            Padding="4 0 4 24">
+
+            <GridView.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <ItemsWrapGrid
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Left"
+                        ItemWidth="180"
+                        ItemHeight="180"/>
+                </ItemsPanelTemplate>
+            </GridView.ItemsPanel>
+
+            <GridView.ItemContainerStyle>
+                <Style TargetType="GridViewItem" BasedOn="{StaticResource DefaultGridViewItemStyle}">
+                    <Setter Property="Padding"      Value="0"/>
+                    <Setter Property="Margin"       Value="2"/>
+                    <Setter Property="CornerRadius" Value="6"/>
+                    <Setter Property="MinWidth"     Value="0"/>
+                    <Setter Property="MinHeight"    Value="0"/>
+                </Style>
+            </GridView.ItemContainerStyle>
+
+            <GridView.ItemTemplate>
+                <StaticResource ResourceKey="PhotoCardTemplate"/>
+            </GridView.ItemTemplate>
+        </GridView>
+
+        <!-- Loading overlay -->
+        <ProgressRing
+            Grid.Row="2"
+            IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}"
+            Width="48" Height="48"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"/>
+
+        <!-- Empty state: no results after search -->
+        <StackPanel
+            x:Name="EmptyStatePanel"
+            Grid.Row="2"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            Spacing="12"
+            Visibility="Collapsed">
+            <FontIcon
+                FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                Glyph="&#xE721;"
+                FontSize="64"
+                Opacity="0.3"/>
+            <TextBlock
+                Text="没有找到匹配的照片"
+                HorizontalAlignment="Center"
+                Style="{ThemeResource SubtitleTextBlockStyle}"/>
+            <TextBlock
+                Text="请尝试修改关键词或调整时间范围"
+                HorizontalAlignment="Center"
+                Style="{ThemeResource BodyTextBlockStyle}"
+                Opacity="0.6"/>
+        </StackPanel>
+
+        <!-- Prompt: search not yet run -->
+        <StackPanel
+            x:Name="PromptPanel"
+            Grid.Row="2"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            Spacing="12">
+            <FontIcon
+                FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                Glyph="&#xE721;"
+                FontSize="64"
+                Opacity="0.2"/>
+            <TextBlock
+                Text="输入关键词或选择时间范围，然后点击「搜索」"
+                HorizontalAlignment="Center"
+                Style="{ThemeResource BodyTextBlockStyle}"
+                Opacity="0.5"/>
+        </StackPanel>
+    </Grid>
+</Page>

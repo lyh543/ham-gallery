@@ -41,6 +41,10 @@ public sealed partial class PhotoDetailPage : Page
 
     private CancellationTokenSource _cts = new();
 
+    // ── Pending navigation args (set in OnNavigatedTo, consumed in Loaded) ───
+
+    private PhotoDetailArgs? _pendingArgs;
+
     // ── Image preload cache (LRU-evicted, size = PreloadCount + 1) ────────────
 
     private readonly Dictionary<string, BitmapImage> _imageCache = new(StringComparer.OrdinalIgnoreCase);
@@ -74,13 +78,26 @@ public sealed partial class PhotoDetailPage : Page
 
     // ── Page lifecycle ────────────────────────────────────────────────────────
 
-    protected override async void OnNavigatedTo(NavigationEventArgs e)
+    protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
 
         if (e.Parameter is not PhotoDetailArgs args) return;
 
-        _cts = new CancellationTokenSource();
+        _cts         = new CancellationTokenSource();
+        _pendingArgs = args;
+
+        // Defer all heavy work (DB query, filmstrip build, image decode) until
+        // after the first layout pass so the page skeleton renders immediately.
+        Loaded += OnPageLoaded;
+    }
+
+    private async void OnPageLoaded(object sender, RoutedEventArgs e)
+    {
+        Loaded -= OnPageLoaded;
+
+        var args = _pendingArgs;
+        if (args is null) return;
 
         await ViewModel.InitializeAsync(
             args.Photos,
@@ -88,9 +105,9 @@ public sealed partial class PhotoDetailPage : Page
             DispatcherQueue,
             _cts.Token);
 
-        await LoadCurrentImageAsync();
-        UpdateCounterText();
-        PreloadAdjacent(args.InitialIndex);
+        // LoadCurrentImageAsync / UpdateCounterText / PreloadAdjacent are already
+        // triggered by ViewModel_PropertyChanged when CurrentImagePath is set inside
+        // InitializeAsync → NavigateToIndexAsync.
         ShowChrome();
     }
 

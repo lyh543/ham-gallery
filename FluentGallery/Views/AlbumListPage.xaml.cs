@@ -1,9 +1,11 @@
+using FluentGallery.Data;
 using FluentGallery.ViewModels;
 using FluentGallery.Views;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Navigation;
 
 namespace FluentGallery.Views;
 
@@ -11,18 +13,74 @@ public sealed partial class AlbumListPage : Page
 {
     public AlbumListViewModel ViewModel { get; }
 
+    private readonly DatabaseService  _db;
+    private readonly ThumbnailService _thumbnails;
+
+    // Cancellation token scoped to the page's active lifetime
+    private CancellationTokenSource _pageCts = new();
+
     public AlbumListPage()
     {
-        ViewModel = App.Current.Services.GetRequiredService<AlbumListViewModel>();
+        ViewModel   = App.Current.Services.GetRequiredService<AlbumListViewModel>();
+        _db         = App.Current.Services.GetRequiredService<DatabaseService>();
+        _thumbnails = App.Current.Services.GetRequiredService<ThumbnailService>();
         this.InitializeComponent();
         ApplyItemTemplate();
-        Loaded += async (_, _) => await ViewModel.LoadAsync();
 
-        // Refresh empty-state panel when collection changes
         ViewModel.Albums.CollectionChanged += (_, _) => UpdateEmptyState();
     }
 
-    // ── View toggle ───────────────────────────────────────────────────────
+    // ── Page lifecycle ────────────────────────────────────────────────────────
+
+    protected override void OnNavigatedTo(NavigationEventArgs e)
+    {
+        base.OnNavigatedTo(e);
+        _pageCts = new CancellationTokenSource();
+        ViewModel.ActivatePage();
+
+        Loaded += OnPageLoaded;
+    }
+
+    protected override void OnNavigatedFrom(NavigationEventArgs e)
+    {
+        base.OnNavigatedFrom(e);
+        Loaded -= OnPageLoaded;
+        _pageCts.Cancel();
+        _pageCts.Dispose();
+        ViewModel.DeactivatePage();
+    }
+
+    private async void OnPageLoaded(object sender, RoutedEventArgs e)
+    {
+        await ViewModel.LoadAsync();
+        UpdateEmptyState();
+    }
+
+    // ── Lazy cover loading (ContainerContentChanging) ─────────────────────────
+
+    private void AlbumGridView_ContainerContentChanging(
+        ListViewBase sender, ContainerContentChangingEventArgs args)
+    {
+        if (args.InRecycleQueue)
+        {
+            if (args.Item is AlbumItemViewModel vm)
+                vm.ClearCover();
+            return;
+        }
+
+        // Phase 0 → request phase 1 callback
+        if (args.Phase == 0)
+        {
+            args.RegisterUpdateCallback(AlbumGridView_ContainerContentChanging);
+            return;
+        }
+
+        // Phase 1 → trigger cover load
+        if (args.Item is AlbumItemViewModel albumVm)
+            _ = albumVm.LoadCoverAsync(_db, _thumbnails, ct: _pageCts.Token);
+    }
+
+    // ── View toggle ───────────────────────────────────────────────────────────
 
     private void ToggleViewButton_Click(object sender, RoutedEventArgs e)
     {
@@ -37,7 +95,7 @@ public sealed partial class AlbumListPage : Page
             : (DataTemplate)Resources["AlbumCardSmallTemplate"];
     }
 
-    // ── Sort ──────────────────────────────────────────────────────────────
+    // ── Sort ──────────────────────────────────────────────────────────────────
 
     private void SortButton_Click(object sender, RoutedEventArgs e) { /* flyout opens automatically */ }
 
@@ -59,7 +117,7 @@ public sealed partial class AlbumListPage : Page
         ViewModel.SortDirection = t.IsChecked ? SortDirection.Descending : SortDirection.Ascending;
     }
 
-    // ── Navigate ─────────────────────────────────────────────────────────
+    // ── Navigate ──────────────────────────────────────────────────────────────
 
     private void AlbumGridView_ItemClick(object sender, ItemClickEventArgs e)
     {
@@ -67,7 +125,7 @@ public sealed partial class AlbumListPage : Page
             Frame.Navigate(typeof(PhotoListPage), album.Id);
     }
 
-    // ── Create album ─────────────────────────────────────────────────────
+    // ── Create album ──────────────────────────────────────────────────────────
 
     private async void CreateAlbumButton_Click(object sender, RoutedEventArgs e)
     {
@@ -90,7 +148,7 @@ public sealed partial class AlbumListPage : Page
         UpdateEmptyState();
     }
 
-    // ── Inline rename ─────────────────────────────────────────────────────
+    // ── Inline rename ─────────────────────────────────────────────────────────
 
     private void RenameBox_KeyDown(object sender, KeyRoutedEventArgs e)
     {
@@ -123,17 +181,12 @@ public sealed partial class AlbumListPage : Page
             await ViewModel.RenameAlbumAsync(vm, newName);
     }
 
-    // ── Right-click context menu ─────────────────────────────────────────
-
-    // Context menus are attached in XAML via code-behind: we override OnRightTapped
-    // on the GridView items' container. Because WinUI 3 DataTemplates cannot easily
-    // bind flyouts to per-item commands, we handle it at the GridView level.
+    // ── Right-click context menu ──────────────────────────────────────────────
 
     protected override void OnRightTapped(RightTappedRoutedEventArgs e)
     {
         base.OnRightTapped(e);
 
-        // Walk up to find the item container
         if (e.OriginalSource is not FrameworkElement src) return;
         var vm = FindAlbumVm(src);
         if (vm is null) return;
@@ -160,11 +213,10 @@ public sealed partial class AlbumListPage : Page
         rename.Click += (_, _) =>
         {
             vm.BeginEdit();
-            // Focus the TextBox after UI refresh
             DispatcherQueue.TryEnqueue(() =>
             {
                 var container = AlbumGridView.ContainerFromItem(vm) as GridViewItem;
-                var box = FindChild<TextBox>(container);
+                var box       = FindChild<TextBox>(container);
                 box?.Focus(FocusState.Programmatic);
                 box?.SelectAll();
             });
@@ -209,12 +261,10 @@ public sealed partial class AlbumListPage : Page
         UpdateEmptyState();
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private void UpdateEmptyState()
     {
-        // The empty-state StackPanel is the third child of the root Grid (index 2).
-        // Show it only when not loading AND collection is empty.
         if (Content is not Grid root || root.Children.Count < 3) return;
         var emptyPanel = root.Children[2] as FrameworkElement;
         if (emptyPanel is null) return;
@@ -237,4 +287,3 @@ public sealed partial class AlbumListPage : Page
         return null;
     }
 }
-

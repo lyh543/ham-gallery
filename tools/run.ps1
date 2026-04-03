@@ -10,7 +10,7 @@ try {
     $p | Wait-Process
 } finally {
     if (-not $p.HasExited) {
-        taskkill /PID $p.Id /T /F 2>$null
+        taskkill /PID $p.Id /T /F 2>$null | Out-Null
     }
     Remove-Item $PidFile -Force -ErrorAction SilentlyContinue
 }

@@ -98,6 +98,8 @@ public partial class App : Application
         services.AddTransient<SettingsViewModel>();
         // PhotoDetailViewModel is Transient: each navigation creates a fresh instance
         services.AddTransient<PhotoDetailViewModel>();
+        // SearchViewModel is Transient: each navigation creates a fresh instance
+        services.AddTransient<SearchViewModel>();
 
         return services.BuildServiceProvider();
     }

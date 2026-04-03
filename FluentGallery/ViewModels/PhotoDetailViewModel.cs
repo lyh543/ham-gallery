@@ -141,7 +141,11 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
     {
         _photos = photos;
 
-        _settings           = await _db.LoadSettingsAsync(ct);
+        _settings = await _db.LoadSettingsAsync(ct);
+
+        // Reset so that PropertyChanged fires unconditionally when NavigateToIndexAsync
+        // sets the real path — guards against re-entering with the same photo path.
+        CurrentImagePath = null;
 
         // Build filmstrip skeleton (thumbnail loaded lazily)
         FilmStripItems.Clear();
