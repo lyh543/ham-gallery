@@ -100,27 +100,24 @@ dotnet test FluentGallery.Tests\FluentGallery.Tests.csproj -p:Platform=x64 --run
 
 ## Release & Install
 
-### 一键发布并安装到本机
+### 一键构建并安装到本机
 
 ```powershell
-make install ENV=prod INSTALL_DIR="C:\Tools\FluentGallery"
+make install INSTALL_DIR="C:\Tools\FluentGallery"
 ```
 
 ### 分步说明
 
 | 命令 | 说明 |
 |------|------|
-| `make publish ENV=prod` | 发布到 `publish\`（默认） |
-| `make publish RELEASE_DIR=out ENV=prod` | 发布到自定义目录 `out\` |
-| `make install ENV=prod INSTALL_DIR="C:\Tools\FluentGallery"` | 发布并安装到指定目录 |
+| `make release ENV=prod` | Release 构建（输出到 `bin\x64\Release\...`） |
+| `make install ENV=prod INSTALL_DIR="C:\Tools\FluentGallery"` | Release 构建后镜像复制到指定目录 |
 
 安装完成后，在目标目录找到 `FluentGallery.exe`，右键 → **发送到桌面快捷方式** 即可从桌面启动。
 
 > 本应用以 unpackaged 模式运行（`WindowsPackageType=None`），不会注册到开始菜单，也不支持 Windows 控制面板卸载。若要卸载，直接删除安装目录即可。
 
 ## TODO
-
-[] 照片详情页从前面的图片往后翻的时候，有时候加载不出来图片了，转圈超过5s。但是重新从照片列表页打开照片又可以了。
 
 
 [] 照片详情页，改为全窗口，在左上角添加一个返回，类似于 Windows 的相册 app。 

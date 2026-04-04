@@ -239,14 +239,22 @@ public sealed partial class ZoomableImage : UserControl
         }
         else
         {
-            // Still decoding in background — show ring until ImageOpened fires.
+            // Still decoding in background — attach as Source NOW so WinUI actually
+            // starts / continues the decode and fires ImageOpened. Setting Source=null
+            // here would leave the BitmapImage detached and ImageOpened would never fire.
             MainImage.Opacity = 0;
-            MainImage.Source  = null;
+            MainImage.Source  = cached;
             CurrentBitmap     = cached;
             ShowLoading();
-            cached.ImageOpened += (_, _) =>
+
+            // Use named local handlers so we can unsubscribe after first fire and
+            // avoid accumulating handlers if the same BitmapImage is reused.
+            RoutedEventHandler?          onOpened = null;
+            ExceptionRoutedEventHandler? onFailed = null;
+            onOpened = (_, _) =>
             {
-                MainImage.Source = cached;
+                cached.ImageOpened -= onOpened;
+                cached.ImageFailed -= onFailed;
                 MainImage.Width  = cached.PixelWidth;
                 MainImage.Height = cached.PixelHeight;
                 _isAt100Percent  = false;
@@ -254,7 +262,14 @@ public sealed partial class ZoomableImage : UserControl
                 HideLoading();
                 FadeInImage();
             };
-            cached.ImageFailed += (_, _) => HideLoading();
+            onFailed = (_, _) =>
+            {
+                cached.ImageOpened -= onOpened;
+                cached.ImageFailed -= onFailed;
+                HideLoading();
+            };
+            cached.ImageOpened += onOpened;
+            cached.ImageFailed += onFailed;
         }
 
         return Task.CompletedTask;
