@@ -81,7 +81,7 @@ public sealed class ImageDecoderPipeline
             ct.ThrowIfCancellationRequested();
             try
             {
-                return await decoder.DecodeAsync(filePath, maxWidth, maxHeight, ct);
+                return await decoder.DecodeAsync(filePath, maxWidth, maxHeight, ct).ConfigureAwait(false);
             }
             catch (OperationCanceledException) { throw; }
             catch { /* this decoder failed — try the next one */ }

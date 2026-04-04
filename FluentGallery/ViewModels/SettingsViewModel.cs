@@ -5,6 +5,7 @@ using FluentGallery.Helpers;
 using FluentGallery.Models;
 using FluentGallery.Services;
 using Microsoft.Extensions.Logging;
+using Microsoft.UI.Dispatching;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 
@@ -17,11 +18,13 @@ namespace FluentGallery.ViewModels;
 /// </summary>
 public sealed partial class SettingsViewModel : ObservableObject
 {
-    private readonly DatabaseService _db;
-    private readonly ThumbnailService _thumbnailService;
-    private readonly IThemeService   _themeService;
+    private readonly DatabaseService            _db;
+    private readonly ThumbnailService           _thumbnailService;
+    private readonly ScanService                _scan;
+    private readonly IThemeService              _themeService;
     private readonly ILogger<SettingsViewModel> _logger;
-    private AppSettings _settings = new();
+    private AppSettings       _settings    = new();
+    private DispatcherQueue?  _dispatcher;
 
     // Prevents property-change handlers from issuing redundant saves while
     // the initial values are being loaded.
@@ -65,6 +68,12 @@ public sealed partial class SettingsViewModel : ObservableObject
     // ── Cache display ───────────────────────────────────────────────────
     [ObservableProperty] public partial string ThumbnailCacheSizeText { get; set; } = "计算中…";
     [ObservableProperty] public partial bool   IsLoading              { get; set; }
+
+    /// <summary>Shown as the SettingsExpander description, merges cache size with hint.</summary>
+    public string ThumbnailExpanderDescription => $"缓存大小：{ThumbnailCacheSizeText}";
+
+    partial void OnThumbnailCacheSizeTextChanged(string value)
+        => OnPropertyChanged(nameof(ThumbnailExpanderDescription));
 
     // ── Status feedback ─────────────────────────────────────────────────
     [ObservableProperty] public partial string? StatusMessage    { get; set; }
@@ -136,13 +145,15 @@ public sealed partial class SettingsViewModel : ObservableObject
         => HasStatusMessage = !string.IsNullOrEmpty(value);
 
     public SettingsViewModel(
-        DatabaseService db,
-        ThumbnailService thumbnailService,
-        IThemeService themeService,
+        DatabaseService            db,
+        ThumbnailService           thumbnailService,
+        ScanService                scan,
+        IThemeService              themeService,
         ILogger<SettingsViewModel> logger)
     {
         _db               = db;
         _thumbnailService = thumbnailService;
+        _scan             = scan;
         _themeService     = themeService;
         _logger           = logger;
     }
@@ -154,8 +165,9 @@ public sealed partial class SettingsViewModel : ObservableObject
     [RelayCommand]
     public async Task LoadAsync(CancellationToken ct = default)
     {
+        _dispatcher    = DispatcherQueue.GetForCurrentThread();
         _isInitialized = false;
-        IsLoading = true;
+        IsLoading      = true;
         try
         {
             _settings = await _db.LoadSettingsAsync(ct);
@@ -218,13 +230,13 @@ public sealed partial class SettingsViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(path)) return;
         if (ScanDirectories.Contains(path, StringComparer.OrdinalIgnoreCase)) return;
         ScanDirectories.Add(path);
-        _ = SaveAsync();
+        _ = SaveAndRescanAsync();
     }
 
     /// <summary>
     /// Batch-adds multiple scan directories in one operation.
     /// Duplicates (case-insensitive) are silently skipped.
-    /// Calls <see cref="SaveAsync"/> at most once when at least one path was added.
+    /// Triggers a single save + re-scan when at least one path was added.
     /// </summary>
     public void AddScanDirectories(IEnumerable<string> paths)
     {
@@ -236,13 +248,13 @@ public sealed partial class SettingsViewModel : ObservableObject
             ScanDirectories.Add(path);
             added = true;
         }
-        if (added) _ = SaveAsync();
+        if (added) _ = SaveAndRescanAsync();
     }
 
     public void RemoveScanDirectory(string path)
     {
         if (ScanDirectories.Remove(path))
-            _ = SaveAsync();
+            _ = SaveAndRescanAsync();
     }
 
     public void AddExcludeDirectory(string path)
@@ -250,11 +262,12 @@ public sealed partial class SettingsViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(path)) return;
         if (ExcludeDirectories.Contains(path, StringComparer.OrdinalIgnoreCase)) return;
         ExcludeDirectories.Add(path);
-        _ = SaveAsync();
+        _ = SaveAndRescanAsync();
     }
 
     /// <summary>
     /// Batch-adds multiple exclude directories in one operation.
+    /// Triggers a single save + re-scan when at least one path was added.
     /// </summary>
     public void AddExcludeDirectories(IEnumerable<string> paths)
     {
@@ -266,13 +279,24 @@ public sealed partial class SettingsViewModel : ObservableObject
             ExcludeDirectories.Add(path);
             added = true;
         }
-        if (added) _ = SaveAsync();
+        if (added) _ = SaveAndRescanAsync();
     }
 
     public void RemoveExcludeDirectory(string path)
     {
         if (ExcludeDirectories.Remove(path))
-            _ = SaveAsync();
+            _ = SaveAndRescanAsync();
+    }
+
+    /// <summary>
+    /// Saves current settings then starts a fresh background scan so that
+    /// newly-added directories are indexed and removed directories are pruned.
+    /// No thumbnails are generated proactively during the scan.
+    /// </summary>
+    private async Task SaveAndRescanAsync()
+    {
+        await SaveAsync();
+        await _scan.StartAsync(_settings, _dispatcher);
     }
 
     // ────────────────────────────────────────────────────────────────────
@@ -442,6 +466,29 @@ public sealed partial class SettingsViewModel : ObservableObject
     // Logs folder
     // ────────────────────────────────────────────────────────────────────
 
+    /// <summary>Opens the thumbnails cache directory in Windows Explorer.</summary>
+    [RelayCommand]
+    public void OpenThumbnailsFolder()
+    {
+        var dir = AppDataPaths.ThumbnailsDirectory;
+        Directory.CreateDirectory(dir);
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName        = dir,
+                UseShellExecute = true,
+            });
+            _logger.LogInformation("用户打开了缩略图目录: {Dir}", dir);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "无法打开缩略图目录");
+            IsWarningStatus = true;
+            StatusMessage   = $"无法打开缩略图目录：{ex.Message}";
+        }
+    }
+
     /// <summary>Opens the logs directory in Windows Explorer.</summary>
     [RelayCommand]
     public void OpenLogsFolder()
@@ -510,11 +557,22 @@ public sealed partial class SettingsViewModel : ObservableObject
 
             if (photos.Count > 0)
             {
+                // Track last cache-size refresh so we update at most every 500 ms.
+                // Progress<T> always marshals to the UI thread — no concurrent access.
+                long lastCacheRefreshTick = 0L;
+
                 var progress = new Progress<ThumbnailBatchProgress>(p =>
                 {
                     ThumbnailBuildCompleted = p.Done;
                     ThumbnailBuildSpeed     = p.SpeedPerSec;
                     ThumbnailBuildEtaText   = p.Eta.HasValue ? FormatEta(p.Eta.Value) : "";
+
+                    var now = Environment.TickCount64;
+                    if (now - lastCacheRefreshTick >= 500)
+                    {
+                        lastCacheRefreshTick = now;
+                        _ = RefreshThumbnailCacheSizeAsync();
+                    }
                 });
 
                 await _thumbnailService.GenerateMissingAsync(photos, progress, localCts.Token);
@@ -539,6 +597,8 @@ public sealed partial class SettingsViewModel : ObservableObject
 
         if (completed)
         {
+            // Final precise cache-size update before showing the done animation
+            await RefreshThumbnailCacheSizeAsync();
             IsThumbnailBuildDone = true;
             await Task.Delay(4500);   // hold the done animation before auto-dismiss
             IsThumbnailBuildDone = false;

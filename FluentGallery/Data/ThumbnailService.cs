@@ -1,3 +1,4 @@
+using AppDataPaths = FluentGallery.Helpers.AppDataPaths;
 using FluentGallery.Decoders;
 using FluentGallery.Helpers;
 using FluentGallery.Models;
@@ -7,6 +8,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Windows.Foundation;
 using Windows.Graphics.Imaging;
+using Windows.Storage;
 using Windows.Storage.Streams;
 
 namespace FluentGallery.Data;
@@ -68,6 +70,8 @@ public sealed class ThumbnailService
     /// </summary>
     public async Task<string?> GetOrCreateThumbnailAsync(Photo photo, CancellationToken ct = default)
     {
+        ThreadGuard.EnsureBackground();
+
         // Skip formats with no registered decoder (avoids attempting WIC on unsupported types)
         if (!_pipeline.CanDecode(photo.FilePath))
             return null;
@@ -76,7 +80,7 @@ public sealed class ThumbnailService
         var sourceModifiedAt = photo.ModifiedAt;
 
         // Fast-path: valid cached thumbnail
-        var cached = await _db.GetThumbnailAsync(photo.Id, ct);
+        var cached = await _db.GetThumbnailAsync(photo.Id, ct).ConfigureAwait(false);
         if (cached is not null
             && cached.SourceModifiedAt == sourceModifiedAt
             && File.Exists(cached.ThumbPath))
@@ -85,11 +89,11 @@ public sealed class ThumbnailService
         }
 
         // Generate — bounded by semaphore to avoid disk I/O saturation
-        await _semaphore.WaitAsync(ct);
+        await _semaphore.WaitAsync(ct).ConfigureAwait(false);
         try
         {
             // Re-check cache in case another worker already generated it while we waited
-            cached = await _db.GetThumbnailAsync(photo.Id, ct);
+            cached = await _db.GetThumbnailAsync(photo.Id, ct).ConfigureAwait(false);
             if (cached is not null
                 && cached.SourceModifiedAt == sourceModifiedAt
                 && File.Exists(cached.ThumbPath))
@@ -97,14 +101,14 @@ public sealed class ThumbnailService
                 return cached.ThumbPath;
             }
 
-            await GenerateViaDecoderAsync(photo.FilePath, thumbPath, ThumbSize, ct);
+            await GenerateViaDecoderAsync(photo.FilePath, thumbPath, ThumbSize, ct).ConfigureAwait(false);
 
             await _db.UpsertThumbnailAsync(new Thumbnail
             {
                 PhotoId          = photo.Id,
                 ThumbPath        = thumbPath,
                 SourceModifiedAt = sourceModifiedAt,
-            }, ct);
+            }, ct).ConfigureAwait(false);
 
             return thumbPath;
         }
@@ -126,24 +130,59 @@ public sealed class ThumbnailService
     /// <summary>
     /// Generates thumbnails for all <paramref name="photos"/> that don't already have a
     /// valid cached thumbnail, reporting progress after each photo completes.
-    /// Parallelism is bounded by <see cref="MaxConcurrent"/> — the same limit that
-    /// governs on-demand generation, so the two workloads don't compete.
+    ///
+    /// Unlike on-demand generation (which is throttled to <see cref="MaxConcurrent"/> to
+    /// avoid UI jank), this method is the only proactive generation path and therefore
+    /// uses all logical CPU cores. It bypasses the shared semaphore and calls
+    /// <see cref="GenerateAsync"/> directly — both WIC and the DB factory are thread-safe.
     /// </summary>
     public async Task GenerateMissingAsync(
         IReadOnlyList<Photo>              photos,
         IProgress<ThumbnailBatchProgress> progress,
         CancellationToken                 ct)
     {
+        ThreadGuard.EnsureBackground();
         int total    = photos.Count;
         int doneCount = 0;
         var sw       = Stopwatch.StartNew();
 
+        // Use all logical cores — I/O and CPU both scale well here.
+        int parallelism = Math.Max(2, Environment.ProcessorCount);
+
         await Parallel.ForEachAsync(
             photos,
-            new ParallelOptions { MaxDegreeOfParallelism = MaxConcurrent, CancellationToken = ct },
+            new ParallelOptions { MaxDegreeOfParallelism = parallelism, CancellationToken = ct },
             async (photo, innerCt) =>
             {
-                await GetOrCreateThumbnailAsync(photo, innerCt);
+                if (_pipeline.CanDecode(photo.FilePath))
+                {
+                    var thumbPath = GetThumbPath(photo.FilePath);
+
+                    // Skip photos whose thumbnail is already valid on disk
+                    var cached = await _db.GetThumbnailAsync(photo.Id, innerCt).ConfigureAwait(false);
+                    bool needsGeneration = cached is null
+                        || cached.SourceModifiedAt != photo.ModifiedAt
+                        || !File.Exists(cached.ThumbPath);
+
+                    if (needsGeneration)
+                    {
+                        try
+                        {
+                            await GenerateAsync(photo.FilePath, thumbPath, ThumbSize, innerCt).ConfigureAwait(false);
+                            await _db.UpsertThumbnailAsync(new Thumbnail
+                            {
+                                PhotoId          = photo.Id,
+                                ThumbPath        = thumbPath,
+                                SourceModifiedAt = photo.ModifiedAt,
+                            }, innerCt).ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException) { throw; }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Batch thumbnail generation failed for {Path}", photo.FilePath);
+                        }
+                    }
+                }
 
                 int    done      = Interlocked.Increment(ref doneCount);
                 double elapsed   = sw.Elapsed.TotalSeconds;
@@ -152,7 +191,7 @@ public sealed class ThumbnailService
                 TimeSpan? eta    = speed > 0 ? TimeSpan.FromSeconds(remaining / speed) : null;
 
                 progress.Report(new ThumbnailBatchProgress(done, total, speed, eta));
-            });
+            }).ConfigureAwait(false);
     }
 
     // ── Path helper ──────────────────────────────────────────────────────────
@@ -180,11 +219,11 @@ public sealed class ThumbnailService
     private async Task GenerateViaDecoderAsync(
         string sourcePath, string destPath, uint thumbSize, CancellationToken ct)
     {
-        var decoded = await _pipeline.TryDecodeAsync(sourcePath, thumbSize, thumbSize, ct)
+        var decoded = await _pipeline.TryDecodeAsync(sourcePath, thumbSize, thumbSize, ct).ConfigureAwait(false)
             ?? throw new NotSupportedException(
                 $"No decoder available for '{Path.GetExtension(sourcePath)}'");
 
-        await EncodeToJpegAsync(decoded, destPath, ct);
+        await EncodeToJpegAsync(decoded, destPath, ct).ConfigureAwait(false);
     }
 
     // ── WIC thumbnail generation (kept as internal static for unit tests) ────
@@ -205,14 +244,17 @@ public sealed class ThumbnailService
         ct.ThrowIfCancellationRequested();
 
         // ── Decode ───────────────────────────────────────────────────────────
-        await using var srcStream = File.OpenRead(sourcePath);
-        var srcRas  = srcStream.AsRandomAccessStream();
-        var decoder = await BitmapDecoder.CreateAsync(srcRas).AsTask(ct);
+        // Use StorageFile to get a native WinRT IRandomAccessStream — avoids
+        // the STA ↔ MTA apartment marshaling that File.OpenRead().AsRandomAccessStream()
+        // would cause when called from the UI thread.
+        var storageFile = await StorageFile.GetFileFromPathAsync(sourcePath).AsTask(ct).ConfigureAwait(false);
+        using var srcRas = await storageFile.OpenAsync(FileAccessMode.Read).AsTask(ct).ConfigureAwait(false);
+        var decoder = await BitmapDecoder.CreateAsync(srcRas).AsTask(ct).ConfigureAwait(false);
 
         uint physW = decoder.PixelWidth;
         uint physH = decoder.PixelHeight;
 
-        ushort exifOrient = await ReadExifOrientationAsync(decoder, ct);
+        ushort exifOrient = await ReadExifOrientationAsync(decoder, ct).ConfigureAwait(false);
         bool   rotSwaps   = exifOrient is 5 or 6 or 7 or 8;
 
         // FitInside targets the final (post-rotation) logical dimensions.
@@ -237,14 +279,14 @@ public sealed class ThumbnailService
             BitmapAlphaMode.Ignore,
             transform,
             ExifOrientationMode.IgnoreExifOrientation,
-            ColorManagementMode.ColorManageToSRgb).AsTask(ct);
+            ColorManagementMode.ColorManageToSRgb).AsTask(ct).ConfigureAwait(false);
 
         var pixels = pixelData.DetachPixelData();
 
         ct.ThrowIfCancellationRequested();
 
         var decoded = new Decoders.DecodedImageData(pixels, finalW, finalH, decoder.DpiX, decoder.DpiY);
-        await EncodeToJpegAsync(decoded, destPath, ct);
+        await EncodeToJpegAsync(decoded, destPath, ct).ConfigureAwait(false);
     }
 
     // ── JPEG encoding helper ─────────────────────────────────────────────────
@@ -259,7 +301,7 @@ public sealed class ThumbnailService
         ct.ThrowIfCancellationRequested();
 
         using var memRas  = new InMemoryRandomAccessStream();
-        var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.JpegEncoderId, memRas).AsTask(ct);
+        var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.JpegEncoderId, memRas).AsTask(ct).ConfigureAwait(false);
 
         encoder.SetPixelData(
             BitmapPixelFormat.Bgra8,
@@ -271,15 +313,15 @@ public sealed class ThumbnailService
         await encoder.BitmapProperties.SetPropertiesAsync(new BitmapPropertySet
         {
             { "ImageQuality", new BitmapTypedValue(JpegQuality, PropertyType.Single) },
-        }).AsTask(ct);
+        }).AsTask(ct).ConfigureAwait(false);
 
-        await encoder.FlushAsync().AsTask(ct);
+        await encoder.FlushAsync().AsTask(ct).ConfigureAwait(false);
 
         Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
         memRas.Seek(0);
 
-        await using var dstStream = File.Create(destPath);
-        await memRas.AsStreamForRead().CopyToAsync(dstStream, ct);
+        using var dstStream = File.Create(destPath);
+        await memRas.AsStreamForRead().CopyToAsync(dstStream, ct).ConfigureAwait(false);
     }
 
     // ── Geometry helpers ─────────────────────────────────────────────────────
@@ -306,7 +348,7 @@ public sealed class ThumbnailService
         try
         {
             var props = await decoder.BitmapProperties
-                .GetPropertiesAsync(new[] { "System.Photo.Orientation" }).AsTask(ct);
+                .GetPropertiesAsync(new[] { "System.Photo.Orientation" }).AsTask(ct).ConfigureAwait(false);
 
             if (props.TryGetValue("System.Photo.Orientation", out var v) && v.Value is ushort orient)
                 return orient;

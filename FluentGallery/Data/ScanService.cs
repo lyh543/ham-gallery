@@ -95,6 +95,12 @@ public sealed class ScanService : IDisposable
     /// </summary>
     public event Action<IReadOnlyList<Photo>>? PhotosBatchUpdated;
 
+    /// <summary>
+    /// Raised on the UI thread once when a scan finishes successfully (not raised on cancellation).
+    /// Subscribers can use this to reload the album list and apply any staleness cleanup.
+    /// </summary>
+    public event Action? ScanCompleted;
+
     // ── State ─────────────────────────────────────────────────────────────────
 
     /// <summary><c>true</c> while a scan is in progress.</summary>
@@ -119,7 +125,7 @@ public sealed class ScanService : IDisposable
     /// </summary>
     public async Task StartAsync(AppSettings settings, DispatcherQueue? dispatcher = null)
     {
-        await StopAsync();
+        await StopAsync().ConfigureAwait(false);
 
         _cts      = new CancellationTokenSource();
         _scanTask = RunScanAsync(settings, dispatcher, _cts.Token);
@@ -132,14 +138,14 @@ public sealed class ScanService : IDisposable
     {
         if (_cts is not null)
         {
-            await _cts.CancelAsync();
+            await _cts.CancelAsync().ConfigureAwait(false);
             _cts.Dispose();
             _cts = null;
         }
 
         if (_scanTask is not null)
         {
-            try   { await _scanTask; }
+            try   { await _scanTask.ConfigureAwait(false); }
             catch { /* OperationCanceledException or scan errors — already logged */ }
             _scanTask = null;
         }
@@ -163,8 +169,11 @@ public sealed class ScanService : IDisposable
 
         if (settings.ScanDirectories.Count == 0)
         {
-            _logger.LogWarning("未配置任何扫描目录，跳过扫描。请在设置页添加目录。");
+            _logger.LogWarning("未配置任何扫描目录，清除所有照片记录。");
+            // No directories → treat every existing photo as stale and remove it.
+            await _db.DeleteStalePhotosAsync([], ct).ConfigureAwait(false);
             DispatchProgress(new ScanProgress(0, 0, IsCompleted: true), dispatcher, force: true);
+            Dispatch(dispatcher, () => ScanCompleted?.Invoke());
             return;
         }
 
@@ -177,11 +186,11 @@ public sealed class ScanService : IDisposable
 
         // ── 1. Pre-fetch all known photo metadata from DB (single query) ───────
         //    Using an in-memory dictionary eliminates one DB round-trip per file.
-        var knownPhotos = await _db.GetAllPhotoMetadataAsync(ct);
+        var knownPhotos = await _db.GetAllPhotoMetadataAsync(ct).ConfigureAwait(false);
         _logger.LogInformation("数据库中已有照片记录: {N} 张", knownPhotos.Count);
 
         // ── 3. Enumerate files on a background thread ─────────────────────────
-        var allFiles = await Task.Run(() => EnumerateFiles(settings), ct);
+        var allFiles = await Task.Run(() => EnumerateFiles(settings), ct).ConfigureAwait(false);
         int total    = allFiles.Count;
         _logger.LogInformation("磁盘上共找到支持格式的文件: {Total} 个", total);
 
@@ -193,7 +202,7 @@ public sealed class ScanService : IDisposable
             {
                 while (true)
                 {
-                    await Task.Delay(BatchFlushMs, flushCts.Token);
+                    await Task.Delay(BatchFlushMs, flushCts.Token).ConfigureAwait(false);
                     FlushPendingPhotos(dispatcher);
                 }
             }
@@ -213,9 +222,9 @@ public sealed class ScanService : IDisposable
 
         var workers = Enumerable.Range(0, workerCount).Select(_ => Task.Run(async () =>
         {
-            await foreach (var path in channel.Reader.ReadAllAsync(ct))
+            await foreach (var path in channel.Reader.ReadAllAsync(ct).ConfigureAwait(false))
             {
-                await ProcessFileAsync(path, knownPhotos, ct);
+                await ProcessFileAsync(path, knownPhotos, ct).ConfigureAwait(false);
 
                 int n = Interlocked.Increment(ref processed);
                 DispatchProgress(
@@ -228,24 +237,24 @@ public sealed class ScanService : IDisposable
         foreach (var path in allFiles)
         {
             if (ct.IsCancellationRequested) break;
-            await channel.Writer.WriteAsync(path, ct);
+            await channel.Writer.WriteAsync(path, ct).ConfigureAwait(false);
         }
         channel.Writer.Complete();
 
-        await Task.WhenAll(workers);
+        await Task.WhenAll(workers).ConfigureAwait(false);
 
         // ── 6. Stop flush loop, do a final flush ──────────────────────────────
-        await flushCts.CancelAsync();
-        await flushTask;
+        await flushCts.CancelAsync().ConfigureAwait(false);
+        await flushTask.ConfigureAwait(false);
         FlushPendingPhotos(dispatcher);
 
         // ── 7. Prune stale DB records ─────────────────────────────────────────
         if (!ct.IsCancellationRequested)
-            await _db.DeleteStalePhotosAsync(allFiles, ct);
+            await _db.DeleteStalePhotosAsync(allFiles, ct).ConfigureAwait(false);
 
         // ── 8. Repair photos that were previously inserted without an AlbumId ──
         if (!ct.IsCancellationRequested)
-            await _db.RepairOrphanAlbumIdsAsync(ct);
+            await _db.RepairOrphanAlbumIdsAsync(ct).ConfigureAwait(false);
 
         // ── 9. Done ───────────────────────────────────────────────────────────
         DispatchProgress(
@@ -256,6 +265,8 @@ public sealed class ScanService : IDisposable
         _logger.LogInformation(
             "═══ 扫描完成 ═══  合计: {Total}  新增: {New}  更新: {Updated}  跳过(未变化): {Skipped}",
             total, _countNew, _countUpdated, _countSkipped);
+
+        Dispatch(dispatcher, () => ScanCompleted?.Invoke());
     }
 
     // ── File enumeration ──────────────────────────────────────────────────────
@@ -321,20 +332,20 @@ public sealed class ScanService : IDisposable
 
             var modifiedAt = info.LastWriteTimeUtc.ToString("O");
             // Album = the photo's direct parent directory, created lazily on first encounter
-            var albumId    = await GetOrCreateAlbumForFileAsync(filePath, ct);
+            var albumId    = await GetOrCreateAlbumForFileAsync(filePath, ct).ConfigureAwait(false);
 
             // In-memory lookup — no DB query here
             if (!knownPhotos.TryGetValue(filePath, out var meta))
             {
-                await InsertNewPhotoAsync(info, modifiedAt, albumId, ct);
+                await InsertNewPhotoAsync(info, modifiedAt, albumId, ct).ConfigureAwait(false);
                 Interlocked.Increment(ref _countNew);
             }
             else if (meta.ModifiedAt != modifiedAt)
             {
                 // Load full row only when we know it changed (minority case)
-                var existing = await _db.GetPhotoByIdAsync(meta.Id, ct);
+                var existing = await _db.GetPhotoByIdAsync(meta.Id, ct).ConfigureAwait(false);
                 if (existing is not null)
-                    await UpdateExistingPhotoAsync(existing, info, modifiedAt, albumId, ct);
+                    await UpdateExistingPhotoAsync(existing, info, modifiedAt, albumId, ct).ConfigureAwait(false);
                 Interlocked.Increment(ref _countUpdated);
             }
             else
@@ -358,7 +369,7 @@ public sealed class ScanService : IDisposable
         long?             albumId,
         CancellationToken ct)
     {
-        var exif = await Task.Run(() => _exif.ReadExif(info.FullName), ct);
+        var exif = await Task.Run(() => _exif.ReadExif(info.FullName), ct).ConfigureAwait(false);
 
         var photo = new Photo
         {
@@ -378,7 +389,7 @@ public sealed class ScanService : IDisposable
             Orientation = exif.Orientation,
         };
 
-        var id = await _db.InsertPhotoAsync(photo, ct);
+        var id = await _db.InsertPhotoAsync(photo, ct).ConfigureAwait(false);
         photo.Id = id;
 
         _pendingDiscovered.Enqueue(photo);
@@ -392,7 +403,7 @@ public sealed class ScanService : IDisposable
         long?             albumId,
         CancellationToken ct)
     {
-        var exif = await Task.Run(() => _exif.ReadExif(info.FullName), ct);
+        var exif = await Task.Run(() => _exif.ReadExif(info.FullName), ct).ConfigureAwait(false);
 
         existing.FileName    = info.Name;
         existing.FileSize    = info.Length;
@@ -407,7 +418,7 @@ public sealed class ScanService : IDisposable
         existing.CameraMake  = exif.CameraMake;
         existing.Orientation = exif.Orientation;
 
-        await _db.UpdatePhotoAsync(existing, ct);
+        await _db.UpdatePhotoAsync(existing, ct).ConfigureAwait(false);
 
         _pendingUpdated.Enqueue(existing);
         _logger.LogDebug("[更新] {File}  AlbumId={AlbumId}  Id={Id}", existing.FileName, existing.AlbumId, existing.Id);
@@ -433,14 +444,14 @@ public sealed class ScanService : IDisposable
             return cached;
 
         // Slow path — create album (serialised to avoid duplicate DB rows)
-        await _albumCreateLock.WaitAsync(ct);
+        await _albumCreateLock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
             // Double-check after acquiring the lock
             if (_albumIdCache.TryGetValue(dir, out var id))
                 return id;
 
-            id = await _db.GetOrCreateDirectoryAlbumAsync(dir, ct);
+            id = await _db.GetOrCreateDirectoryAlbumAsync(dir, ct).ConfigureAwait(false);
             _albumIdCache[dir] = id;
             return id;
         }

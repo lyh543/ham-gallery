@@ -1,3 +1,4 @@
+using FluentGallery.Helpers;
 using FluentGallery.Models;
 using FluentGallery.ViewModels;
 using FluentGallery.Views;
@@ -27,6 +28,8 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         this.InitializeComponent();
+
+        this.Title = AppDataPaths.DisplayName;
 
         _vm = App.Current.Services.GetRequiredService<MainWindowViewModel>();
         _vm.PinnedAlbums.CollectionChanged += OnPinnedAlbumsChanged;

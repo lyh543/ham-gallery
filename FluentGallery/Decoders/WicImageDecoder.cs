@@ -1,5 +1,7 @@
+using FluentGallery.Helpers;
 using Windows.Foundation;
 using Windows.Graphics.Imaging;
+using Windows.Storage;
 using Windows.Storage.Streams;
 
 namespace FluentGallery.Decoders;
@@ -55,16 +57,21 @@ public sealed class WicImageDecoder : IImageDecoder
     public async Task<DecodedImageData> DecodeAsync(
         string filePath, uint maxWidth, uint maxHeight, CancellationToken ct)
     {
+        ThreadGuard.EnsureBackground();
         ct.ThrowIfCancellationRequested();
 
-        await using var srcStream = File.OpenRead(filePath);
-        var srcRas  = srcStream.AsRandomAccessStream();
-        var decoder = await BitmapDecoder.CreateAsync(srcRas).AsTask(ct);
+        // Use StorageFile.OpenAsync to get a native WinRT IRandomAccessStream.
+        // File.OpenRead().AsRandomAccessStream() produces an STA-bound wrapper;
+        // when WIC (MTA) reads it, every buffer read must marshal back through
+        // the calling thread's STA, flooding the UI message pump.
+        var storageFile = await StorageFile.GetFileFromPathAsync(filePath).AsTask(ct).ConfigureAwait(false);
+        using var srcRas = await storageFile.OpenAsync(FileAccessMode.Read).AsTask(ct).ConfigureAwait(false);
+        var decoder = await BitmapDecoder.CreateAsync(srcRas).AsTask(ct).ConfigureAwait(false);
 
         uint physW = decoder.PixelWidth;
         uint physH = decoder.PixelHeight;
 
-        ushort exifOrient = await ReadExifOrientationAsync(decoder, ct);
+        ushort exifOrient = await ReadExifOrientationAsync(decoder, ct).ConfigureAwait(false);
         bool   rotSwaps   = exifOrient is 5 or 6 or 7 or 8;
 
         // Post-rotation logical dimensions
@@ -98,7 +105,7 @@ public sealed class WicImageDecoder : IImageDecoder
             BitmapAlphaMode.Ignore,
             transform,
             ExifOrientationMode.IgnoreExifOrientation,
-            ColorManagementMode.ColorManageToSRgb).AsTask(ct);
+            ColorManagementMode.ColorManageToSRgb).AsTask(ct).ConfigureAwait(false);
 
         return new DecodedImageData(
             pixelData.DetachPixelData(),
@@ -147,7 +154,7 @@ public sealed class WicImageDecoder : IImageDecoder
         try
         {
             var props = await decoder.BitmapProperties
-                .GetPropertiesAsync(["System.Photo.Orientation"]).AsTask(ct);
+                .GetPropertiesAsync(["System.Photo.Orientation"]).AsTask(ct).ConfigureAwait(false);
 
             if (props.TryGetValue("System.Photo.Orientation", out var v)
                 && v.Value is ushort orient)

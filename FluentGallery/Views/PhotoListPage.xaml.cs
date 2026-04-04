@@ -1,4 +1,5 @@
 using FluentGallery.Data;
+using FluentGallery.Helpers;
 using FluentGallery.Models;
 using FluentGallery.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
@@ -206,16 +207,12 @@ public sealed partial class PhotoListPage : Page
 
         if (ViewModel.ConfirmBeforeDelete)
         {
-            var dialog = new ContentDialog
-            {
-                Title             = "删除照片",
-                Content           = $"确定要将选中的 {selected.Count} 张照片移入回收站吗？",
-                PrimaryButtonText = "移入回收站",
-                CloseButtonText   = "取消",
-                XamlRoot          = XamlRoot,
-                DefaultButton     = ContentDialogButton.Close,
-            };
-            if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+            if (!await ConfirmDialogHelper.ShowAsync(
+                    XamlRoot,
+                    "删除照片",
+                    $"确定要将选中的 {selected.Count} 张照片移入回收站吗？",
+                    "移入回收站",
+                    confirmStyle: DialogButtonStyle.Danger)) return;
         }
 
         await ViewModel.DeletePhotosAsync(selected, _pageCts.Token);

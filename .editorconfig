@@ -1,0 +1,48 @@
+root = true
+
+# ── Defaults ──────────────────────────────────────────────────────────────────
+[*]
+indent_style   = space
+indent_size    = 4
+charset        = utf-8
+trim_trailing_whitespace = true
+insert_final_newline     = true
+
+# ── C# global ─────────────────────────────────────────────────────────────────
+[*.cs]
+dotnet_sort_system_directives_first   = true
+csharp_using_directive_placement      = outside_namespace
+
+# ── Threading invariants ──────────────────────────────────────────────────────
+#
+# CAC001 = ConfigureAwaitChecker: "Possibly missing ConfigureAwait(false)"
+#
+# Service layer  (Data/, Decoders/, Helpers/):
+#   These methods must be callable from any thread. All awaits must use
+#   ConfigureAwait(false) so continuations never accidentally capture the UI
+#   SynchronizationContext.  Treat violations as ERRORS.
+#
+# View / ViewModel / Controls layer (Views/, ViewModels/, Controls/):
+#   These run on the UI thread by design and must return to it after every
+#   await so they can update DependencyObjects.  Suppress the warning entirely.
+#
+[FluentGallery/Data/**.cs]
+dotnet_diagnostic.CAC001.severity = error
+
+[FluentGallery/Decoders/**.cs]
+dotnet_diagnostic.CAC001.severity = error
+
+[FluentGallery/Helpers/**.cs]
+dotnet_diagnostic.CAC001.severity = error
+
+[FluentGallery/Views/**.cs]
+dotnet_diagnostic.CAC001.severity = none
+
+[FluentGallery/ViewModels/**.cs]
+dotnet_diagnostic.CAC001.severity = none
+
+[FluentGallery/Controls/**.cs]
+dotnet_diagnostic.CAC001.severity = none
+
+[FluentGallery/App.xaml.cs]
+dotnet_diagnostic.CAC001.severity = none

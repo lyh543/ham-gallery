@@ -55,7 +55,7 @@ public static class RecycleBinHelper
     {
         try
         {
-            var entry = await Task.Run(() => FindBinEntry(originalPath));
+            var entry = await Task.Run(() => FindBinEntry(originalPath)).ConfigureAwait(false);
             if (entry is null) return false;
 
             Directory.CreateDirectory(Path.GetDirectoryName(originalPath)!);
@@ -65,7 +65,7 @@ public static class RecycleBinHelper
                 // Remove the $I metadata file so Windows doesn't show a ghost entry
                 if (File.Exists(entry.IFilePath))
                     File.Delete(entry.IFilePath);
-            });
+            }).ConfigureAwait(false);
             return true;
         }
         catch

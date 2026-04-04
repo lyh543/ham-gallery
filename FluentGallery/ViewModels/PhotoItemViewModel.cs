@@ -49,17 +49,14 @@ public sealed partial class PhotoItemViewModel : ObservableObject
         IsLoading = true;
         try
         {
-            // GetOrCreateThumbnailAsync is CPU/IO-bound; awaiting it on the UI thread
-            // is fine because it uses async file I/O and WIC's async operations throughout.
             var path = await thumbService.GetOrCreateThumbnailAsync(_photo, ct);
             if (path is null || !File.Exists(path)) return;
 
-            // BitmapImage.SetSourceAsync must run on the UI thread (already satisfied
-            // because LoadThumbnailAsync is called from ContainerContentChanging).
-            await using var stream = File.OpenRead(path);
-            var bmp = new BitmapImage();
-            await bmp.SetSourceAsync(stream.AsRandomAccessStream());
-            ThumbnailSource = bmp;
+            // UriSource triggers a background decode without blocking the UI thread.
+            // SetSourceAsync + File.OpenRead().AsRandomAccessStream() would create
+            // an STA-bound stream on the UI thread, causing WIC to marshal every
+            // buffer read back through the UI message pump.
+            ThumbnailSource = new BitmapImage(new Uri(path));
         }
         catch (OperationCanceledException) { throw; }
         catch { /* thumbnail failures are silent; the placeholder remains visible */ }

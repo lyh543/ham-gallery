@@ -1,4 +1,5 @@
 using FluentGallery.Data;
+using FluentGallery.Helpers;
 using FluentGallery.ViewModels;
 using FluentGallery.Views;
 using Microsoft.Extensions.DependencyInjection;
@@ -130,17 +131,9 @@ public sealed partial class AlbumListPage : Page
     private async void CreateAlbumButton_Click(object sender, RoutedEventArgs e)
     {
         var nameBox = new TextBox { PlaceholderText = "相册名称", MinWidth = 280 };
-        var dialog = new ContentDialog
-        {
-            Title             = "新建相册",
-            Content           = nameBox,
-            PrimaryButtonText = "创建",
-            CloseButtonText   = "取消",
-            XamlRoot          = XamlRoot,
-            DefaultButton     = ContentDialogButton.Primary,
-        };
 
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        if (!await ConfirmDialogHelper.ShowAsync(
+                XamlRoot, "新建相册", nameBox, "创建")) return;
         var name = nameBox.Text.Trim();
         if (string.IsNullOrEmpty(name)) return;
 
@@ -247,16 +240,12 @@ public sealed partial class AlbumListPage : Page
 
     private async Task ConfirmDeleteAsync(AlbumItemViewModel vm)
     {
-        var dialog = new ContentDialog
-        {
-            Title             = "删除相册",
-            Content           = "确定要删除这个相册吗？相册内的照片不会被删除。",
-            PrimaryButtonText = "删除",
-            CloseButtonText   = "取消",
-            XamlRoot          = XamlRoot,
-            DefaultButton     = ContentDialogButton.Close,
-        };
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        if (!await ConfirmDialogHelper.ShowAsync(
+                XamlRoot,
+                "删除相册",
+                "确定要删除这个相册吗？相册内的照片不会被删除。",
+                "删除",
+                confirmStyle: DialogButtonStyle.Danger)) return;
         await ViewModel.DeleteAlbumAsync(vm);
         UpdateEmptyState();
     }

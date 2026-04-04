@@ -46,6 +46,7 @@ public sealed partial class AlbumListViewModel : ObservableObject, IDisposable
 
         _scan.PhotosBatchDiscovered += OnPhotosBatchDiscovered;
         _scan.PhotosBatchUpdated    += OnPhotosBatchUpdated;
+        _scan.ScanCompleted         += OnScanCompleted;
     }
 
     // ── Page lifecycle (called by AlbumListPage.OnNavigatedTo/From) ───────────
@@ -103,6 +104,17 @@ public sealed partial class AlbumListViewModel : ObservableObject, IDisposable
     }
 
     private void OnPhotosBatchUpdated(IReadOnlyList<Photo> photos) { /* count unchanged */ }
+
+    /// <summary>
+    /// Reloads the full album list from the database after a scan completes.
+    /// This removes stale directory albums (whose photos were pruned) and applies
+    /// the empty-album filter in <see cref="DatabaseService.GetAlbumsAsync"/>.
+    /// </summary>
+    private async void OnScanCompleted()
+    {
+        try { await LoadAsync(_pageCts.Token); }
+        catch (OperationCanceledException) { }
+    }
 
     // ── Cover-refresh timer ───────────────────────────────────────────────────
 
@@ -181,6 +193,7 @@ public sealed partial class AlbumListViewModel : ObservableObject, IDisposable
     {
         _scan.PhotosBatchDiscovered -= OnPhotosBatchDiscovered;
         _scan.PhotosBatchUpdated    -= OnPhotosBatchUpdated;
+        _scan.ScanCompleted         -= OnScanCompleted;
         _coverTimer?.Stop();
         _pageCts.Dispose();
     }

@@ -85,7 +85,8 @@ public sealed partial class SettingsPage : Page
 
     private async void ClearThumbnails_Click(object sender, RoutedEventArgs e)
     {
-        if (await ShowConfirmAsync(
+        if (await ConfirmDialogHelper.ShowAsync(
+                XamlRoot,
                 "清除缩略图缓存",
                 "这将删除所有缓存的缩略图文件。下次查看照片时将重新生成，可能需要一些时间。\n\n确定要继续吗？",
                 "清除"))
@@ -100,7 +101,8 @@ public sealed partial class SettingsPage : Page
 
     private async void ClearDbCache_Click(object sender, RoutedEventArgs e)
     {
-        if (await ShowConfirmAsync(
+        if (await ConfirmDialogHelper.ShowAsync(
+                XamlRoot,
                 "清除数据库缓存",
                 "这将清空所有照片和缩略图的数据库记录，相册结构和设置将保留。\n\n再次扫描目录后照片将重新出现。确定要继续吗？",
                 "清除"))
@@ -109,38 +111,13 @@ public sealed partial class SettingsPage : Page
 
     private async void ClearAll_Click(object sender, RoutedEventArgs e)
     {
-        if (await ShowConfirmAsync(
+        if (await ConfirmDialogHelper.ShowAsync(
+                XamlRoot,
                 "清除全部数据",
                 "这将删除所有照片记录、相册、缩略图文件和应用设置，应用将恢复出厂状态。\n\n此操作不可撤销，确定要继续吗？",
                 "清除全部数据",
-                isDangerous: true))
+                confirmStyle: DialogButtonStyle.Danger))
             await ViewModel.ClearAllDataAsync();
-    }
-
-    private async Task<bool> ShowConfirmAsync(
-        string title,
-        string content,
-        string primaryText,
-        bool isDangerous = false)
-    {
-        var dialog = new ContentDialog
-        {
-            Title             = title,
-            Content           = content,
-            PrimaryButtonText = primaryText,
-            CloseButtonText   = "取消",
-            DefaultButton     = ContentDialogButton.Close,
-            XamlRoot          = this.XamlRoot,
-        };
-
-        if (isDangerous
-            && Application.Current.Resources.TryGetValue("AccentButtonStyle", out var s)
-            && s is Style accentStyle)
-        {
-            dialog.PrimaryButtonStyle = accentStyle;
-        }
-
-        return await dialog.ShowAsync() == ContentDialogResult.Primary;
     }
 
     // ────────────────────────────────────────────────────────────────────

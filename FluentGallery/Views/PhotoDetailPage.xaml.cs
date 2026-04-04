@@ -1,3 +1,4 @@
+using FluentGallery.Helpers;
 using FluentGallery.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Windowing;
@@ -447,17 +448,14 @@ public sealed partial class PhotoDetailPage : Page
             });
             panel.Children.Add(dontAskCheck);
 
-            var dialog = new ContentDialog
-            {
-                Title             = "删除照片",
-                Content           = panel,
-                PrimaryButtonText = "删除",
-                CloseButtonText   = "取消",
-                DefaultButton     = ContentDialogButton.Close,
-                XamlRoot          = XamlRoot,
-            };
+            bool confirmed = await ConfirmDialogHelper.ShowAsync(
+                XamlRoot,
+                "删除照片",
+                panel,
+                "删除",
+                confirmStyle: DialogButtonStyle.Danger);
 
-            if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+            if (!confirmed) return;
 
             // If user checked "下次不再提示", disable confirmation and notify
             if (dontAskCheck.IsChecked == true)

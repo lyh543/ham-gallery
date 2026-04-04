@@ -458,17 +458,21 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
 
     // ── Background filmstrip thumbnail loader ───────────────────────────────
 
-    private async Task LoadFilmStripThumbsAsync(DispatcherQueue dispatcher, CancellationToken ct)
+    private Task LoadFilmStripThumbsAsync(DispatcherQueue dispatcher, CancellationToken ct)
+        => Task.Run(() => LoadFilmStripThumbsCoreAsync(dispatcher, ct), ct);
+
+    private async Task LoadFilmStripThumbsCoreAsync(DispatcherQueue dispatcher, CancellationToken ct)
     {
         for (int i = 0; i < _photos.Count; i++)
         {
             if (ct.IsCancellationRequested) break;
             try
             {
-                var path = await _thumbnail.GetOrCreateThumbnailAsync(_photos[i], ct);
+                var path = await _thumbnail.GetOrCreateThumbnailAsync(_photos[i], ct)
+                    .ConfigureAwait(false);
                 if (path is null || i >= FilmStripItems.Count) continue;
 
-                int captured     = i;
+                int    captured     = i;
                 string capturedPath = path;
                 dispatcher.TryEnqueue(() =>
                 {

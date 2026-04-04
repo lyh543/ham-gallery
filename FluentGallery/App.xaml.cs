@@ -65,11 +65,7 @@ public partial class App : Application
         });
 
         // Data layer — EF Core factory + service facade
-        var dbFolder = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "FluentGallery");
-        Directory.CreateDirectory(dbFolder);
-        var dbPath = Path.Combine(dbFolder, "gallery.db");
+        var dbPath = AppDataPaths.DatabasePath;
 
         services.AddDbContextFactory<GalleryDbContext>(options =>
         {
