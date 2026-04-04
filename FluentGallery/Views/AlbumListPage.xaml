@@ -120,13 +120,33 @@
             <AppBarSeparator/>
             <AppBarButton Icon="Sort" Label="排序" Click="SortButton_Click">
                 <AppBarButton.Flyout>
-                    <MenuFlyout x:Name="SortFlyout">
-                        <MenuFlyoutItem x:Name="SortByName"       Text="名称"     Click="SortMenuItem_Click" Tag="Name"/>
-                        <MenuFlyoutItem x:Name="SortByCreated"    Text="创建时间" Click="SortMenuItem_Click" Tag="CreatedAt"/>
-                        <MenuFlyoutItem x:Name="SortByModified"   Text="修改时间" Click="SortMenuItem_Click" Tag="ModifiedAt"/>
-                        <MenuFlyoutItem x:Name="SortByPhotoCount" Text="照片数量" Click="SortMenuItem_Click" Tag="PhotoCount"/>
+                    <MenuFlyout x:Name="SortFlyout" Opening="SortFlyout_Opening">
+                        <RadioMenuFlyoutItem x:Name="SortByName"       Text="名称"     GroupName="AlbumSort" Tag="Name"       Click="SortMenuItem_Click">
+                            <RadioMenuFlyoutItem.Icon>
+                                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8A5;"/>
+                            </RadioMenuFlyoutItem.Icon>
+                        </RadioMenuFlyoutItem>
+                        <RadioMenuFlyoutItem x:Name="SortByCreated"    Text="创建时间" GroupName="AlbumSort" Tag="CreatedAt"  Click="SortMenuItem_Click">
+                            <RadioMenuFlyoutItem.Icon>
+                                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE787;"/>
+                            </RadioMenuFlyoutItem.Icon>
+                        </RadioMenuFlyoutItem>
+                        <RadioMenuFlyoutItem x:Name="SortByModified"   Text="修改时间" GroupName="AlbumSort" Tag="ModifiedAt" Click="SortMenuItem_Click">
+                            <RadioMenuFlyoutItem.Icon>
+                                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8D6;"/>
+                            </RadioMenuFlyoutItem.Icon>
+                        </RadioMenuFlyoutItem>
+                        <RadioMenuFlyoutItem x:Name="SortByPhotoCount" Text="照片数量" GroupName="AlbumSort" Tag="PhotoCount" Click="SortMenuItem_Click">
+                            <RadioMenuFlyoutItem.Icon>
+                                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE7C5;"/>
+                            </RadioMenuFlyoutItem.Icon>
+                        </RadioMenuFlyoutItem>
                         <MenuFlyoutSeparator/>
-                        <ToggleMenuFlyoutItem x:Name="SortDescToggle" Text="降序" Click="SortDescToggle_Click"/>
+                        <ToggleMenuFlyoutItem x:Name="SortDescToggle" Text="降序" Click="SortDescToggle_Click">
+                            <ToggleMenuFlyoutItem.Icon>
+                                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE74B;"/>
+                            </ToggleMenuFlyoutItem.Icon>
+                        </ToggleMenuFlyoutItem>
                     </MenuFlyout>
                 </AppBarButton.Flyout>
             </AppBarButton>
@@ -136,7 +156,7 @@
         </CommandBar>
 
         <!-- ── Album grid ── -->
-        <ScrollViewer Grid.Row="1" Padding="8 4 8 0">
+        <ScrollViewer x:Name="AlbumScrollViewer" Grid.Row="1" Padding="8 4 8 0">
             <GridView x:Name="AlbumGridView"
                       ItemsSource="{x:Bind ViewModel.Albums}"
                       SelectionMode="None"

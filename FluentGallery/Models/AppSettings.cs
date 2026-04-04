@@ -39,6 +39,20 @@ public sealed class AppSettings
     /// <summary>Maximum in-memory image cache size in bytes. Default 512 MB.</summary>
     public long MemoryCacheLimitBytes { get; set; } = 512L * 1024 * 1024;
 
+    // ── Album list sort ──────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Sort field for the album grid list.
+    /// Stores the integer value of <c>AlbumSortField</c> enum. Default 0 = Name.
+    /// </summary>
+    public int AlbumSortField { get; set; } = 0;
+
+    /// <summary>
+    /// Sort direction for the album grid list.
+    /// Stores the integer value of <c>SortDirection</c> enum. Default 0 = Ascending.
+    /// </summary>
+    public int AlbumSortDirection { get; set; } = 0;
+
     // ── Thumbnail ────────────────────────────────────────────────────────────
 
     /// <summary>

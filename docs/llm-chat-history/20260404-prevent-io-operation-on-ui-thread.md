@@ -1,5 +1,5 @@
 # Fluent gallery 相册卡死
-_Exported on 4/4/2026 at 10:59:35 GMT+8 from Cursor (2.6.22)_
+_Exported on 4/4/2026 at 16:37:45 GMT+8 from Cursor (2.6.22)_
 
 ---
 
@@ -284,4 +284,67 @@ dotnet_diagnostic.CAC001.severity = none
 | 服务层     | `Data/`, `Decoders/`, `Helpers/`  | `ThreadGuard.EnsureBackground()` 进入 + 所有 `await` 加 `ConfigureAwait(false)` |
 | 视图层     | `Views/`, `ViewModels/`, `Controls/` | UI 操作 + 需要跨线程时用 `dispatcher.TryEnqueue(() => {...})` 显式派发 |
 | 新写服务方法 | 任意 | 不加 `ConfigureAwait(false)` → 构建直接报 error，PR 无法合并 |
+
+---
+
+**User**
+
+现在生成缩略图报错了，不管是自动升成还是手动生成都报错了
+
+---
+
+**Cursor**
+
+`ThreadGuard.EnsureBackground()` 现在会在 DEBUG 下抛异常，而有的调用方还是在 UI 线程上调用服务层方法。让我先看看调用栈：
+
+找到原因了：`ThreadGuard.EnsureBackground()` 正确地在两处 UI 线程调用时抛了异常——
+
+1. `PhotoItemViewModel.LoadThumbnailAsync` 第 52 行直接从 UI 线程调用 `GetOrCreateThumbnailAsync`
+2. `SettingsViewModel.GenerateMissingThumbnailsAsync` 第 578 行直接从 UI 线程调用 `GenerateMissingAsync`
+
+`ThreadGuard` 发现了两个真实的 bug——这两个调用点原来就是问题根源，之前只修了 `PhotoDetailViewModel`，漏了这两处。修法是在调用点加 `Task.Run`：
+
+0 警告，0 错误。
+
+---
+
+**这恰好是 `ThreadGuard` 应该做的事**——它不是误报，而是发现了两个真实遗漏：
+
+| 调用点 | 问题 | 修复 |
+|--------|------|------|
+| `PhotoItemViewModel.LoadThumbnailAsync` | 从 `PhotoListPage` UI 线程直接调用 `GetOrCreateThumbnailAsync`（缩略图生成发生在 UI 线程） | 加 `Task.Run(...)` |
+| `SettingsViewModel.GenerateMissingThumbnailsAsync` | 手动生成按钮的处理器在 UI 线程直接调用 `GenerateMissingAsync` | 加 `Task.Run(...)` |
+
+之前上次修 `PhotoDetailViewModel` 的时候只加了 `Task.Run` 把胶片栏缩略图移出 UI 线程，但这两个入口漏掉了。`ThreadGuard` 在你第一次运行时立刻把它们揪了出来，正好说明三层防御体系按预期工作了。
+
+---
+
+**User**
+
+现在缩略图可以正常生成了，但是相册的封面为空了
+
+---
+
+**Cursor**
+
+让我先看看相册封面是如何加载的：
+
+找到了，`AlbumItemViewModel.LoadCoverAsync` 有两个问题：
+1. 第 76 行从 UI 线程直接调用 `GetOrCreateThumbnailAsync`，被 `ThreadGuard` 拦截
+2. 第 79–81 行还在用老的 `File.OpenRead + SetSourceAsync` 模式（这正是之前导致 UI 卡死的根因）
+
+两个问题一起修：
+
+0 警告，0 错误。
+
+`AlbumItemViewModel.LoadCoverAsync` 被漏掉了，原因是相册封面加载的调用链和缩略图加载的调用链是分开的：
+
+```
+PhotoListPage → PhotoItemViewModel.LoadThumbnailAsync       ← 上次修了
+PhotoDetailViewModel.LoadFilmStripThumbsCoreAsync           ← 上次修了
+AlbumListPage → AlbumItemViewModel.LoadCoverAsync           ← 这次修了
+SettingsPage → SettingsViewModel.GenerateMissingThumbnails  ← 上次修了
+```
+
+同时顺手把 `LoadCoverAsync` 里残留的 `File.OpenRead + SetSourceAsync` 老模式也换成了 `new BitmapImage(new Uri(path))`，和 `PhotoItemViewModel` 保持一致——这样就消除了另一个 STA-bound 流的潜在 UI 线程阻塞点。
 

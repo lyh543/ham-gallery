@@ -60,6 +60,7 @@ public sealed partial class PhotoListPage : Page
         {
             Loaded += async (_, _) =>
             {
+                ElasticScrollHelper.Attach(PhotoGridView);
                 await ViewModel.LoadAsync(albumId, _pageCts.Token);
                 UpdateEmptyState();
                 SyncNavHeader();
@@ -257,6 +258,18 @@ public sealed partial class PhotoListPage : Page
     }
 
     // ── Sort ──────────────────────────────────────────────────────────────────
+
+    private void SortFlyout_Opening(object? sender, object e)
+    {
+        // Sync RadioMenuFlyoutItem checked state to the current ViewModel sort field.
+        SortByName.IsChecked     = ViewModel.SortField == PhotoSortField.Name;
+        SortBySize.IsChecked     = ViewModel.SortField == PhotoSortField.Size;
+        SortByCreated.IsChecked  = ViewModel.SortField == PhotoSortField.CreatedAt;
+        SortByModified.IsChecked = ViewModel.SortField == PhotoSortField.ModifiedAt;
+        SortByTakenAt.IsChecked  = ViewModel.SortField == PhotoSortField.TakenAt;
+        SortByNatural.IsChecked  = ViewModel.SortField == PhotoSortField.Natural;
+        SortDescToggle.IsChecked = ViewModel.SortDirection == SortDirection.Descending;
+    }
 
     private void SortMenuItem_Click(object sender, RoutedEventArgs e)
     {

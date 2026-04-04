@@ -102,6 +102,9 @@ public sealed partial class PhotoDetailPage : Page
     {
         Loaded -= OnPageLoaded;
 
+        ElasticScrollHelper.Attach(FilmStrip, ElasticScrollHelper.ScrollAxis.Horizontal);
+        ElasticScrollHelper.Attach(InfoScrollViewer);
+
         var args = _pendingArgs;
         if (args is null) return;
 

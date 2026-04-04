@@ -35,6 +35,10 @@ public sealed partial class AlbumListViewModel : ObservableObject, IDisposable
     private bool                            _isCoverRefreshing;
     private CancellationTokenSource         _pageCts          = new();
 
+    // Prevents sort-settings from being written back to DB while LoadAsync is
+    // initialising SortField / SortDirection from the stored AppSettings.
+    private bool _loadingSort;
+
     public AlbumListViewModel(DatabaseService db, ScanService scan, ThumbnailService thumbnails)
     {
         _db         = db;
@@ -206,6 +210,16 @@ public sealed partial class AlbumListViewModel : ObservableObject, IDisposable
         IsLoading = true;
         try
         {
+            // Restore persisted sort preferences before populating the grid.
+            _loadingSort = true;
+            try
+            {
+                var settings  = await _db.LoadSettingsAsync(ct);
+                SortField     = (AlbumSortField)settings.AlbumSortField;
+                SortDirection = (SortDirection)settings.AlbumSortDirection;
+            }
+            finally { _loadingSort = false; }
+
             var raw    = await _db.GetAlbumsAsync(ct);
             var sorted = ApplySort(raw);
 
@@ -219,10 +233,31 @@ public sealed partial class AlbumListViewModel : ObservableObject, IDisposable
         }
     }
 
+    private async void SaveSortSettings()
+    {
+        try
+        {
+            var settings              = await _db.LoadSettingsAsync();
+            settings.AlbumSortField     = (int)SortField;
+            settings.AlbumSortDirection = (int)SortDirection;
+            await _db.SaveSettingsAsync(settings);
+        }
+        catch { /* best-effort: sort preference loss is non-critical */ }
+    }
+
     // ── Sort ───────────────────────────────────────────────────────────────────
 
-    partial void OnSortFieldChanged(AlbumSortField oldValue, AlbumSortField newValue)       => ReSortInPlace();
-    partial void OnSortDirectionChanged(SortDirection oldValue, SortDirection newValue) => ReSortInPlace();
+    partial void OnSortFieldChanged(AlbumSortField oldValue, AlbumSortField newValue)
+    {
+        ReSortInPlace();
+        if (!_loadingSort) SaveSortSettings();
+    }
+
+    partial void OnSortDirectionChanged(SortDirection oldValue, SortDirection newValue)
+    {
+        ReSortInPlace();
+        if (!_loadingSort) SaveSortSettings();
+    }
 
     private void ReSortInPlace()
     {
@@ -230,7 +265,7 @@ public sealed partial class AlbumListViewModel : ObservableObject, IDisposable
         {
             Id         = vm.Id,
             Name       = vm.Name,
-            CreatedAt  = vm.ModifiedAt,
+            CreatedAt  = vm.CreatedAt,
             ModifiedAt = vm.ModifiedAt,
             PhotoCount = vm.PhotoCount,
             IsPinned   = vm.IsPinned,

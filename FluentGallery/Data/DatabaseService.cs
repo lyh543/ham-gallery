@@ -39,6 +39,13 @@ public sealed class DatabaseService
         _logger.LogInformation("Database initialised at: {Path}",
             db.Database.GetDbConnection().DataSource);
 
+        // Idempotent: add photo-sort columns to Albums (may already exist in newer databases).
+        // SQLite ALTER TABLE throws if the column already exists, so we swallow that error.
+        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Albums\" ADD COLUMN \"PhotoSortField\" INTEGER NOT NULL DEFAULT 5", ct).ConfigureAwait(false); }
+        catch { /* column already present */ }
+        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Albums\" ADD COLUMN \"PhotoSortDirection\" INTEGER NOT NULL DEFAULT 0", ct).ConfigureAwait(false); }
+        catch { /* column already present */ }
+
         // Idempotent: creates the DeletedPhotos table if it doesn't exist yet
         // (needed for databases created before this table was added).
         await db.Database.ExecuteSqlRawAsync("""
@@ -218,6 +225,22 @@ public sealed class DatabaseService
         using var db = _factory.CreateDbContext();
         // ON DELETE SET NULL (FK constraint) handles Photos.AlbumId automatically.
         await db.Albums.Where(a => a.Id == id).ExecuteDeleteAsync(ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Persists only the photo-sort preference for the given album.
+    /// Does not update <see cref="Album.ModifiedAt"/> (sort is a display preference, not data).
+    /// </summary>
+    public async Task SaveAlbumPhotoSortAsync(
+        long albumId, int sortField, int sortDirection, CancellationToken ct = default)
+    {
+        using var db = _factory.CreateDbContext();
+        await db.Albums
+            .Where(a => a.Id == albumId)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(a => a.PhotoSortField,     sortField)
+                .SetProperty(a => a.PhotoSortDirection, sortDirection), ct)
+            .ConfigureAwait(false);
     }
 
     // ────────────────────────────────────────────────────────────────────────

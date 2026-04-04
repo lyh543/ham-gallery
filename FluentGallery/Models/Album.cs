@@ -30,6 +30,18 @@ public sealed class Album
     /// <summary>Display order of pinned albums in the sidebar (lower = higher).</summary>
     public int SortOrder { get; set; }
 
+    /// <summary>
+    /// Sort field used when viewing photos inside this album.
+    /// Stores the integer value of <c>PhotoSortField</c> enum. Default 5 = Natural.
+    /// </summary>
+    public int PhotoSortField { get; set; } = 5;
+
+    /// <summary>
+    /// Sort direction used when viewing photos inside this album.
+    /// Stores the integer value of <c>SortDirection</c> enum. Default 0 = Ascending.
+    /// </summary>
+    public int PhotoSortDirection { get; set; } = 0;
+
     // ── Computed / transient (not persisted) ────────────────────────────────
 
     /// <summary>Total number of photos in this album. Populated by queries, not stored.</summary>

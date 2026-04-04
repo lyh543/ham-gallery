@@ -1,4 +1,5 @@
 using FluentGallery.Data;
+using FluentGallery.Helpers;
 using FluentGallery.Models;
 using FluentGallery.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
@@ -88,13 +89,22 @@ public sealed partial class SearchPage : Page
         // Sync nav header
         UpdateNavHeader();
         UpdateStates();
+
+        Loaded += OnPageLoaded;
     }
 
     protected override void OnNavigatedFrom(NavigationEventArgs e)
     {
         base.OnNavigatedFrom(e);
+        Loaded -= OnPageLoaded;
         _pageCts.Cancel();
         _pageCts.Dispose();
+    }
+
+    private void OnPageLoaded(object sender, RoutedEventArgs e)
+    {
+        Loaded -= OnPageLoaded;
+        ElasticScrollHelper.Attach(ResultsGridView);
     }
 
     // ── Filter controls ───────────────────────────────────────────────────────

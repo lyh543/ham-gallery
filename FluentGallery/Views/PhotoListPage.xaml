@@ -108,18 +108,46 @@
             <!-- Sort -->
             <AppBarButton Icon="Sort" Label="排序">
                 <AppBarButton.Flyout>
-                    <MenuFlyout x:Name="SortFlyout">
-                        <MenuFlyoutItem Text="文件名"   Tag="Name"       Click="SortMenuItem_Click"/>
-                        <MenuFlyoutItem Text="文件大小" Tag="Size"       Click="SortMenuItem_Click"/>
-                        <MenuFlyoutItem Text="创建时间" Tag="CreatedAt"  Click="SortMenuItem_Click"/>
-                        <MenuFlyoutItem Text="修改时间" Tag="ModifiedAt" Click="SortMenuItem_Click"/>
-                        <MenuFlyoutItem Text="拍摄时间" Tag="TakenAt"    Click="SortMenuItem_Click"/>
-                        <MenuFlyoutItem Text="自然排序" Tag="Natural"    Click="SortMenuItem_Click"/>
+                    <MenuFlyout x:Name="SortFlyout" Opening="SortFlyout_Opening">
+                        <RadioMenuFlyoutItem x:Name="SortByName"       Text="文件名"   GroupName="PhotoSort" Tag="Name"       Click="SortMenuItem_Click">
+                            <RadioMenuFlyoutItem.Icon>
+                                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8A5;"/>
+                            </RadioMenuFlyoutItem.Icon>
+                        </RadioMenuFlyoutItem>
+                        <RadioMenuFlyoutItem x:Name="SortBySize"       Text="文件大小" GroupName="PhotoSort" Tag="Size"       Click="SortMenuItem_Click">
+                            <RadioMenuFlyoutItem.Icon>
+                                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8C8;"/>
+                            </RadioMenuFlyoutItem.Icon>
+                        </RadioMenuFlyoutItem>
+                        <RadioMenuFlyoutItem x:Name="SortByCreated"    Text="创建时间" GroupName="PhotoSort" Tag="CreatedAt"  Click="SortMenuItem_Click">
+                            <RadioMenuFlyoutItem.Icon>
+                                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE787;"/>
+                            </RadioMenuFlyoutItem.Icon>
+                        </RadioMenuFlyoutItem>
+                        <RadioMenuFlyoutItem x:Name="SortByModified"   Text="修改时间" GroupName="PhotoSort" Tag="ModifiedAt" Click="SortMenuItem_Click">
+                            <RadioMenuFlyoutItem.Icon>
+                                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8D6;"/>
+                            </RadioMenuFlyoutItem.Icon>
+                        </RadioMenuFlyoutItem>
+                        <RadioMenuFlyoutItem x:Name="SortByTakenAt"    Text="拍摄时间" GroupName="PhotoSort" Tag="TakenAt"    Click="SortMenuItem_Click">
+                            <RadioMenuFlyoutItem.Icon>
+                                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE722;"/>
+                            </RadioMenuFlyoutItem.Icon>
+                        </RadioMenuFlyoutItem>
+                        <RadioMenuFlyoutItem x:Name="SortByNatural"    Text="自然排序" GroupName="PhotoSort" Tag="Natural"    Click="SortMenuItem_Click">
+                            <RadioMenuFlyoutItem.Icon>
+                                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8CB;"/>
+                            </RadioMenuFlyoutItem.Icon>
+                        </RadioMenuFlyoutItem>
                         <MenuFlyoutSeparator/>
                         <ToggleMenuFlyoutItem
                             x:Name="SortDescToggle"
                             Text="降序"
-                            Click="SortDescToggle_Click"/>
+                            Click="SortDescToggle_Click">
+                            <ToggleMenuFlyoutItem.Icon>
+                                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE74B;"/>
+                            </ToggleMenuFlyoutItem.Icon>
+                        </ToggleMenuFlyoutItem>
                     </MenuFlyout>
                 </AppBarButton.Flyout>
             </AppBarButton>

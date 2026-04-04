@@ -37,6 +37,10 @@ public sealed partial class PhotoListViewModel : ObservableObject
     [ObservableProperty] public partial string        EditAlbumName      { get; set; } = string.Empty;
     [ObservableProperty] public partial PhotoSortField SortField         { get; set; } = PhotoSortField.Natural;
     [ObservableProperty] public partial SortDirection  SortDirection     { get; set; } = SortDirection.Ascending;
+
+    // Prevents sort from being written back to DB while LoadAsync is initialising
+    // SortField / SortDirection from the album's stored preferences.
+    private bool _loadingSort;
     [ObservableProperty] public partial int            ColumnCount       { get; set; } = 4;
     [ObservableProperty] public partial bool           ConfirmBeforeDelete { get; set; } = true;
 
@@ -67,6 +71,15 @@ public sealed partial class PhotoListViewModel : ObservableObject
             var settings = await _db.LoadSettingsAsync(ct);
             ConfirmBeforeDelete = settings.ConfirmBeforeDelete;
 
+            // Restore the per-album sort preference stored in the database.
+            _loadingSort = true;
+            try
+            {
+                SortField     = album is not null ? (PhotoSortField)album.PhotoSortField     : PhotoSortField.Natural;
+                SortDirection = album is not null ? (SortDirection) album.PhotoSortDirection : SortDirection.Ascending;
+            }
+            finally { _loadingSort = false; }
+
             var raw    = await _db.GetPhotosByAlbumAsync(albumId, ct);
             var sorted = ApplySort(raw).ToList();
 
@@ -82,8 +95,27 @@ public sealed partial class PhotoListViewModel : ObservableObject
 
     // ── Sort ─────────────────────────────────────────────────────────────────
 
-    partial void OnSortFieldChanged(PhotoSortField oldValue, PhotoSortField newValue)       => ReSortInPlace();
-    partial void OnSortDirectionChanged(SortDirection oldValue, SortDirection newValue) => ReSortInPlace();
+    partial void OnSortFieldChanged(PhotoSortField oldValue, PhotoSortField newValue)
+    {
+        ReSortInPlace();
+        if (!_loadingSort) SavePhotoSort();
+    }
+
+    partial void OnSortDirectionChanged(SortDirection oldValue, SortDirection newValue)
+    {
+        ReSortInPlace();
+        if (!_loadingSort) SavePhotoSort();
+    }
+
+    private async void SavePhotoSort()
+    {
+        if (_albumId == 0) return;
+        try
+        {
+            await _db.SaveAlbumPhotoSortAsync(_albumId, (int)SortField, (int)SortDirection);
+        }
+        catch { /* best-effort: sort preference loss is non-critical */ }
+    }
 
     private void ReSortInPlace()
     {

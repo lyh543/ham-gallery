@@ -53,6 +53,7 @@ public sealed partial class AlbumListPage : Page
 
     private async void OnPageLoaded(object sender, RoutedEventArgs e)
     {
+        ElasticScrollHelper.Attach(AlbumScrollViewer);
         await ViewModel.LoadAsync();
         UpdateEmptyState();
     }
@@ -99,6 +100,16 @@ public sealed partial class AlbumListPage : Page
     // ── Sort ──────────────────────────────────────────────────────────────────
 
     private void SortButton_Click(object sender, RoutedEventArgs e) { /* flyout opens automatically */ }
+
+    private void SortFlyout_Opening(object? sender, object e)
+    {
+        // Sync RadioMenuFlyoutItem checked state to the current ViewModel sort field.
+        SortByName.IsChecked       = ViewModel.SortField == AlbumSortField.Name;
+        SortByCreated.IsChecked    = ViewModel.SortField == AlbumSortField.CreatedAt;
+        SortByModified.IsChecked   = ViewModel.SortField == AlbumSortField.ModifiedAt;
+        SortByPhotoCount.IsChecked = ViewModel.SortField == AlbumSortField.PhotoCount;
+        SortDescToggle.IsChecked   = ViewModel.SortDirection == SortDirection.Descending;
+    }
 
     private void SortMenuItem_Click(object sender, RoutedEventArgs e)
     {

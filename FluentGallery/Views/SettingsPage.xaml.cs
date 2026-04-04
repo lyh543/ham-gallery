@@ -27,6 +27,7 @@ public sealed partial class SettingsPage : Page
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
+        Loaded += OnPageLoaded;
         await ViewModel.LoadAsync();
         ViewModel.PropertyChanged += ViewModel_PropertyChanged;
     }
@@ -34,7 +35,14 @@ public sealed partial class SettingsPage : Page
     protected override void OnNavigatedFrom(NavigationEventArgs e)
     {
         base.OnNavigatedFrom(e);
+        Loaded -= OnPageLoaded;
         ViewModel.PropertyChanged -= ViewModel_PropertyChanged;
+    }
+
+    private void OnPageLoaded(object sender, RoutedEventArgs e)
+    {
+        Loaded -= OnPageLoaded;
+        ElasticScrollHelper.Attach(SettingsScrollViewer);
     }
 
     // ────────────────────────────────────────────────────────────────────

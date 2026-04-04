@@ -49,7 +49,7 @@ public sealed partial class PhotoItemViewModel : ObservableObject
         IsLoading = true;
         try
         {
-            var path = await thumbService.GetOrCreateThumbnailAsync(_photo, ct);
+            var path = await Task.Run(() => thumbService.GetOrCreateThumbnailAsync(_photo, ct), ct);
             if (path is null || !File.Exists(path)) return;
 
             // UriSource triggers a background decode without blocking the UI thread.

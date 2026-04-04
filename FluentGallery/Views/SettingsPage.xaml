@@ -15,6 +15,7 @@
     </Page.Resources>
 
     <ScrollViewer
+        x:Name="SettingsScrollViewer"
         VerticalScrollBarVisibility="Auto"
         HorizontalScrollBarVisibility="Disabled">
 

@@ -335,6 +335,7 @@
             MinWidth="0">
 
             <ScrollViewer
+                x:Name="InfoScrollViewer"
                 VerticalScrollBarVisibility="Auto"
                 HorizontalScrollBarVisibility="Disabled">
 

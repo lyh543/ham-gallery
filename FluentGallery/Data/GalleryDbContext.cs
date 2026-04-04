@@ -26,6 +26,8 @@ public sealed class GalleryDbContext : DbContext
             e.Property(a => a.Name).IsRequired();
             e.Property(a => a.IsPinned).HasDefaultValue(false);
             e.Property(a => a.SortOrder).HasDefaultValue(0);
+            e.Property(a => a.PhotoSortField).HasDefaultValue(5);      // PhotoSortField.Natural
+            e.Property(a => a.PhotoSortDirection).HasDefaultValue(0);  // SortDirection.Ascending
 
             // Transient column — not stored in DB
             e.Ignore(a => a.PhotoCount);

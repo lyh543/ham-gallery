@@ -2,7 +2,6 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using FluentGallery.Data;
 using FluentGallery.Models;
 using Microsoft.UI.Xaml.Media.Imaging;
-using Windows.Storage.Streams;
 
 namespace FluentGallery.ViewModels;
 
@@ -16,6 +15,7 @@ public sealed partial class AlbumItemViewModel : ObservableObject
 
     [ObservableProperty] public partial string      Name                { get; set; }
     [ObservableProperty] public partial int         PhotoCount          { get; set; }
+    [ObservableProperty] public partial string      CreatedAt           { get; set; }
     [ObservableProperty] public partial string      ModifiedAt          { get; set; }
     [ObservableProperty] public partial bool        IsPinned            { get; set; }
     [ObservableProperty] public partial bool        IsEditing           { get; set; }
@@ -28,6 +28,7 @@ public sealed partial class AlbumItemViewModel : ObservableObject
         Id         = album.Id;
         Name       = album.Name;
         PhotoCount = album.PhotoCount;
+        CreatedAt  = album.CreatedAt;
         ModifiedAt = album.ModifiedAt;
         IsPinned   = album.IsPinned;
         EditName   = string.Empty;
@@ -52,7 +53,9 @@ public sealed partial class AlbumItemViewModel : ObservableObject
 
     /// <summary>
     /// Loads the cover thumbnail from the most recently added photo in this album.
-    /// Must be called on the UI thread (required by <see cref="BitmapImage.SetSourceAsync"/>).
+    /// Safe to call on the UI thread: thumbnail generation is offloaded to a thread-pool
+    /// thread via <c>Task.Run</c>, and the <see cref="BitmapImage"/> is created with a
+    /// URI so the OS handles the decode asynchronously in the background.
     /// Pass <paramref name="forceRefresh"/>=<c>true</c> during periodic scan refreshes to
     /// reload even when a cover is already displayed.
     /// </summary>
@@ -71,13 +74,15 @@ public sealed partial class AlbumItemViewModel : ObservableObject
             var photo = await db.GetLatestPhotoByAlbumAsync(Id, ct);
             if (photo is null) { CoverThumbnailSource = null; return; }
 
-            var path = await thumbnails.GetOrCreateThumbnailAsync(photo, ct);
+            // Offload to thread pool so ThumbnailService.GetOrCreateThumbnailAsync
+            // (which requires a background thread) does not run on the UI thread.
+            var path = await Task.Run(() => thumbnails.GetOrCreateThumbnailAsync(photo, ct), ct);
             if (path is null || !File.Exists(path)) { CoverThumbnailSource = null; return; }
 
-            await using var stream = File.OpenRead(path);
-            var bmp = new BitmapImage();
-            await bmp.SetSourceAsync(stream.AsRandomAccessStream());
-            CoverThumbnailSource = bmp;
+            // UriSource triggers a background decode without blocking the UI thread,
+            // unlike SetSourceAsync(File.OpenRead(...).AsRandomAccessStream()) which
+            // pins the stream to the STA and causes WIC to marshal every read back.
+            CoverThumbnailSource = new BitmapImage(new Uri(path));
         }
         catch (OperationCanceledException) { throw; }
         catch { CoverThumbnailSource = null; }

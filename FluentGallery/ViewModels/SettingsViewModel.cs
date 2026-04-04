@@ -575,7 +575,9 @@ public sealed partial class SettingsViewModel : ObservableObject
                     }
                 });
 
-                await _thumbnailService.GenerateMissingAsync(photos, progress, localCts.Token);
+                await Task.Run(
+                    () => _thumbnailService.GenerateMissingAsync(photos, progress, localCts.Token),
+                    localCts.Token);
             }
 
             completed = true;
