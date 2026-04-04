@@ -89,6 +89,8 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
     [ObservableProperty] public partial string? InfoFilePath    { get; set; }
     [ObservableProperty] public partial string? InfoFileSize    { get; set; }
     [ObservableProperty] public partial string? InfoResolution  { get; set; }
+    [ObservableProperty] public partial string? InfoCreatedAt   { get; set; }
+    [ObservableProperty] public partial string? InfoModifiedAt  { get; set; }
     [ObservableProperty] public partial string? InfoTakenAt     { get; set; }
     [ObservableProperty] public partial string? InfoCamera      { get; set; }
     [ObservableProperty] public partial string? InfoLens        { get; set; }
@@ -239,12 +241,9 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
         InfoResolution = (photo.Width.HasValue && photo.Height.HasValue)
             ? $"{photo.Width} × {photo.Height}"
             : null;
-        InfoTakenAt = photo.TakenAt is { } taken
-            ? DateTime.TryParse(taken, null,
-                  System.Globalization.DateTimeStyles.RoundtripKind, out var dt)
-                ? dt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")
-                : taken
-            : null;
+        InfoCreatedAt  = FormatIsoDate(photo.CreatedAt);
+        InfoModifiedAt = FormatIsoDate(photo.ModifiedAt);
+        InfoTakenAt    = FormatIsoDate(photo.TakenAt);
         InfoCamera      = JoinNonEmpty(photo.CameraMake, photo.CameraModel);
         InfoLens        = null;
         InfoAperture    = null;
@@ -548,6 +547,19 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
     }
 
     // ── Formatting helpers ──────────────────────────────────────────────────
+
+    /// <summary>
+    /// Parses an ISO 8601 date string and returns it formatted as local time.
+    /// Returns <c>null</c> for null / empty input.
+    /// </summary>
+    private static string? FormatIsoDate(string? iso)
+    {
+        if (string.IsNullOrEmpty(iso)) return null;
+        return DateTime.TryParse(iso, null,
+                   System.Globalization.DateTimeStyles.RoundtripKind, out var dt)
+            ? dt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")
+            : iso;
+    }
 
     private static string FormatFileSize(long bytes)
     {

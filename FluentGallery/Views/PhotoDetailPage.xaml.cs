@@ -209,6 +209,10 @@ public sealed partial class PhotoDetailPage : Page
                 InfoFileSize.Text    = ViewModel.InfoFileSize ?? "—"; break;
             case nameof(PhotoDetailViewModel.InfoResolution):
                 InfoResolution.Text  = ViewModel.InfoResolution ?? "—"; break;
+            case nameof(PhotoDetailViewModel.InfoCreatedAt):
+                InfoCreatedAt.Text   = ViewModel.InfoCreatedAt ?? "—"; break;
+            case nameof(PhotoDetailViewModel.InfoModifiedAt):
+                InfoModifiedAt.Text  = ViewModel.InfoModifiedAt ?? "—"; break;
             case nameof(PhotoDetailViewModel.InfoTakenAt):
                 InfoTakenAt.Text     = ViewModel.InfoTakenAt ?? "—"; break;
             case nameof(PhotoDetailViewModel.InfoCamera):

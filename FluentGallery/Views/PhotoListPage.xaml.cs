@@ -267,8 +267,8 @@ public sealed partial class PhotoListPage : Page
         SortByCreated.IsChecked  = ViewModel.SortField == PhotoSortField.CreatedAt;
         SortByModified.IsChecked = ViewModel.SortField == PhotoSortField.ModifiedAt;
         SortByTakenAt.IsChecked  = ViewModel.SortField == PhotoSortField.TakenAt;
-        SortByNatural.IsChecked  = ViewModel.SortField == PhotoSortField.Natural;
-        SortDescToggle.IsChecked = ViewModel.SortDirection == SortDirection.Descending;
+        // Toggle shows "升序"; checked = ascending (non-default), unchecked = descending (default)
+        SortDescToggle.IsChecked = ViewModel.SortDirection == SortDirection.Ascending;
     }
 
     private void SortMenuItem_Click(object sender, RoutedEventArgs e)
@@ -280,7 +280,6 @@ public sealed partial class PhotoListPage : Page
             "CreatedAt"  => PhotoSortField.CreatedAt,
             "ModifiedAt" => PhotoSortField.ModifiedAt,
             "TakenAt"    => PhotoSortField.TakenAt,
-            "Natural"    => PhotoSortField.Natural,
             _            => PhotoSortField.Name,
         };
     }
@@ -288,7 +287,8 @@ public sealed partial class PhotoListPage : Page
     private void SortDescToggle_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not ToggleMenuFlyoutItem t) return;
-        ViewModel.SortDirection = t.IsChecked ? SortDirection.Descending : SortDirection.Ascending;
+        // Checked = ascending, unchecked = descending
+        ViewModel.SortDirection = t.IsChecked ? SortDirection.Ascending : SortDirection.Descending;
     }
 
     // ── Nav header sync ───────────────────────────────────────────────────────

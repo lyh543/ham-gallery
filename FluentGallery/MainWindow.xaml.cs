@@ -1,5 +1,4 @@
 using FluentGallery.Helpers;
-using FluentGallery.Models;
 using FluentGallery.ViewModels;
 using FluentGallery.Views;
 using Microsoft.Extensions.DependencyInjection;
@@ -7,6 +6,7 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Animation;
 using System.Collections.Specialized;
 using System.Runtime.InteropServices;
 using Windows.Graphics;
@@ -25,64 +25,35 @@ public sealed partial class MainWindow : Window
     // ── State ─────────────────────────────────────────────────────────────────
     private readonly MainWindowViewModel _vm;
 
+#if DEBUG
+    // ── Dev Warning Toast ─────────────────────────────────────────────────────
+    private readonly DispatcherTimer _devWarnTimer;
+    private bool _devWarnMuted = false;
+#endif
+
     public MainWindow()
     {
         this.InitializeComponent();
 
-        this.Title = AppDataPaths.DisplayName;
-
         _vm = App.Current.Services.GetRequiredService<MainWindowViewModel>();
         _vm.PinnedAlbums.CollectionChanged += OnPinnedAlbumsChanged;
 
-        // Set initial window size using DPI-aware logical pixels,
-        // then centre on the display — the standard pattern for WinUI 3 apps.
-        SetInitialWindowSize(logicalWidth: 1400, logicalHeight: 900);
+        // Initial size and min-size enforcement
+        AppWindow.Resize(new SizeInt32(1200, 800));
         AppWindow.Changed += OnAppWindowChanged;
-
-        // WinUI 3: closing the window does NOT exit the process by default.
-        // Subscribe here so the process terminates when the user closes the window.
-        this.Closed += (_, _) => Application.Current.Exit();
 
         // Navigate to default page
         NavView.SelectedItem = AlbumsNavItem;
 
         // Load pinned albums; populates dynamic nav items via CollectionChanged
         _ = _vm.LoadPinnedAlbumsAsync();
-    }
 
-    // ── Initial size + centering ─────────────────────────────────────────
-
-    /// <summary>
-    /// Resizes the window to <paramref name="logicalWidth"/> × <paramref name="logicalHeight"/>
-    /// logical pixels, capped at 90 % of the display work-area, and centres it on screen.
-    /// <para>
-    /// This is the standard approach for WinUI 3 apps: convert logical pixels → physical pixels
-    /// using the current DPI, then use <see cref="DisplayArea"/> for the work-area bounds.
-    /// </para>
-    /// </summary>
-    private void SetInitialWindowSize(int logicalWidth, int logicalHeight)
-    {
-        var hwnd       = WinRT.Interop.WindowNative.GetWindowHandle(this);
-        var windowId   = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
-        var display    = Microsoft.UI.Windowing.DisplayArea.GetFromWindowId(
-                             windowId, Microsoft.UI.Windowing.DisplayAreaFallback.Nearest);
-        var workArea   = display.WorkArea;
-        var dpi        = GetDpiForWindow(hwnd);
-        double scale   = dpi / 96.0;
-
-        // Convert the desired logical size to physical pixels.
-        int physW = (int)Math.Round(logicalWidth  * scale);
-        int physH = (int)Math.Round(logicalHeight * scale);
-
-        // Never exceed 90 % of the display work-area.
-        physW = Math.Min(physW, (int)(workArea.Width  * 0.90));
-        physH = Math.Min(physH, (int)(workArea.Height * 0.90));
-
-        // Centre the window within the work-area.
-        int x = workArea.X + (workArea.Width  - physW) / 2;
-        int y = workArea.Y + (workArea.Height - physH) / 2;
-
-        AppWindow.MoveAndResize(new Windows.Graphics.RectInt32(x, y, physW, physH));
+#if DEBUG
+        _devWarnTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
+        _devWarnTimer.Tick += (_, _) => HideDevWarnToast();
+        DevWarningLoggerProvider.WarningLogged += OnDevWarningLogged;
+        Closed += (_, _) => DevWarningLoggerProvider.WarningLogged -= OnDevWarningLogged;
+#endif
     }
 
     // ── Minimum window size ───────────────────────────────────────────────────
@@ -176,14 +147,6 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        // Global search (no album scope)
-        if (tag == "Search")
-        {
-            ContentFrame.Navigate(typeof(SearchPage), new SearchArgs());
-            NavView.Header = "搜索";
-            return;
-        }
-
         var pageType = tag switch
         {
             "AlbumList" => typeof(AlbumListPage),
@@ -200,15 +163,15 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Allows pages to override the NavigationView header text
-    /// (e.g. PhotoListPage sets it to the album name).
-    /// </summary>
-    public void SetNavHeader(string header) => NavView.Header = header;
-
-    /// <summary>
     /// Re-selects the nav item that corresponds to the page currently shown in the Frame
     /// (called after back-navigation).
     /// </summary>
+    /// <summary>
+    /// Updates the NavigationView header text — called by pages (e.g. PhotoListPage)
+    /// that want to display the album name in the title area.
+    /// </summary>
+    public void SetNavHeader(string header) => NavView.Header = header;
+
     private void SyncNavSelection()
     {
         var currentType = ContentFrame.CurrentSourcePageType;
@@ -218,7 +181,6 @@ public sealed partial class MainWindow : Window
             nameof(AlbumListPage) => AlbumsNavItem,
             nameof(AllPhotosPage) => AllPhotosNavItem,
             nameof(SettingsPage)  => SettingsNavItem,
-            nameof(SearchPage)    => SearchNavItem,
             _                     => null,
         };
 
@@ -233,5 +195,68 @@ public sealed partial class MainWindow : Window
         if (found is not null)
             NavView.Header = found.Content?.ToString();
     }
+
+#if DEBUG
+    // ── Dev Warning Toast ─────────────────────────────────────────────────────
+
+    private void OnDevWarningLogged(string category, string message)
+    {
+        if (_devWarnMuted) return;
+
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            var shortCategory = category.Contains('.')
+                ? category[(category.LastIndexOf('.') + 1)..]
+                : category;
+            ShowDevWarnToast($"[{shortCategory}] {message}");
+        });
+    }
+
+    private void ShowDevWarnToast(string message)
+    {
+        _devWarnTimer.Stop();
+        DevWarnToastText.Text        = message;
+        DevWarnToastHost.IsHitTestVisible = true;
+        AnimateDevWarnOpacity(1.0, durationMs: 180);
+        _devWarnTimer.Start();
+    }
+
+    private void HideDevWarnToast()
+    {
+        _devWarnTimer.Stop();
+        AnimateDevWarnOpacity(0.0, durationMs: 250);
+        DevWarnToastHost.IsHitTestVisible = false;
+    }
+
+    private void DevWarnClose_Click(object sender, RoutedEventArgs e)
+        => HideDevWarnToast();
+
+    private void DevWarnToast_PointerEntered(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        => _devWarnTimer.Stop();
+
+    private void DevWarnToast_PointerExited(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        => _devWarnTimer.Start();
+
+    private void DevWarnMute_Click(object sender, RoutedEventArgs e)
+    {
+        _devWarnMuted = true;
+        HideDevWarnToast();
+    }
+
+    private void AnimateDevWarnOpacity(double target, double durationMs = 200)
+    {
+        var anim = new DoubleAnimation
+        {
+            To             = target,
+            Duration       = TimeSpan.FromMilliseconds(durationMs),
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+        };
+        Storyboard.SetTarget(anim, DevWarnToastHost);
+        Storyboard.SetTargetProperty(anim, "Opacity");
+        var sb = new Storyboard();
+        sb.Children.Add(anim);
+        sb.Begin();
+    }
+#endif
 }
 

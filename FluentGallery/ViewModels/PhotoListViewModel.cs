@@ -9,7 +9,7 @@ using Windows.Storage;
 
 namespace FluentGallery.ViewModels;
 
-public enum PhotoSortField { Name, Size, CreatedAt, ModifiedAt, TakenAt, Natural }
+public enum PhotoSortField { Name, Size, CreatedAt, ModifiedAt, TakenAt }
 
 /// <summary>ViewModel for the per-album photo grid (section 5.3).</summary>
 public sealed partial class PhotoListViewModel : ObservableObject
@@ -35,8 +35,8 @@ public sealed partial class PhotoListViewModel : ObservableObject
     [ObservableProperty] public partial bool          IsMultiSelectMode  { get; set; }
     [ObservableProperty] public partial bool          IsRenamingAlbum    { get; set; }
     [ObservableProperty] public partial string        EditAlbumName      { get; set; } = string.Empty;
-    [ObservableProperty] public partial PhotoSortField SortField         { get; set; } = PhotoSortField.Natural;
-    [ObservableProperty] public partial SortDirection  SortDirection     { get; set; } = SortDirection.Ascending;
+    [ObservableProperty] public partial PhotoSortField SortField         { get; set; } = PhotoSortField.TakenAt;
+    [ObservableProperty] public partial SortDirection  SortDirection     { get; set; } = SortDirection.Descending;
 
     // Prevents sort from being written back to DB while LoadAsync is initialising
     // SortField / SortDirection from the album's stored preferences.
@@ -75,7 +75,7 @@ public sealed partial class PhotoListViewModel : ObservableObject
             _loadingSort = true;
             try
             {
-                SortField     = album is not null ? (PhotoSortField)album.PhotoSortField     : PhotoSortField.Natural;
+                SortField     = album is not null ? (PhotoSortField)album.PhotoSortField     : PhotoSortField.TakenAt;
                 SortDirection = album is not null ? (SortDirection) album.PhotoSortDirection : SortDirection.Ascending;
             }
             finally { _loadingSort = false; }
@@ -143,15 +143,23 @@ public sealed partial class PhotoListViewModel : ObservableObject
             ? src.OrderBy(p => p.ModifiedAt)
             : src.OrderByDescending(p => p.ModifiedAt),
         PhotoSortField.TakenAt    => SortDirection == SortDirection.Ascending
-            ? src.OrderBy(p => p.TakenAt)
-            : src.OrderByDescending(p => p.TakenAt),
-        PhotoSortField.Natural    => SortDirection == SortDirection.Ascending
-            ? NaturalSortHelper.SortNatural(src)
-            : NaturalSortHelper.SortNatural(src).Reverse(),
+            ? src.OrderBy(TakenAtOrFallback)
+            : src.OrderByDescending(TakenAtOrFallback),
         _                         => SortDirection == SortDirection.Ascending
             ? src.OrderBy(p => p.FileName, StringComparer.CurrentCultureIgnoreCase)
             : src.OrderByDescending(p => p.FileName, StringComparer.CurrentCultureIgnoreCase),
     };
+
+    /// <summary>
+    /// Returns TakenAt if present; otherwise falls back to whichever of CreatedAt /
+    /// ModifiedAt is earlier. ISO 8601 strings compare correctly as plain strings.
+    /// </summary>
+    private static string TakenAtOrFallback(Photo p) =>
+        !string.IsNullOrEmpty(p.TakenAt)
+            ? p.TakenAt
+            : string.Compare(p.CreatedAt, p.ModifiedAt, StringComparison.Ordinal) <= 0
+                ? p.CreatedAt
+                : p.ModifiedAt;
 
     // ── Add photos ───────────────────────────────────────────────────────────
 

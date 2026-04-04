@@ -32,18 +32,25 @@ public sealed class Album
 
     /// <summary>
     /// Sort field used when viewing photos inside this album.
-    /// Stores the integer value of <c>PhotoSortField</c> enum. Default 5 = Natural.
+    /// Stores the integer value of <c>PhotoSortField</c> enum. Default 4 = TakenAt.
     /// </summary>
-    public int PhotoSortField { get; set; } = 5;
+    public int PhotoSortField { get; set; } = 4;
 
     /// <summary>
     /// Sort direction used when viewing photos inside this album.
-    /// Stores the integer value of <c>SortDirection</c> enum. Default 0 = Ascending.
+    /// Stores the integer value of <c>SortDirection</c> enum. Default 1 = Descending.
     /// </summary>
-    public int PhotoSortDirection { get; set; } = 0;
+    public int PhotoSortDirection { get; set; } = 1;
 
     // ── Computed / transient (not persisted) ────────────────────────────────
 
     /// <summary>Total number of photos in this album. Populated by queries, not stored.</summary>
     public int PhotoCount { get; set; }
+
+    // Photo-timestamp aggregates — populated by DatabaseService, never written to DB.
+    // MAX of each field across all photos in the album (= time of the most recent photo).
+    // Null means the album has no photos (or no photos with that timestamp field).
+    public string? MaxPhotoTakenAt    { get; set; }
+    public string? MaxPhotoCreatedAt  { get; set; }
+    public string? MaxPhotoModifiedAt { get; set; }
 }

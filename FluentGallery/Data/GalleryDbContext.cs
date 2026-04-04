@@ -26,11 +26,14 @@ public sealed class GalleryDbContext : DbContext
             e.Property(a => a.Name).IsRequired();
             e.Property(a => a.IsPinned).HasDefaultValue(false);
             e.Property(a => a.SortOrder).HasDefaultValue(0);
-            e.Property(a => a.PhotoSortField).HasDefaultValue(5);      // PhotoSortField.Natural
-            e.Property(a => a.PhotoSortDirection).HasDefaultValue(0);  // SortDirection.Ascending
+            e.Property(a => a.PhotoSortField).HasDefaultValue(4);      // PhotoSortField.TakenAt
+            e.Property(a => a.PhotoSortDirection).HasDefaultValue(1);  // SortDirection.Descending
 
-            // Transient column — not stored in DB
+            // Transient columns — not stored in DB
             e.Ignore(a => a.PhotoCount);
+            e.Ignore(a => a.MaxPhotoTakenAt);
+            e.Ignore(a => a.MaxPhotoCreatedAt);
+            e.Ignore(a => a.MaxPhotoModifiedAt);
 
             e.HasIndex(a => new { a.IsPinned, a.SortOrder })
              .HasDatabaseName("idx_albums_pinned");

@@ -43,15 +43,15 @@ public sealed class AppSettings
 
     /// <summary>
     /// Sort field for the album grid list.
-    /// Stores the integer value of <c>AlbumSortField</c> enum. Default 0 = Name.
+    /// Stores the integer value of <c>AlbumSortField</c> enum. Default 4 = TakenAt.
     /// </summary>
-    public int AlbumSortField { get; set; } = 0;
+    public int AlbumSortField { get; set; } = 4;
 
     /// <summary>
     /// Sort direction for the album grid list.
-    /// Stores the integer value of <c>SortDirection</c> enum. Default 0 = Ascending.
+    /// Stores the integer value of <c>SortDirection</c> enum. Default 1 = Descending.
     /// </summary>
-    public int AlbumSortDirection { get; set; } = 0;
+    public int AlbumSortDirection { get; set; } = 1;
 
     // ── Thumbnail ────────────────────────────────────────────────────────────
 

@@ -128,12 +128,17 @@
                         </RadioMenuFlyoutItem>
                         <RadioMenuFlyoutItem x:Name="SortByCreated"    Text="创建时间" GroupName="AlbumSort" Tag="CreatedAt"  Click="SortMenuItem_Click">
                             <RadioMenuFlyoutItem.Icon>
-                                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE787;"/>
+                                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE74E;"/>
                             </RadioMenuFlyoutItem.Icon>
                         </RadioMenuFlyoutItem>
                         <RadioMenuFlyoutItem x:Name="SortByModified"   Text="修改时间" GroupName="AlbumSort" Tag="ModifiedAt" Click="SortMenuItem_Click">
                             <RadioMenuFlyoutItem.Icon>
-                                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8D6;"/>
+                                <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xEB9E;"/>
+                            </RadioMenuFlyoutItem.Icon>
+                        </RadioMenuFlyoutItem>
+                        <RadioMenuFlyoutItem x:Name="SortByTakenAt"    Text="拍摄时间" GroupName="AlbumSort" Tag="TakenAt"    Click="SortMenuItem_Click">
+                            <RadioMenuFlyoutItem.Icon>
+                                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE722;"/>
                             </RadioMenuFlyoutItem.Icon>
                         </RadioMenuFlyoutItem>
                         <RadioMenuFlyoutItem x:Name="SortByPhotoCount" Text="照片数量" GroupName="AlbumSort" Tag="PhotoCount" Click="SortMenuItem_Click">
@@ -142,9 +147,9 @@
                             </RadioMenuFlyoutItem.Icon>
                         </RadioMenuFlyoutItem>
                         <MenuFlyoutSeparator/>
-                        <ToggleMenuFlyoutItem x:Name="SortDescToggle" Text="降序" Click="SortDescToggle_Click">
+                        <ToggleMenuFlyoutItem x:Name="SortDescToggle" Text="升序" Click="SortDescToggle_Click">
                             <ToggleMenuFlyoutItem.Icon>
-                                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE74B;"/>
+                                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE74A;"/>
                             </ToggleMenuFlyoutItem.Icon>
                         </ToggleMenuFlyoutItem>
                     </MenuFlyout>

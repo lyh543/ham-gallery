@@ -103,12 +103,13 @@ public sealed partial class AlbumListPage : Page
 
     private void SortFlyout_Opening(object? sender, object e)
     {
-        // Sync RadioMenuFlyoutItem checked state to the current ViewModel sort field.
         SortByName.IsChecked       = ViewModel.SortField == AlbumSortField.Name;
         SortByCreated.IsChecked    = ViewModel.SortField == AlbumSortField.CreatedAt;
         SortByModified.IsChecked   = ViewModel.SortField == AlbumSortField.ModifiedAt;
         SortByPhotoCount.IsChecked = ViewModel.SortField == AlbumSortField.PhotoCount;
-        SortDescToggle.IsChecked   = ViewModel.SortDirection == SortDirection.Descending;
+        SortByTakenAt.IsChecked    = ViewModel.SortField == AlbumSortField.TakenAt;
+        // Toggle shows "升序"; checked = ascending (non-default), unchecked = descending (default)
+        SortDescToggle.IsChecked   = ViewModel.SortDirection == SortDirection.Ascending;
     }
 
     private void SortMenuItem_Click(object sender, RoutedEventArgs e)
@@ -119,6 +120,7 @@ public sealed partial class AlbumListPage : Page
             "CreatedAt"  => AlbumSortField.CreatedAt,
             "ModifiedAt" => AlbumSortField.ModifiedAt,
             "PhotoCount" => AlbumSortField.PhotoCount,
+            "TakenAt"    => AlbumSortField.TakenAt,
             _            => AlbumSortField.Name,
         };
     }
@@ -126,7 +128,8 @@ public sealed partial class AlbumListPage : Page
     private void SortDescToggle_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not ToggleMenuFlyoutItem t) return;
-        ViewModel.SortDirection = t.IsChecked ? SortDirection.Descending : SortDirection.Ascending;
+        // Checked = ascending, unchecked = descending
+        ViewModel.SortDirection = t.IsChecked ? SortDirection.Ascending : SortDirection.Descending;
     }
 
     // ── Navigate ──────────────────────────────────────────────────────────────

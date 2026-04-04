@@ -7,7 +7,7 @@ using System.Collections.ObjectModel;
 
 namespace FluentGallery.ViewModels;
 
-public enum AlbumSortField { Name, CreatedAt, ModifiedAt, PhotoCount }
+public enum AlbumSortField { Name, CreatedAt, ModifiedAt, PhotoCount, TakenAt }
 public enum SortDirection  { Ascending, Descending }
 
 /// <summary>ViewModel for the album grid page.</summary>
@@ -45,8 +45,8 @@ public sealed partial class AlbumListViewModel : ObservableObject, IDisposable
         _scan       = scan;
         _thumbnails = thumbnails;
         IsLargeView   = true;
-        SortField     = AlbumSortField.Name;
-        SortDirection = SortDirection.Ascending;
+        SortField     = AlbumSortField.TakenAt;
+        SortDirection = SortDirection.Descending;
 
         _scan.PhotosBatchDiscovered += OnPhotosBatchDiscovered;
         _scan.PhotosBatchUpdated    += OnPhotosBatchUpdated;
@@ -263,12 +263,15 @@ public sealed partial class AlbumListViewModel : ObservableObject, IDisposable
     {
         var sorted = ApplySort(Albums.Select(vm => new Album
         {
-            Id         = vm.Id,
-            Name       = vm.Name,
-            CreatedAt  = vm.CreatedAt,
-            ModifiedAt = vm.ModifiedAt,
-            PhotoCount = vm.PhotoCount,
-            IsPinned   = vm.IsPinned,
+            Id                 = vm.Id,
+            Name               = vm.Name,
+            CreatedAt          = vm.CreatedAt,
+            ModifiedAt         = vm.ModifiedAt,
+            PhotoCount         = vm.PhotoCount,
+            IsPinned           = vm.IsPinned,
+            MaxPhotoTakenAt    = vm.MaxPhotoTakenAt,
+            MaxPhotoCreatedAt  = vm.MaxPhotoCreatedAt,
+            MaxPhotoModifiedAt = vm.MaxPhotoModifiedAt,
         })).ToList();
 
         for (int i = 0; i < sorted.Count; i++)
@@ -280,16 +283,23 @@ public sealed partial class AlbumListViewModel : ObservableObject, IDisposable
         }
     }
 
+    // Sort key: albums with no photos (null timestamp) sort last in both directions.
+    // For all time-based sorts, use the MAX photo timestamp (= time of the most recent photo).
+    private static string TimeKey(string? val) => val ?? string.Empty;
+
     private IEnumerable<Album> ApplySort(IEnumerable<Album> source)
     {
-        IOrderedEnumerable<Album> ordered = SortField switch
+        return SortField switch
         {
-            AlbumSortField.CreatedAt  => SortDirection == SortDirection.Ascending
-                ? source.OrderBy(a => a.CreatedAt)
-                : source.OrderByDescending(a => a.CreatedAt),
+            AlbumSortField.TakenAt => SortDirection == SortDirection.Ascending
+                ? source.OrderBy(a => TimeKey(a.MaxPhotoTakenAt ?? a.MaxPhotoModifiedAt))
+                : source.OrderByDescending(a => TimeKey(a.MaxPhotoTakenAt ?? a.MaxPhotoModifiedAt)),
+            AlbumSortField.CreatedAt => SortDirection == SortDirection.Ascending
+                ? source.OrderBy(a => TimeKey(a.MaxPhotoCreatedAt))
+                : source.OrderByDescending(a => TimeKey(a.MaxPhotoCreatedAt)),
             AlbumSortField.ModifiedAt => SortDirection == SortDirection.Ascending
-                ? source.OrderBy(a => a.ModifiedAt)
-                : source.OrderByDescending(a => a.ModifiedAt),
+                ? source.OrderBy(a => TimeKey(a.MaxPhotoModifiedAt))
+                : source.OrderByDescending(a => TimeKey(a.MaxPhotoModifiedAt)),
             AlbumSortField.PhotoCount => SortDirection == SortDirection.Ascending
                 ? source.OrderBy(a => a.PhotoCount)
                 : source.OrderByDescending(a => a.PhotoCount),
@@ -297,7 +307,6 @@ public sealed partial class AlbumListViewModel : ObservableObject, IDisposable
                 ? source.OrderBy(a => a.Name, StringComparer.CurrentCultureIgnoreCase)
                 : source.OrderByDescending(a => a.Name, StringComparer.CurrentCultureIgnoreCase),
         };
-        return ordered;
     }
 
     // ── Create ────────────────────────────────────────────────────────────────

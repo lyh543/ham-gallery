@@ -29,7 +29,7 @@ public sealed class DatabaseService
 
     /// <summary>
     /// Creates (or validates) the database schema via EF Core.
-    /// Also ensures tables added in later versions exist in older databases.
+    /// Also runs idempotent ALTER TABLE migrations for columns added in later versions.
     /// Call once at application startup before any other method.
     /// </summary>
     public async Task InitializeAsync(CancellationToken ct = default)
@@ -39,27 +39,28 @@ public sealed class DatabaseService
         _logger.LogInformation("Database initialised at: {Path}",
             db.Database.GetDbConnection().DataSource);
 
-        // Idempotent: add photo-sort columns to Albums (may already exist in newer databases).
-        // SQLite ALTER TABLE throws if the column already exists, so we swallow that error.
-        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Albums\" ADD COLUMN \"PhotoSortField\" INTEGER NOT NULL DEFAULT 5", ct).ConfigureAwait(false); }
-        catch { /* column already present */ }
-        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Albums\" ADD COLUMN \"PhotoSortDirection\" INTEGER NOT NULL DEFAULT 0", ct).ConfigureAwait(false); }
-        catch { /* column already present */ }
+        // Idempotent: add photo-sort preference columns to Albums (existing databases).
+        // Use PRAGMA to check existence first so EF Core doesn't log a command failure.
+        var conn = db.Database.GetDbConnection();
+        await conn.OpenAsync(ct).ConfigureAwait(false);
+        var columns = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = "PRAGMA table_info(\"Albums\")";
+            using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+            while (await reader.ReadAsync(ct).ConfigureAwait(false))
+                columns.Add(reader.GetString(1)); // column 1 = name
+        }
+        if (!columns.Contains("PhotoSortField"))
+            await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Albums\" ADD COLUMN \"PhotoSortField\" INTEGER NOT NULL DEFAULT 4", ct).ConfigureAwait(false);
+        if (!columns.Contains("PhotoSortDirection"))
+            await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Albums\" ADD COLUMN \"PhotoSortDirection\" INTEGER NOT NULL DEFAULT 1", ct).ConfigureAwait(false);
 
-        // Idempotent: creates the DeletedPhotos table if it doesn't exist yet
-        // (needed for databases created before this table was added).
-        await db.Database.ExecuteSqlRawAsync("""
-            CREATE TABLE IF NOT EXISTS "DeletedPhotos" (
-                "Id"                    INTEGER NOT NULL CONSTRAINT "PK_DeletedPhotos" PRIMARY KEY AUTOINCREMENT,
-                "FilePath"              TEXT    NOT NULL,
-                "PhotoJson"             TEXT    NOT NULL,
-                "ThumbPath"             TEXT,
-                "ThumbSourceModifiedAt" TEXT,
-                "DeletedAt"             TEXT    NOT NULL
-            );
-            CREATE INDEX IF NOT EXISTS "idx_deletedphotos_deletedat"
-                ON "DeletedPhotos" ("DeletedAt");
-            """, ct).ConfigureAwait(false);
+        // Fix: value 5 was the old "Natural" sort which has been removed.
+        // Reset any albums that still have it back to TakenAt (4).
+        await db.Database.ExecuteSqlRawAsync(
+            "UPDATE \"Albums\" SET \"PhotoSortField\" = 4 WHERE \"PhotoSortField\" = 5", ct)
+            .ConfigureAwait(false);
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -67,28 +68,33 @@ public sealed class DatabaseService
     // ────────────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Returns all albums ordered by name, enriched with photo counts.
-    /// Directory-based albums (those auto-created by the scanner) with zero photos
-    /// are excluded — they indicate directories that no longer contain any images.
-    /// User-created albums (no <see cref="Album.DirectoryPath"/>) are always included.
+    /// Returns all albums ordered by name, enriched with photo counts and
+    /// photo-timestamp aggregates (Min/Max TakenAt, CreatedAt, ModifiedAt) so the
+    /// album list can be sorted by the content inside each album.
     /// </summary>
     public async Task<IReadOnlyList<Album>> GetAlbumsAsync(CancellationToken ct = default)
     {
         using var db = _factory.CreateDbContext();
         return await db.Albums
-            .Where(a => a.DirectoryPath == null || db.Photos.Any(p => p.AlbumId == a.Id))
             .OrderBy(a => a.Name)
             .Select(a => new Album
             {
-                Id            = a.Id,
-                Name          = a.Name,
-                CoverPath     = a.CoverPath,
-                DirectoryPath = a.DirectoryPath,
-                CreatedAt     = a.CreatedAt,
-                ModifiedAt    = a.ModifiedAt,
-                IsPinned      = a.IsPinned,
-                SortOrder     = a.SortOrder,
-                PhotoCount    = db.Photos.Count(p => p.AlbumId == a.Id),
+                Id                 = a.Id,
+                Name               = a.Name,
+                CoverPath          = a.CoverPath,
+                DirectoryPath      = a.DirectoryPath,
+                CreatedAt          = a.CreatedAt,
+                ModifiedAt         = a.ModifiedAt,
+                IsPinned           = a.IsPinned,
+                SortOrder          = a.SortOrder,
+                PhotoSortField     = a.PhotoSortField,
+                PhotoSortDirection = a.PhotoSortDirection,
+                PhotoCount         = db.Photos.Count(p => p.AlbumId == a.Id),
+                // MAX photo-timestamp per album — used for album-level sorting.
+                // Cast to string? so EF Core maps SQL NULL (empty album) to null instead of throwing.
+                MaxPhotoTakenAt    = db.Photos.Where(p => p.AlbumId == a.Id && p.TakenAt != null && p.TakenAt != "").Max(p => p.TakenAt),
+                MaxPhotoCreatedAt  = db.Photos.Where(p => p.AlbumId == a.Id).Max(p => (string?)p.CreatedAt),
+                MaxPhotoModifiedAt = db.Photos.Where(p => p.AlbumId == a.Id).Max(p => (string?)p.ModifiedAt),
             })
             .ToListAsync(ct).ConfigureAwait(false);
     }
@@ -102,7 +108,6 @@ public sealed class DatabaseService
     /// <summary>
     /// Finds the album whose <see cref="Album.DirectoryPath"/> matches <paramref name="dirPath"/>,
     /// creating one (named after the leaf directory) if none exists.
-    /// Uses a serialised retry to handle the rare concurrent-insert race.
     /// </summary>
     public async Task<long> GetOrCreateDirectoryAlbumAsync(string dirPath, CancellationToken ct = default)
     {
@@ -115,20 +120,12 @@ public sealed class DatabaseService
 
         if (existing.HasValue) return existing.Value;
 
-        // Derive album name from the leaf folder name
         var name = Path.GetFileName(
             dirPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
             ?? dirPath;
 
         var now   = NowIso();
-        var album = new Album
-        {
-            Name          = name,
-            DirectoryPath = dirPath,
-            CreatedAt     = now,
-            ModifiedAt    = now,
-        };
-
+        var album = new Album { Name = name, DirectoryPath = dirPath, CreatedAt = now, ModifiedAt = now };
         db.Albums.Add(album);
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
         _logger.LogInformation("Created directory album '{Name}' for {Dir}", name, dirPath);
@@ -136,10 +133,8 @@ public sealed class DatabaseService
     }
 
     /// <summary>
-    /// Finds every photo whose <see cref="Photo.AlbumId"/> is null, groups them by
-    /// their parent directory, creates (or finds) an album for each directory, and
-    /// batch-assigns the <see cref="Photo.AlbumId"/>.
-    /// Call this after a scan to repair photos inserted before album tracking existed.
+    /// Finds every photo whose AlbumId is null, groups them by parent directory,
+    /// creates (or finds) an album per directory, and batch-assigns AlbumId.
     /// </summary>
     public async Task RepairOrphanAlbumIdsAsync(CancellationToken ct = default)
     {
@@ -153,7 +148,6 @@ public sealed class DatabaseService
 
         if (orphans.Count == 0) return;
 
-        // Group by parent directory — each group gets its own album
         var byDir = orphans
             .GroupBy(o => Path.GetDirectoryName(o.FilePath) ?? string.Empty,
                      StringComparer.OrdinalIgnoreCase)
@@ -167,10 +161,11 @@ public sealed class DatabaseService
 
             foreach (var chunk in ids.Chunk(500))
             {
-                repaired += await db.Photos
+                using var db2 = _factory.CreateDbContext();
+                repaired += await db2.Photos
                     .Where(p => chunk.Contains(p.Id))
-                    .ExecuteUpdateAsync(
-                        s => s.SetProperty(p => p.AlbumId, albumId), ct).ConfigureAwait(false);
+                    .ExecuteUpdateAsync(s => s.SetProperty(p => p.AlbumId, albumId), ct)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -198,7 +193,7 @@ public sealed class DatabaseService
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
     }
 
-    /// <summary>Returns albums where <see cref="Album.IsPinned"/> is true, ordered by <see cref="Album.SortOrder"/> then name.</summary>
+    /// <summary>Returns albums where <see cref="Album.IsPinned"/> is true, ordered by SortOrder then name.</summary>
     public async Task<IReadOnlyList<Album>> GetPinnedAlbumsAsync(CancellationToken ct = default)
     {
         using var db = _factory.CreateDbContext();
@@ -223,13 +218,12 @@ public sealed class DatabaseService
     public async Task DeleteAlbumAsync(long id, CancellationToken ct = default)
     {
         using var db = _factory.CreateDbContext();
-        // ON DELETE SET NULL (FK constraint) handles Photos.AlbumId automatically.
         await db.Albums.Where(a => a.Id == id).ExecuteDeleteAsync(ct).ConfigureAwait(false);
     }
 
     /// <summary>
     /// Persists only the photo-sort preference for the given album.
-    /// Does not update <see cref="Album.ModifiedAt"/> (sort is a display preference, not data).
+    /// Does not update ModifiedAt (sort is a display preference, not a data change).
     /// </summary>
     public async Task SaveAlbumPhotoSortAsync(
         long albumId, int sortField, int sortDirection, CancellationToken ct = default)
@@ -241,6 +235,16 @@ public sealed class DatabaseService
                 .SetProperty(a => a.PhotoSortField,     sortField)
                 .SetProperty(a => a.PhotoSortDirection, sortDirection), ct)
             .ConfigureAwait(false);
+    }
+
+    /// <summary>Returns the most-recently modified photo in an album (used for album cover).</summary>
+    public async Task<Photo?> GetLatestPhotoByAlbumAsync(long albumId, CancellationToken ct = default)
+    {
+        using var db = _factory.CreateDbContext();
+        return await db.Photos
+            .Where(p => p.AlbumId == albumId)
+            .OrderByDescending(p => p.ModifiedAt)
+            .FirstOrDefaultAsync(ct).ConfigureAwait(false);
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -257,19 +261,6 @@ public sealed class DatabaseService
             .ToListAsync(ct).ConfigureAwait(false);
     }
 
-    /// <summary>
-    /// Returns the most recently inserted photo in the album (by row Id),
-    /// or <c>null</c> if the album is empty. Used to derive the album cover thumbnail.
-    /// </summary>
-    public async Task<Photo?> GetLatestPhotoByAlbumAsync(long albumId, CancellationToken ct = default)
-    {
-        using var db = _factory.CreateDbContext();
-        return await db.Photos
-            .Where(p => p.AlbumId == albumId)
-            .OrderByDescending(p => p.Id)
-            .FirstOrDefaultAsync(ct).ConfigureAwait(false);
-    }
-
     public async Task<IReadOnlyList<Photo>> GetAllPhotosAsync(CancellationToken ct = default)
     {
         using var db = _factory.CreateDbContext();
@@ -278,93 +269,11 @@ public sealed class DatabaseService
             .ToListAsync(ct).ConfigureAwait(false);
     }
 
-    /// <summary>
-    /// Returns photos that have no thumbnail record, or whose thumbnail record is stale
-    /// (the source file was modified after the thumbnail was generated).
-    /// These are the candidates for batch thumbnail generation.
-    /// </summary>
-    public async Task<IReadOnlyList<Photo>> GetPhotosWithoutThumbnailAsync(CancellationToken ct = default)
-    {
-        using var db = _factory.CreateDbContext();
-        return await db.Photos
-            .Where(p => !db.Thumbnails.Any(t =>
-                t.PhotoId == p.Id && t.SourceModifiedAt == p.ModifiedAt))
-            .OrderBy(p => p.FileName)
-            .ToListAsync(ct).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// Searches photos by file name keyword and/or a date range on a chosen date field.
-    /// All parameters are optional; omitting all returns nothing (caller should validate).
-    /// </summary>
-    /// <param name="keyword">Case-insensitive substring match on <see cref="Photo.FileName"/>.</param>
-    /// <param name="dateField">
-    ///   Which date field to filter on: <c>"TakenAt"</c>, <c>"ModifiedAt"</c>, or <c>"CreatedAt"</c>.
-    ///   Ignored when both <paramref name="dateFrom"/> and <paramref name="dateTo"/> are null.
-    /// </param>
-    /// <param name="dateFrom">Inclusive lower bound as <c>yyyy-MM-dd</c> string, or null.</param>
-    /// <param name="dateTo">Inclusive upper bound as <c>yyyy-MM-dd</c> string, or null.</param>
-    /// <param name="albumId">When supplied, restricts results to the specified album.</param>
-    public async Task<IReadOnlyList<Photo>> SearchPhotosAsync(
-        string?  keyword,
-        string?  dateField,
-        string?  dateFrom,
-        string?  dateTo,
-        long?    albumId   = null,
-        CancellationToken ct = default)
-    {
-        using var db = _factory.CreateDbContext();
-
-        IQueryable<Photo> query = db.Photos.AsNoTracking();
-
-        if (albumId.HasValue)
-            query = query.Where(p => p.AlbumId == albumId.Value);
-
-        if (!string.IsNullOrWhiteSpace(keyword))
-            query = query.Where(p => EF.Functions.Like(p.FileName, $"%{keyword}%"));
-
-        // Pull matching rows first, then apply date-range filter in memory.
-        // ISO 8601 strings are lexicographically sortable so this is safe.
-        var photos = await query
-            .OrderBy(p => p.FileName)
-            .ToListAsync(ct).ConfigureAwait(false);
-
-        bool hasDateFilter = !string.IsNullOrWhiteSpace(dateFrom) || !string.IsNullOrWhiteSpace(dateTo);
-        if (hasDateFilter && !string.IsNullOrWhiteSpace(dateField))
-        {
-            photos = photos.Where(p =>
-            {
-                var raw = dateField switch
-                {
-                    "TakenAt"    => p.TakenAt,
-                    "ModifiedAt" => p.ModifiedAt,
-                    _            => p.CreatedAt,
-                };
-
-                if (string.IsNullOrEmpty(raw)) return false;
-
-                // Take only the date portion (first 10 chars) for yyyy-MM-dd comparison.
-                var dateOnly = raw.Length >= 10 ? raw[..10] : raw;
-
-                if (!string.IsNullOrWhiteSpace(dateFrom) &&
-                    string.Compare(dateOnly, dateFrom, StringComparison.Ordinal) < 0)
-                    return false;
-
-                if (!string.IsNullOrWhiteSpace(dateTo) &&
-                    string.Compare(dateOnly, dateTo, StringComparison.Ordinal) > 0)
-                    return false;
-
-                return true;
-            }).ToList();
-        }
-
-        return photos;
-    }
-
     public async Task<Photo?> GetPhotoByPathAsync(string filePath, CancellationToken ct = default)
     {
         using var db = _factory.CreateDbContext();
-        return await db.Photos.FirstOrDefaultAsync(p => p.FilePath == filePath, ct).ConfigureAwait(false);
+        return await db.Photos.FirstOrDefaultAsync(p => p.FilePath == filePath, ct)
+            .ConfigureAwait(false);
     }
 
     public async Task<Photo?> GetPhotoByIdAsync(long id, CancellationToken ct = default)
@@ -374,9 +283,9 @@ public sealed class DatabaseService
     }
 
     /// <summary>
-    /// Loads a lightweight snapshot of every photo row — only the columns needed for the
-    /// "skip unchanged / detect changed" decision during a directory scan.
-    /// Avoids issuing one query per file and is safe to call from any thread.
+    /// Returns a dictionary keyed by FilePath, containing lightweight scan metadata
+    /// (Id + ModifiedAt) for all photos. Used by <see cref="ScanService"/> to avoid
+    /// per-file DB round-trips.
     /// </summary>
     public async Task<Dictionary<string, PhotoScanMeta>> GetAllPhotoMetadataAsync(
         CancellationToken ct = default)
@@ -424,7 +333,6 @@ public sealed class DatabaseService
     public async Task DeletePhotoAsync(long id, CancellationToken ct = default)
     {
         using var db = _factory.CreateDbContext();
-        // ON DELETE CASCADE removes the Thumbnails row automatically.
         await db.Photos.Where(p => p.Id == id).ExecuteDeleteAsync(ct).ConfigureAwait(false);
     }
 
@@ -438,7 +346,6 @@ public sealed class DatabaseService
         var keepSet = existingPaths.ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         using var db = _factory.CreateDbContext();
-        // Load only file paths to avoid pulling full Photo rows for large libraries.
         var dbPaths = await db.Photos.Select(p => p.FilePath).ToListAsync(ct).ConfigureAwait(false);
         var stale   = dbPaths.Where(p => !keepSet.Contains(p)).ToList();
 
@@ -453,6 +360,50 @@ public sealed class DatabaseService
         }
 
         _logger.LogInformation("Removed {N} stale photo records", deleted);
+    }
+
+    /// <summary>
+    /// Searches photos by keyword and/or date range, optionally filtered to one album.
+    /// Date filtering is done in memory after a keyword/album pre-filter.
+    /// </summary>
+    public async Task<IReadOnlyList<Photo>> SearchPhotosAsync(
+        string?           keyword,
+        string?           dateField,
+        string?           dateFrom,
+        string?           dateTo,
+        long?             albumId,
+        CancellationToken ct = default)
+    {
+        using var db = _factory.CreateDbContext();
+        IQueryable<Photo> q = db.Photos.AsNoTracking();
+
+        if (albumId.HasValue)
+            q = q.Where(p => p.AlbumId == albumId.Value);
+
+        if (!string.IsNullOrEmpty(keyword))
+            q = q.Where(p => p.FileName.Contains(keyword));
+
+        var photos = await q.OrderBy(p => p.FileName).ToListAsync(ct).ConfigureAwait(false);
+
+        if (!string.IsNullOrEmpty(dateFrom) || !string.IsNullOrEmpty(dateTo))
+        {
+            photos = photos.Where(p =>
+            {
+                var date = dateField switch
+                {
+                    "TakenAt"    => p.TakenAt,
+                    "ModifiedAt" => p.ModifiedAt,
+                    _            => p.CreatedAt,
+                };
+                if (string.IsNullOrEmpty(date)) return false;
+                var d = date[..Math.Min(10, date.Length)];
+                if (!string.IsNullOrEmpty(dateFrom) && string.Compare(d, dateFrom, StringComparison.Ordinal) < 0) return false;
+                if (!string.IsNullOrEmpty(dateTo)   && string.Compare(d, dateTo,   StringComparison.Ordinal) > 0) return false;
+                return true;
+            }).ToList();
+        }
+
+        return photos;
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -470,7 +421,8 @@ public sealed class DatabaseService
         using var db = _factory.CreateDbContext();
         thumb.GeneratedAt = NowIso();
 
-        var existing = await db.Thumbnails.FindAsync(new object[] { thumb.PhotoId }, ct).ConfigureAwait(false);
+        var existing = await db.Thumbnails.FindAsync(new object[] { thumb.PhotoId }, ct)
+            .ConfigureAwait(false);
         if (existing is null)
             db.Thumbnails.Add(thumb);
         else
@@ -492,7 +444,8 @@ public sealed class DatabaseService
     public async Task<AppSettings> LoadSettingsAsync(CancellationToken ct = default)
     {
         using var db = _factory.CreateDbContext();
-        var row = await db.Settings.FindAsync(new object[] { AppSettingsKey }, ct).ConfigureAwait(false);
+        var row = await db.Settings.FindAsync(new object[] { AppSettingsKey }, ct)
+            .ConfigureAwait(false);
         if (row?.Value is null) return new AppSettings();
         return JsonSerializer.Deserialize<AppSettings>(row.Value) ?? new AppSettings();
     }
@@ -502,7 +455,8 @@ public sealed class DatabaseService
         using var db = _factory.CreateDbContext();
         var json = JsonSerializer.Serialize(settings);
 
-        var row = await db.Settings.FindAsync(new object[] { AppSettingsKey }, ct).ConfigureAwait(false);
+        var row = await db.Settings.FindAsync(new object[] { AppSettingsKey }, ct)
+            .ConfigureAwait(false);
         if (row is null)
             db.Settings.Add(new Setting { Key = AppSettingsKey, Value = json });
         else
@@ -540,20 +494,34 @@ public sealed class DatabaseService
     // ────────────────────────────────────────────────────────────────────────
 
     /// <summary>
+    /// Returns photos that do not yet have a corresponding Thumbnails row.
+    /// Used by Settings → "rebuild thumbnails" to find work to do.
+    /// </summary>
+    public async Task<IReadOnlyList<Photo>> GetPhotosWithoutThumbnailAsync(CancellationToken ct = default)
+    {
+        using var db = _factory.CreateDbContext();
+        return await db.Photos
+            .AsNoTracking()
+            .Where(p => !db.Thumbnails.Any(t => t.PhotoId == p.Id))
+            .OrderBy(p => p.FilePath)
+            .ToListAsync(ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// Persists a snapshot of <paramref name="photo"/> and its thumbnail so the
-    /// deletion can be undone later.
+    /// deletion can be undone later. Returns the new DeletedPhoto row Id.
     /// </summary>
     public async Task<long> InsertDeletedPhotoAsync(
-        Photo       photo,
-        string?     thumbPath,
-        string?     thumbSourceModifiedAt,
+        Photo             photo,
+        string?           thumbPath,
+        string?           thumbSourceModifiedAt,
         CancellationToken ct = default)
     {
         using var db = _factory.CreateDbContext();
         var record = new DeletedPhoto
         {
             FilePath              = photo.FilePath,
-            PhotoJson             = System.Text.Json.JsonSerializer.Serialize(photo),
+            PhotoJson             = JsonSerializer.Serialize(photo),
             ThumbPath             = thumbPath,
             ThumbSourceModifiedAt = thumbSourceModifiedAt,
             DeletedAt             = NowIso(),
@@ -598,7 +566,7 @@ public sealed class DatabaseService
 }
 
 /// <summary>
-/// Lightweight projection returned by <see cref="DatabaseService.GetAllPhotoMetadataAsync"/>.
-/// Only carries the columns needed to decide whether a file has changed during a scan.
+/// Lightweight projection used by <see cref="DatabaseService.GetAllPhotoMetadataAsync"/>.
+/// Carries only the columns needed to decide whether a file has changed during a scan.
 /// </summary>
 public sealed record PhotoScanMeta(long Id, string ModifiedAt);

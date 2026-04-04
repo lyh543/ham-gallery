@@ -363,6 +363,14 @@
                     <TextBlock x:Name="InfoResolution"
                                Style="{StaticResource InfoValueStyle}" />
 
+                    <TextBlock Text="创建时间" Style="{StaticResource InfoLabelStyle}" />
+                    <TextBlock x:Name="InfoCreatedAt"
+                               Style="{StaticResource InfoValueStyle}" />
+
+                    <TextBlock Text="修改时间" Style="{StaticResource InfoLabelStyle}" />
+                    <TextBlock x:Name="InfoModifiedAt"
+                               Style="{StaticResource InfoValueStyle}" />
+
                     <MenuFlyoutSeparator Margin="0,10" />
 
                     <!-- ── EXIF 基础 ── -->

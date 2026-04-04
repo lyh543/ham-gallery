@@ -13,25 +13,33 @@ public sealed partial class AlbumItemViewModel : ObservableObject
 {
     public long Id { get; }
 
-    [ObservableProperty] public partial string      Name                { get; set; }
-    [ObservableProperty] public partial int         PhotoCount          { get; set; }
-    [ObservableProperty] public partial string      CreatedAt           { get; set; }
-    [ObservableProperty] public partial string      ModifiedAt          { get; set; }
-    [ObservableProperty] public partial bool        IsPinned            { get; set; }
-    [ObservableProperty] public partial bool        IsEditing           { get; set; }
-    [ObservableProperty] public partial string      EditName            { get; set; }
+    [ObservableProperty] public partial string       Name                { get; set; }
+    [ObservableProperty] public partial int          PhotoCount          { get; set; }
+    [ObservableProperty] public partial string       CreatedAt           { get; set; }
+    [ObservableProperty] public partial string       ModifiedAt          { get; set; }
+    [ObservableProperty] public partial bool         IsPinned            { get; set; }
+    [ObservableProperty] public partial bool         IsEditing           { get; set; }
+    [ObservableProperty] public partial string       EditName            { get; set; }
     [ObservableProperty] public partial BitmapImage? CoverThumbnailSource { get; set; }
-    [ObservableProperty] public partial bool        IsCoverLoading      { get; set; }
+    [ObservableProperty] public partial bool         IsCoverLoading      { get; set; }
+
+    // MAX photo-timestamp aggregates (most-recent photo in this album for each field).
+    public string? MaxPhotoTakenAt    { get; set; }
+    public string? MaxPhotoCreatedAt  { get; set; }
+    public string? MaxPhotoModifiedAt { get; set; }
 
     public AlbumItemViewModel(Album album)
     {
-        Id         = album.Id;
-        Name       = album.Name;
-        PhotoCount = album.PhotoCount;
-        CreatedAt  = album.CreatedAt;
-        ModifiedAt = album.ModifiedAt;
-        IsPinned   = album.IsPinned;
-        EditName   = string.Empty;
+        Id                 = album.Id;
+        Name               = album.Name;
+        PhotoCount         = album.PhotoCount;
+        CreatedAt          = album.CreatedAt;
+        ModifiedAt         = album.ModifiedAt;
+        IsPinned           = album.IsPinned;
+        EditName           = string.Empty;
+        MaxPhotoTakenAt    = album.MaxPhotoTakenAt;
+        MaxPhotoCreatedAt  = album.MaxPhotoCreatedAt;
+        MaxPhotoModifiedAt = album.MaxPhotoModifiedAt;
     }
 
     public void BeginEdit()

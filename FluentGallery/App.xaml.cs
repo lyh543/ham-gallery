@@ -62,6 +62,9 @@ public partial class App : Application
         {
             logging.SetMinimumLevel(LogLevel.Debug);
             logging.AddSerilog(dispose: true);
+#if DEBUG
+            logging.AddProvider(new DevWarningLoggerProvider());
+#endif
         });
 
         // Data layer — EF Core factory + service facade
