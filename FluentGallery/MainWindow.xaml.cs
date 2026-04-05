@@ -69,35 +69,53 @@ public sealed partial class MainWindow : Window
 
     /// <summary>
     /// Called by <see cref="App"/> before <c>Activate()</c> so the window opens
-    /// at the saved size with no visible resize flash.
+    /// at the saved geometry with no visible resize flash.
     /// </summary>
     public void RestoreWindowSize(AppSettings settings)
     {
-        if (settings.WindowWidth <= 0 || settings.WindowHeight <= 0) return;
+        if (settings.WindowMaximized)
+        {
+            if (AppWindow.Presenter is OverlappedPresenter op)
+                op.Maximize();
+            return;
+        }
 
-        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-        var dpi  = GetDpiForWindow(hwnd);
-        double scale = dpi / 96.0;
+        if (settings.WindowWidthRatio <= 0 || settings.WindowHeightRatio <= 0) return;
 
-        int w = (int)Math.Ceiling(settings.WindowWidth  * scale);
-        int h = (int)Math.Ceiling(settings.WindowHeight * scale);
-        AppWindow.Resize(new SizeInt32(w, h));
+        var display = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary);
+        var monitor = display.OuterBounds;
+
+        int w = (int)Math.Round(settings.WindowWidthRatio  * monitor.Width);
+        int h = (int)Math.Round(settings.WindowHeightRatio * monitor.Height);
+        int x = monitor.X + (int)Math.Round(settings.WindowLeftRatio * monitor.Width);
+        int y = monitor.Y + (int)Math.Round(settings.WindowTopRatio  * monitor.Height);
+
+        AppWindow.MoveAndResize(new RectInt32(x, y, w, h));
     }
 
     private async void OnWindowClosed(object sender, WindowEventArgs e)
     {
-        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-        var dpi  = GetDpiForWindow(hwnd);
-        double scale = dpi / 96.0;
-
-        var size = AppWindow.Size;
-        int logicalW = (int)Math.Round(size.Width  / scale);
-        int logicalH = (int)Math.Round(size.Height / scale);
+        bool maximized = AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Maximized };
 
         var db       = App.Current.Services.GetRequiredService<DatabaseService>();
         var settings = await db.LoadSettingsAsync().ConfigureAwait(false);
-        settings.WindowWidth  = logicalW;
-        settings.WindowHeight = logicalH;
+
+        settings.WindowMaximized = maximized;
+
+        if (!maximized)
+        {
+            var display = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary);
+            var monitor = display.OuterBounds;
+
+            var size = AppWindow.Size;
+            var pos  = AppWindow.Position;
+
+            settings.WindowWidthRatio  = (double)size.Width  / monitor.Width;
+            settings.WindowHeightRatio = (double)size.Height / monitor.Height;
+            settings.WindowLeftRatio   = (double)(pos.X - monitor.X) / monitor.Width;
+            settings.WindowTopRatio    = (double)(pos.Y - monitor.Y) / monitor.Height;
+        }
+
         await db.SaveSettingsAsync(settings).ConfigureAwait(false);
     }
 

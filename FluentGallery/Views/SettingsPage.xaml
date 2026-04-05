@@ -352,18 +352,18 @@
 
             <!-- Clear database cache -->
             <ctk:SettingsCard
-                Header="清除数据库缓存"
-                Description="清空照片和缩略图记录，相册结构和设置将保留">
+                Header="清除数据库索引"
+                Description="清空照片索引和缩略图记录，照片文件和设置将保留">
                 <ctk:SettingsCard.HeaderIcon>
                     <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8E6;" />
                 </ctk:SettingsCard.HeaderIcon>
-                <Button Content="清除数据库缓存" Click="ClearDbCache_Click" />
+                <Button Content="清除索引" Click="ClearDbCache_Click" />
             </ctk:SettingsCard>
 
             <!-- Clear all data -->
             <ctk:SettingsCard
                 Header="清除全部数据"
-                Description="删除所有应用数据（照片记录、相册、缩略图、设置），恢复出厂状态">
+                Description="删除所有应用数据（照片索引、缩略图、设置），恢复出厂状态，照片文件将安全保留">
                 <ctk:SettingsCard.HeaderIcon>
                     <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE894;" />
                 </ctk:SettingsCard.HeaderIcon>

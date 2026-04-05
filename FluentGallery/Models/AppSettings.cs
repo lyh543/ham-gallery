@@ -55,15 +55,17 @@ public sealed class AppSettings
 
     // ── Window ──────────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Last saved logical window width in pixels. 0 means use the default.
-    /// </summary>
-    public int WindowWidth { get; set; } = 0;
+    /// <summary>Whether the window was maximized when last closed.</summary>
+    public bool WindowMaximized { get; set; } = false;
 
     /// <summary>
-    /// Last saved logical window height in pixels. 0 means use the default.
+    /// Window geometry as fractions of the monitor that contained the window.
+    /// All four values are 0 when no geometry has been saved yet (use defaults).
     /// </summary>
-    public int WindowHeight { get; set; } = 0;
+    public double WindowWidthRatio  { get; set; } = 0;
+    public double WindowHeightRatio { get; set; } = 0;
+    public double WindowLeftRatio   { get; set; } = 0;
+    public double WindowTopRatio    { get; set; } = 0;
 
     // ── System integration ────────────────────────────────────────────────────
 
