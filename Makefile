@@ -19,11 +19,15 @@ endif
 INSTALL_DIR ?= C:\Tools\FluentGallery
 
 .DEFAULT_GOAL := release-prod
-.PHONY: build run watch build-run test-all test help kill release release-prod install
+.PHONY: build run watch build-run test-all test help kill release release-prod install clean
 
 PID_FILE = .run.pid
 RUN_PS   = powershell -NoProfile -ExecutionPolicy Bypass -File tools/run.ps1 -ExePath $(EXE) -PidFile $(PID_FILE)
 KILL_PS  = powershell -NoProfile -ExecutionPolicy Bypass -File tools/kill.ps1 -PidFile $(PID_FILE)
+
+clean:
+	dotnet clean $(PROJ) -p:Platform=x64 --runtime win-x64 -c Debug
+	dotnet clean $(PROJ) -p:Platform=x64 --runtime win-x64 -c Release
 
 kill:
 	-$(KILL_PS)
@@ -84,3 +88,4 @@ help:
 	@echo   make test-all                           Run all tests (quiet)
 	@echo   make test                               Run all tests (verbose)
 	@echo   make test FILTER=X                      Run tests matching name X
+	@echo   make clean                              Remove bin and obj directories (Debug + Release)
