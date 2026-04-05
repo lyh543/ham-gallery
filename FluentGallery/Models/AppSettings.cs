@@ -53,6 +53,18 @@ public sealed class AppSettings
     /// </summary>
     public int AlbumSortDirection { get; set; } = 1;
 
+    // ── Window ──────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Last saved logical window width in pixels. 0 means use the default.
+    /// </summary>
+    public int WindowWidth { get; set; } = 0;
+
+    /// <summary>
+    /// Last saved logical window height in pixels. 0 means use the default.
+    /// </summary>
+    public int WindowHeight { get; set; } = 0;
+
     // ── Thumbnail ────────────────────────────────────────────────────────────
 
     /// <summary>

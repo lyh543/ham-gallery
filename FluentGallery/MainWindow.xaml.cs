@@ -1,4 +1,6 @@
+using FluentGallery.Data;
 using FluentGallery.Helpers;
+using FluentGallery.Models;
 using FluentGallery.ViewModels;
 using FluentGallery.Views;
 using Microsoft.Extensions.DependencyInjection;
@@ -38,9 +40,16 @@ public sealed partial class MainWindow : Window
         _vm = App.Current.Services.GetRequiredService<MainWindowViewModel>();
         _vm.PinnedAlbums.CollectionChanged += OnPinnedAlbumsChanged;
 
-        // Initial size and min-size enforcement
-        AppWindow.Resize(new SizeInt32(1200, 800));
+        // Initial size and min-size enforcement (scale logical pixels to physical pixels)
+        var hwndForDpi = WinRT.Interop.WindowNative.GetWindowHandle(this);
+        var dpiForInit = GetDpiForWindow(hwndForDpi);
+        double scaleForInit = dpiForInit / 96.0;
+        AppWindow.Resize(new SizeInt32(
+            (int)Math.Ceiling(1200 * scaleForInit),
+            (int)Math.Ceiling(800  * scaleForInit)));
         AppWindow.Changed += OnAppWindowChanged;
+
+        Closed += OnWindowClosed;
 
         // Navigate to default page
         NavView.SelectedItem = AlbumsNavItem;
@@ -54,6 +63,42 @@ public sealed partial class MainWindow : Window
         DevWarningLoggerProvider.WarningLogged += OnDevWarningLogged;
         Closed += (_, _) => DevWarningLoggerProvider.WarningLogged -= OnDevWarningLogged;
 #endif
+    }
+
+    // ── Window size persistence ───────────────────────────────────────────────
+
+    /// <summary>
+    /// Called by <see cref="App"/> before <c>Activate()</c> so the window opens
+    /// at the saved size with no visible resize flash.
+    /// </summary>
+    public void RestoreWindowSize(AppSettings settings)
+    {
+        if (settings.WindowWidth <= 0 || settings.WindowHeight <= 0) return;
+
+        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+        var dpi  = GetDpiForWindow(hwnd);
+        double scale = dpi / 96.0;
+
+        int w = (int)Math.Ceiling(settings.WindowWidth  * scale);
+        int h = (int)Math.Ceiling(settings.WindowHeight * scale);
+        AppWindow.Resize(new SizeInt32(w, h));
+    }
+
+    private async void OnWindowClosed(object sender, WindowEventArgs e)
+    {
+        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+        var dpi  = GetDpiForWindow(hwnd);
+        double scale = dpi / 96.0;
+
+        var size = AppWindow.Size;
+        int logicalW = (int)Math.Round(size.Width  / scale);
+        int logicalH = (int)Math.Round(size.Height / scale);
+
+        var db       = App.Current.Services.GetRequiredService<DatabaseService>();
+        var settings = await db.LoadSettingsAsync().ConfigureAwait(false);
+        settings.WindowWidth  = logicalW;
+        settings.WindowHeight = logicalH;
+        await db.SaveSettingsAsync(settings).ConfigureAwait(false);
     }
 
     // ── Minimum window size ───────────────────────────────────────────────────

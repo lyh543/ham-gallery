@@ -116,28 +116,28 @@ public partial class App : Application
         return services.BuildServiceProvider();
     }
 
-    protected override void OnLaunched(LaunchActivatedEventArgs args)
+    protected override async void OnLaunched(LaunchActivatedEventArgs args)
     {
         _window = new MainWindow();
+
+        // Init DB and restore window size before showing the window so there is
+        // no visible resize flash.
+        var db = Services.GetRequiredService<DatabaseService>();
+        await db.InitializeAsync().ConfigureAwait(true); // stay on UI thread
+        var settings = await db.LoadSettingsAsync().ConfigureAwait(true);
+        ((MainWindow)_window).RestoreWindowSize(settings);
+
         _window.Activate();
 
-        // Initialise DB, then kick off background scan — fire-and-forget,
-        // the UI already shows whatever is already in the database.
-        _ = InitAndScanAsync();
+        // Background work that doesn't need to block the first paint.
+        _ = db.CleanupOldDeletedPhotosAsync();
+        _ = ScanAsync(db, settings);
     }
 
-    private async Task InitAndScanAsync()
+    private async Task ScanAsync(DatabaseService db, Models.AppSettings settings)
     {
-        var db   = Services.GetRequiredService<DatabaseService>();
-        var scan = Services.GetRequiredService<ScanService>();
-
-        await db.InitializeAsync();
-
-        // Remove DeletedPhoto snapshots older than one month (fire-and-forget)
-        _ = db.CleanupOldDeletedPhotosAsync();
-
-        var settings   = await db.LoadSettingsAsync();
+        var scan       = Services.GetRequiredService<ScanService>();
         var dispatcher = _window?.DispatcherQueue;
-        await scan.StartAsync(settings, dispatcher);
+        await scan.StartAsync(settings, dispatcher).ConfigureAwait(false);
     }
 }
