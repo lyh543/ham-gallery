@@ -123,8 +123,8 @@ public partial class App : Application
         // Init DB and restore window size before showing the window so there is
         // no visible resize flash.
         var db = Services.GetRequiredService<DatabaseService>();
-        await db.InitializeAsync().ConfigureAwait(true); // stay on UI thread
-        var settings = await db.LoadSettingsAsync().ConfigureAwait(true);
+        await db.InitializeAsync();
+        var settings = await db.LoadSettingsAsync();
         ((MainWindow)_window).RestoreWindowSize(settings);
 
         _window.Activate();

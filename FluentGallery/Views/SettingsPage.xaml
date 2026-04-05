@@ -179,6 +179,33 @@
                     OffContent="" />
             </ctk:SettingsCard>
 
+            <!-- File associations -->
+            <ctk:SettingsCard
+                Header="添加文件关联"
+                Description="为 JPG、PNG、HEIC 等图片格式注册文件关联（仅对当前用户生效，无需管理员权限）">
+                <ctk:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8A5;" />
+                </ctk:SettingsCard.HeaderIcon>
+                <ToggleSwitch
+                    IsOn="{x:Bind ViewModel.RegisterFileAssociations, Mode=TwoWay}"
+                    OnContent=""
+                    OffContent="" />
+            </ctk:SettingsCard>
+            <InfoBar
+                IsOpen="{x:Bind ViewModel.HasFileAssociationStatus, Mode=TwoWay}"
+                Message="{x:Bind ViewModel.FileAssociationStatusMessage, Mode=OneWay}"
+                Severity="Success"
+                IsClosable="True"
+                Margin="0,2,0,0"
+                Visibility="{x:Bind ViewModel.IsFileAssociationWarning, Converter={StaticResource BoolToVis}, ConverterParameter=True, Mode=OneWay}" />
+            <InfoBar
+                IsOpen="{x:Bind ViewModel.HasFileAssociationStatus, Mode=TwoWay}"
+                Message="{x:Bind ViewModel.FileAssociationStatusMessage, Mode=OneWay}"
+                Severity="Warning"
+                IsClosable="True"
+                Margin="0,2,0,0"
+                Visibility="{x:Bind ViewModel.IsFileAssociationWarning, Converter={StaticResource BoolToVis}, Mode=OneWay}" />
+
             <!-- ══════════════════════════════════════════════════════════
                  4. 缓存与数据
             ═══════════════════════════════════════════════════════════ -->
@@ -330,7 +357,7 @@
                 <ctk:SettingsCard.HeaderIcon>
                     <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8E6;" />
                 </ctk:SettingsCard.HeaderIcon>
-                <Button Content="清除数据库" Click="ClearDbCache_Click" />
+                <Button Content="清除数据库缓存" Click="ClearDbCache_Click" />
             </ctk:SettingsCard>
 
             <!-- Clear all data -->

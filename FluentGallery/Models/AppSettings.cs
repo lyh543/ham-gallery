@@ -65,6 +65,14 @@ public sealed class AppSettings
     /// </summary>
     public int WindowHeight { get; set; } = 0;
 
+    // ── System integration ────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Whether to register Fluent Gallery as the default handler for supported
+    /// image file extensions in HKCU (no elevation required).
+    /// </summary>
+    public bool RegisterFileAssociations { get; set; } = false;
+
     // ── Thumbnail ────────────────────────────────────────────────────────────
 
     /// <summary>

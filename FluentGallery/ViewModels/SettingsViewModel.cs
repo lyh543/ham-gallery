@@ -50,9 +50,15 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] public partial int Theme                 { get; set; }
 
     // ── Behaviour ───────────────────────────────────────────────────────
-    [ObservableProperty] public partial bool ConfirmBeforeDelete  { get; set; }
-    [ObservableProperty] public partial int  PreloadCount         { get; set; }
-    [ObservableProperty] public partial int  ThumbnailSizeIndex   { get; set; }
+    [ObservableProperty] public partial bool ConfirmBeforeDelete        { get; set; }
+    [ObservableProperty] public partial int  PreloadCount               { get; set; }
+    [ObservableProperty] public partial int  ThumbnailSizeIndex         { get; set; }
+
+    // ── System integration ───────────────────────────────────────────────
+    [ObservableProperty] public partial bool   RegisterFileAssociations      { get; set; }
+    [ObservableProperty] public partial bool   HasFileAssociationStatus      { get; set; }
+    [ObservableProperty] public partial bool   IsFileAssociationWarning      { get; set; }
+    [ObservableProperty] public partial string FileAssociationStatusMessage  { get; set; } = "";
 
     /// <summary>Actual pixel value for the currently selected thumbnail size index.</summary>
     public int ThumbnailSizePixels
@@ -66,13 +72,18 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] public partial bool ShowThumbnailSizeHint { get; set; }
 
     // ── Cache display ───────────────────────────────────────────────────
-    [ObservableProperty] public partial string ThumbnailCacheSizeText { get; set; } = "计算中…";
-    [ObservableProperty] public partial bool   IsLoading              { get; set; }
+    [ObservableProperty] public partial string ThumbnailCacheSizeText  { get; set; } = "计算中…";
+    [ObservableProperty] public partial int    ThumbnailCacheCount     { get; set; }
+    [ObservableProperty] public partial bool   IsLoading               { get; set; }
 
     /// <summary>Shown as the SettingsExpander description, merges cache size with hint.</summary>
-    public string ThumbnailExpanderDescription => $"缓存大小：{ThumbnailCacheSizeText}";
+    public string ThumbnailExpanderDescription
+        => $"共 {ThumbnailCacheCount} 张缩略图，大小 {ThumbnailCacheSizeText}";
 
     partial void OnThumbnailCacheSizeTextChanged(string value)
+        => OnPropertyChanged(nameof(ThumbnailExpanderDescription));
+
+    partial void OnThumbnailCacheCountChanged(int value)
         => OnPropertyChanged(nameof(ThumbnailExpanderDescription));
 
     // ── Status feedback ─────────────────────────────────────────────────
@@ -180,9 +191,10 @@ public sealed partial class SettingsViewModel : ObservableObject
             foreach (var d in _settings.ExcludeDirectories)
                 ExcludeDirectories.Add(d);
 
-            Theme               = _settings.Theme;
-            ConfirmBeforeDelete = _settings.ConfirmBeforeDelete;
-            PreloadCount        = _settings.PreloadCount;
+            Theme                    = _settings.Theme;
+            ConfirmBeforeDelete      = _settings.ConfirmBeforeDelete;
+            PreloadCount             = _settings.PreloadCount;
+            RegisterFileAssociations = FileAssociationHelper.AreAssociationsRegistered();
 
             var sizeIdx = Array.IndexOf(ThumbnailSizeOptions, _settings.ThumbnailSize);
             ThumbnailSizeIndex = sizeIdx >= 0 ? sizeIdx : Array.IndexOf(ThumbnailSizeOptions, 512);
@@ -204,13 +216,14 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public async Task SaveAsync(CancellationToken ct = default)
     {
-        _settings.ScanDirectories     = [.. ScanDirectories];
-        _settings.ExcludeDirectories  = [.. ExcludeDirectories];
-        _settings.RecursiveScan       = true;   // always recursive
-        _settings.Theme               = Theme;
-        _settings.ConfirmBeforeDelete = ConfirmBeforeDelete;
-        _settings.PreloadCount        = PreloadCount;
-        _settings.ThumbnailSize       = ThumbnailSizePixels;
+        _settings.ScanDirectories          = [.. ScanDirectories];
+        _settings.ExcludeDirectories       = [.. ExcludeDirectories];
+        _settings.RecursiveScan            = true;   // always recursive
+        _settings.Theme                    = Theme;
+        _settings.ConfirmBeforeDelete      = ConfirmBeforeDelete;
+        _settings.PreloadCount             = PreloadCount;
+        _settings.ThumbnailSize            = ThumbnailSizePixels;
+        _settings.RegisterFileAssociations = RegisterFileAssociations;
 
         var langIdx = SelectedLanguageIndex;
         _settings.Language = langIdx >= 0 && langIdx < LanguageTags.Length
@@ -324,6 +337,32 @@ public sealed partial class SettingsViewModel : ObservableObject
         _ = SaveAsync();
     }
 
+    partial void OnRegisterFileAssociationsChanged(bool value)
+    {
+        if (!_isInitialized) return;
+        try
+        {
+            if (value)
+                FileAssociationHelper.Register();
+            else
+                FileAssociationHelper.Unregister();
+
+            IsFileAssociationWarning     = false;
+            FileAssociationStatusMessage = value ? "文件关联已注册" : "文件关联已取消注册";
+            HasFileAssociationStatus     = true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update file associations");
+            IsFileAssociationWarning     = true;
+            FileAssociationStatusMessage = $"注册文件关联失败：{ex.Message}";
+            HasFileAssociationStatus     = true;
+            // Revert the toggle to reflect actual state
+            RegisterFileAssociations = !value;
+        }
+        _ = SaveAsync();
+    }
+
     partial void OnPreloadCountChanged(int value)
     {
         if (!_isInitialized) return;
@@ -365,15 +404,21 @@ public sealed partial class SettingsViewModel : ObservableObject
             var dir = AppDataPaths.ThumbnailsDirectory;
             if (!Directory.Exists(dir))
             {
+                ThumbnailCacheCount    = 0;
                 ThumbnailCacheSizeText = "0 B";
                 return;
             }
 
-            long total = await Task.Run(() =>
-                new DirectoryInfo(dir)
-                    .EnumerateFiles("*", SearchOption.AllDirectories)
-                    .Sum(f => f.Length), ct);
+            var (count, total) = await Task.Run(() =>
+            {
+                var files = new DirectoryInfo(dir).EnumerateFiles("*", SearchOption.AllDirectories);
+                int  n = 0;
+                long s = 0;
+                foreach (var f in files) { n++; s += f.Length; }
+                return (n, s);
+            }, ct);
 
+            ThumbnailCacheCount    = count;
             ThumbnailCacheSizeText = FormatBytes(total);
         }
         catch (Exception ex)
@@ -447,6 +492,7 @@ public sealed partial class SettingsViewModel : ObservableObject
                 }, ct);
             }
 
+            ThumbnailCacheCount    = 0;
             ThumbnailCacheSizeText = "0 B";
             ScanDirectories.Clear();
             ExcludeDirectories.Clear();
