@@ -161,6 +161,28 @@
 
             <AppBarSeparator/>
 
+            <!-- Zoom in / out -->
+            <AppBarButton
+                x:Name="ZoomInButton"
+                Label="放大"
+                IsEnabled="{x:Bind ViewModel.CanZoomIn, Mode=OneWay}"
+                Click="ZoomInButton_Click">
+                <AppBarButton.Icon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8A3;"/>
+                </AppBarButton.Icon>
+            </AppBarButton>
+            <AppBarButton
+                x:Name="ZoomOutButton"
+                Label="缩小"
+                IsEnabled="{x:Bind ViewModel.CanZoomOut, Mode=OneWay}"
+                Click="ZoomOutButton_Click">
+                <AppBarButton.Icon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE71F;"/>
+                </AppBarButton.Icon>
+            </AppBarButton>
+
+            <AppBarSeparator/>
+
             <!-- Search within this album -->
             <AppBarButton
                 x:Name="SearchButton"
@@ -184,6 +206,7 @@
             SizeChanged="PhotoGridView_SizeChanged"
             ManipulationMode="Scale,System"
             ManipulationDelta="PhotoGridView_ManipulationDelta"
+            PointerWheelChanged="PhotoGridView_PointerWheelChanged"
             Padding="4 0 4 24">
 
             <GridView.ItemsPanel>
@@ -242,5 +265,18 @@
                 Style="{ThemeResource BodyTextBlockStyle}"
                 Opacity="0.6"/>
         </StackPanel>
+
+        <!-- Card size toast overlay -->
+        <Border x:Name="CardSizeToast"
+                Grid.Row="0" Grid.RowSpan="3"
+                HorizontalAlignment="Center" VerticalAlignment="Center"
+                Padding="20,10" CornerRadius="8"
+                Background="{ThemeResource SystemControlBackgroundChromeMediumLowBrush}"
+                Opacity="0"
+                IsHitTestVisible="False">
+            <TextBlock x:Name="CardSizeToastText"
+                       Style="{ThemeResource BodyStrongTextBlockStyle}"
+                       Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+        </Border>
     </Grid>
 </Page>

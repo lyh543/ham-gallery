@@ -11,29 +11,25 @@
 
     <Page.Resources>
         <conv:BoolToVisibilityConverter x:Key="BoolToVisibility" />
-        <conv:BoolToVisibilityConverter x:Key="InverseBoolToVisibility" />
 
-        <!-- Large-view album card (180×200) -->
-        <DataTemplate x:Key="AlbumCardLargeTemplate" x:DataType="vm:AlbumItemViewModel">
-            <Grid Width="180" Margin="6" CornerRadius="8">
+        <!-- Album card: width driven by AlbumCardWidth from code-behind -->
+        <DataTemplate x:Key="AlbumCardTemplate" x:DataType="vm:AlbumItemViewModel">
+            <Grid x:Name="AlbumCardRoot" Margin="6" CornerRadius="8">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="140"/>
+                    <RowDefinition Height="*"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <!-- Cover area: placeholder icon + thumbnail image layered inside Border -->
+                <!-- Cover area -->
                 <Border Grid.Row="0" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                        CornerRadius="8 8 0 0">
+                        CornerRadius="8 8 0 0" MinHeight="60">
                     <Grid>
-                        <!-- Layer 1: album icon placeholder (always visible until thumbnail loads) -->
                         <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
                                   Glyph="&#xE93C;" FontSize="48" Opacity="0.3"
                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        <!-- Layer 2: cover thumbnail (covers placeholder once loaded) -->
                         <Image Source="{x:Bind CoverThumbnailSource, Mode=OneWay}"
                                Stretch="UniformToFill"
                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        <!-- Layer 3: loading ring while thumbnail is being generated -->
                         <ProgressRing
                             IsActive="{x:Bind IsCoverLoading, Mode=OneWay}"
                             Visibility="{x:Bind IsCoverLoading, Mode=OneWay,
@@ -47,7 +43,6 @@
                 <Border Grid.Row="1" Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
                         CornerRadius="0 0 8 8" Padding="8 6">
                     <StackPanel>
-                        <!-- Name label (shown when not editing) -->
                         <TextBlock Text="{x:Bind Name, Mode=OneWay}"
                                    Style="{ThemeResource BodyStrongTextBlockStyle}"
                                    TextTrimming="CharacterEllipsis"/>
@@ -74,35 +69,6 @@
                           Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
                           Visibility="{x:Bind IsPinned, Mode=OneWay,
                               Converter={StaticResource BoolToVisibility}}"/>
-            </Grid>
-        </DataTemplate>
-
-        <!-- Small-view album card (120×130) -->
-        <DataTemplate x:Key="AlbumCardSmallTemplate" x:DataType="vm:AlbumItemViewModel">
-            <Grid Width="120" Margin="4" CornerRadius="6">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="90"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-
-                <Border Grid.Row="0" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                        CornerRadius="6 6 0 0">
-                    <Grid>
-                        <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                                  Glyph="&#xE93C;" FontSize="32" Opacity="0.3"
-                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        <Image Source="{x:Bind CoverThumbnailSource, Mode=OneWay}"
-                               Stretch="UniformToFill"
-                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    </Grid>
-                </Border>
-
-                <Border Grid.Row="1" Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
-                        CornerRadius="0 0 6 6" Padding="6 4">
-                    <TextBlock Text="{x:Bind Name, Mode=OneWay}"
-                               Style="{ThemeResource CaptionTextBlockStyle}"
-                               TextTrimming="CharacterEllipsis"/>
-                </Border>
             </Grid>
         </DataTemplate>
     </Page.Resources>
@@ -157,20 +123,46 @@
                     </MenuFlyout>
                 </AppBarButton.Flyout>
             </AppBarButton>
-            <AppBarButton x:Name="ToggleViewButton"
-                          Icon="ViewAll" Label="切换大小图"
-                          Click="ToggleViewButton_Click"/>
+            <AppBarButton x:Name="ZoomInButton"
+                          Label="放大"
+                          IsEnabled="{x:Bind ViewModel.CanZoomIn, Mode=OneWay}"
+                          Click="ZoomInButton_Click">
+                <AppBarButton.Icon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8A3;"/>
+                </AppBarButton.Icon>
+            </AppBarButton>
+            <AppBarButton x:Name="ZoomOutButton"
+                          Label="缩小"
+                          IsEnabled="{x:Bind ViewModel.CanZoomOut, Mode=OneWay}"
+                          Click="ZoomOutButton_Click">
+                <AppBarButton.Icon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE71F;"/>
+                </AppBarButton.Icon>
+            </AppBarButton>
         </CommandBar>
 
         <!-- ── Album grid ── -->
-        <ScrollViewer x:Name="AlbumScrollViewer" Grid.Row="1" Padding="8 4 8 0">
+        <ScrollViewer x:Name="AlbumScrollViewer" Grid.Row="1" Padding="8 4 8 0"
+                      PointerWheelChanged="AlbumScrollViewer_PointerWheelChanged">
             <GridView x:Name="AlbumGridView"
                       ItemsSource="{x:Bind ViewModel.Albums}"
                       SelectionMode="None"
                       IsItemClickEnabled="True"
                       ItemClick="AlbumGridView_ItemClick"
                       ContainerContentChanging="AlbumGridView_ContainerContentChanging"
+                      SizeChanged="AlbumGridView_SizeChanged"
+                      ManipulationMode="Scale,System"
+                      ManipulationDelta="AlbumGridView_ManipulationDelta"
                       Padding="0 0 0 24">
+                <GridView.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <ItemsWrapGrid
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Left"
+                            ItemWidth="180"
+                            ItemHeight="220"/>
+                    </ItemsPanelTemplate>
+                </GridView.ItemsPanel>
                 <GridView.ItemContainerStyle>
                     <Style TargetType="GridViewItem" BasedOn="{StaticResource DefaultGridViewItemStyle}">
                         <Setter Property="Padding" Value="0"/>
@@ -178,7 +170,9 @@
                         <Setter Property="CornerRadius" Value="8"/>
                     </Style>
                 </GridView.ItemContainerStyle>
-                <!-- ItemTemplate swapped from code-behind based on IsLargeView -->
+                <GridView.ItemTemplate>
+                    <StaticResource ResourceKey="AlbumCardTemplate"/>
+                </GridView.ItemTemplate>
             </GridView>
         </ScrollViewer>
 
@@ -198,5 +192,18 @@
             <TextBlock Text="点击「新建相册」创建第一个相册" HorizontalAlignment="Center"
                        Style="{ThemeResource BodyTextBlockStyle}" Opacity="0.6"/>
         </StackPanel>
+
+        <!-- Card size toast overlay -->
+        <Border x:Name="CardSizeToast"
+                Grid.Row="0" Grid.RowSpan="2"
+                HorizontalAlignment="Center" VerticalAlignment="Center"
+                Padding="20,10" CornerRadius="8"
+                Background="{ThemeResource SystemControlBackgroundChromeMediumLowBrush}"
+                Opacity="0"
+                IsHitTestVisible="False">
+            <TextBlock x:Name="CardSizeToastText"
+                       Style="{ThemeResource BodyStrongTextBlockStyle}"
+                       Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+        </Border>
     </Grid>
 </Page>

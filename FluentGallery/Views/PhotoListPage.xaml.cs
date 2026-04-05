@@ -6,8 +6,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Navigation;
 using Windows.Storage.Pickers;
+using Windows.System;
 
 namespace FluentGallery.Views;
 
@@ -25,6 +27,10 @@ public sealed partial class PhotoListPage : Page
 
     private double _cumulativeScale = 1.0;
 
+    // ── Toast state ───────────────────────────────────────────────────────────
+
+    private CancellationTokenSource? _toastCts;
+
     // ── Construction ──────────────────────────────────────────────────────────
 
     public PhotoListPage()
@@ -32,11 +38,15 @@ public sealed partial class PhotoListPage : Page
         ViewModel = App.Current.Services.GetRequiredService<PhotoListViewModel>();
         this.InitializeComponent();
 
-        // Update GridView item size when column count changes
+        // Update GridView item size when card width changes
         ViewModel.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(PhotoListViewModel.ColumnCount))
+            if (e.PropertyName == nameof(PhotoListViewModel.PhotoCardWidth))
+            {
                 UpdateItemSize();
+                if (ViewModel.ShowCardSizeToast)
+                    _ = ShowCardSizeToastAsync($"{ViewModel.PhotoCardWidth} px");
+            }
             else if (e.PropertyName == nameof(PhotoListViewModel.IsMultiSelectMode))
                 ApplySelectionMode();
             else if (e.PropertyName == nameof(PhotoListViewModel.Photos))
@@ -64,6 +74,7 @@ public sealed partial class PhotoListPage : Page
                 await ViewModel.LoadAsync(albumId, _pageCts.Token);
                 UpdateEmptyState();
                 SyncNavHeader();
+                UpdateItemSize();
             };
         }
     }
@@ -125,13 +136,12 @@ public sealed partial class PhotoListPage : Page
     private void UpdateItemSize()
     {
         if (PhotoGridView.ItemsPanelRoot is not ItemsWrapGrid wg) return;
-        double available = Math.Max(1, PhotoGridView.ActualWidth - 8);
-        double size      = Math.Floor(available / ViewModel.ColumnCount);
+        double size = ViewModel.PhotoCardWidth;
         wg.ItemWidth  = size;
         wg.ItemHeight = size;
     }
 
-    // ── GridView: pinch gesture → adjust column count ─────────────────────────
+    // ── GridView: pinch gesture → adjust card width ───────────────────────────
 
     private void PhotoGridView_ManipulationDelta(object sender, ManipulationDeltaRoutedEventArgs e)
     {
@@ -139,15 +149,38 @@ public sealed partial class PhotoListPage : Page
 
         if (_cumulativeScale < 0.75)
         {
-            ViewModel.AdjustColumnCount(+1); // pinch in → more (smaller) columns
+            ViewModel.ZoomOut();
             _cumulativeScale = 1.0;
         }
         else if (_cumulativeScale > 1.35)
         {
-            ViewModel.AdjustColumnCount(-1); // expand → fewer (larger) columns
+            ViewModel.ZoomIn();
             _cumulativeScale = 1.0;
         }
     }
+
+    // ── Ctrl + scroll wheel ───────────────────────────────────────────────────
+
+    private void PhotoGridView_PointerWheelChanged(object sender, PointerRoutedEventArgs e)
+    {
+        var props = e.GetCurrentPoint(null).Properties;
+        if (!props.IsHorizontalMouseWheel &&
+            Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control)
+                .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down))
+        {
+            if (props.MouseWheelDelta > 0) ViewModel.ZoomIn();
+            else                           ViewModel.ZoomOut();
+            e.Handled = true;
+        }
+    }
+
+    // ── Zoom buttons ──────────────────────────────────────────────────────────
+
+    private void ZoomInButton_Click(object sender, RoutedEventArgs e)
+        => ViewModel.ZoomInCommand.Execute(null);
+
+    private void ZoomOutButton_Click(object sender, RoutedEventArgs e)
+        => ViewModel.ZoomOutCommand.Execute(null);
 
     // ── Multi-select mode ─────────────────────────────────────────────────────
 
@@ -347,5 +380,40 @@ public sealed partial class PhotoListPage : Page
         EmptyStatePanel.Visibility = !ViewModel.IsLoading && ViewModel.Photos.Count == 0
             ? Visibility.Visible
             : Visibility.Collapsed;
+    }
+
+    // ── Card size toast ───────────────────────────────────────────────────────
+
+    private async Task ShowCardSizeToastAsync(string text)
+    {
+        // Cancel any previous auto-dismiss so only one timer runs at a time
+        _toastCts?.Cancel();
+        _toastCts = new CancellationTokenSource();
+        var ct = _toastCts.Token;
+
+        CardSizeToastText.Text = text;
+        CardSizeToast.Opacity  = 0.85;
+
+        try
+        {
+            await Task.Delay(1000, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            return; // superseded by a newer toast — leave it visible
+        }
+
+        // Fade out over 200 ms
+        var sb = new Storyboard();
+        var fade = new DoubleAnimation
+        {
+            From     = 0.85,
+            To       = 0,
+            Duration = new Duration(TimeSpan.FromMilliseconds(200)),
+        };
+        Storyboard.SetTarget(fade, CardSizeToast);
+        Storyboard.SetTargetProperty(fade, "Opacity");
+        sb.Children.Add(fade);
+        sb.Begin();
     }
 }

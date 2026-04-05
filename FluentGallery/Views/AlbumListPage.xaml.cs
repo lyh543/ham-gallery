@@ -6,7 +6,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Navigation;
+using Windows.System;
 
 namespace FluentGallery.Views;
 
@@ -20,15 +22,29 @@ public sealed partial class AlbumListPage : Page
     // Cancellation token scoped to the page's active lifetime
     private CancellationTokenSource _pageCts = new();
 
+    // Pinch-gesture tracking
+    private double _cumulativeScale = 1.0;
+
+    // Toast state
+    private CancellationTokenSource? _toastCts;
+
     public AlbumListPage()
     {
         ViewModel   = App.Current.Services.GetRequiredService<AlbumListViewModel>();
         _db         = App.Current.Services.GetRequiredService<DatabaseService>();
         _thumbnails = App.Current.Services.GetRequiredService<ThumbnailService>();
         this.InitializeComponent();
-        ApplyItemTemplate();
 
         ViewModel.Albums.CollectionChanged += (_, _) => UpdateEmptyState();
+        ViewModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(AlbumListViewModel.AlbumCardWidth))
+            {
+                UpdateItemSize();
+                if (ViewModel.ShowCardSizeToast)
+                    _ = ShowCardSizeToastAsync($"{ViewModel.AlbumCardWidth} px");
+            }
+        };
     }
 
     // ── Page lifecycle ────────────────────────────────────────────────────────
@@ -37,6 +53,7 @@ public sealed partial class AlbumListPage : Page
     {
         base.OnNavigatedTo(e);
         _pageCts = new CancellationTokenSource();
+        _cumulativeScale = 1.0;
         ViewModel.ActivatePage();
 
         Loaded += OnPageLoaded;
@@ -56,6 +73,7 @@ public sealed partial class AlbumListPage : Page
         ElasticScrollHelper.Attach(AlbumScrollViewer);
         await ViewModel.LoadAsync();
         UpdateEmptyState();
+        UpdateItemSize();
     }
 
     // ── Lazy cover loading (ContainerContentChanging) ─────────────────────────
@@ -82,19 +100,58 @@ public sealed partial class AlbumListPage : Page
             _ = albumVm.LoadCoverAsync(_db, _thumbnails, ct: _pageCts.Token);
     }
 
-    // ── View toggle ───────────────────────────────────────────────────────────
+    // ── Zoom buttons ──────────────────────────────────────────────────────────
 
-    private void ToggleViewButton_Click(object sender, RoutedEventArgs e)
+    private void ZoomInButton_Click(object sender, RoutedEventArgs e)
+        => ViewModel.ZoomInCommand.Execute(null);
+
+    private void ZoomOutButton_Click(object sender, RoutedEventArgs e)
+        => ViewModel.ZoomOutCommand.Execute(null);
+
+    // ── GridView: size change → update item size ──────────────────────────────
+
+    private void AlbumGridView_SizeChanged(object sender, SizeChangedEventArgs e)
+        => UpdateItemSize();
+
+    private void UpdateItemSize()
     {
-        ViewModel.ToggleViewCommand.Execute(null);
-        ApplyItemTemplate();
+        if (AlbumGridView.ItemsPanelRoot is not ItemsWrapGrid wg) return;
+        int w = ViewModel.AlbumCardWidth;
+        wg.ItemWidth  = w;
+        wg.ItemHeight = w + 40; // info area height
     }
 
-    private void ApplyItemTemplate()
+    // ── Pinch gesture ─────────────────────────────────────────────────────────
+
+    private void AlbumGridView_ManipulationDelta(object sender, ManipulationDeltaRoutedEventArgs e)
     {
-        AlbumGridView.ItemTemplate = ViewModel.IsLargeView
-            ? (DataTemplate)Resources["AlbumCardLargeTemplate"]
-            : (DataTemplate)Resources["AlbumCardSmallTemplate"];
+        _cumulativeScale *= e.Delta.Scale;
+
+        if (_cumulativeScale < 0.75)
+        {
+            ViewModel.ZoomOut();
+            _cumulativeScale = 1.0;
+        }
+        else if (_cumulativeScale > 1.35)
+        {
+            ViewModel.ZoomIn();
+            _cumulativeScale = 1.0;
+        }
+    }
+
+    // ── Ctrl + scroll wheel ───────────────────────────────────────────────────
+
+    private void AlbumScrollViewer_PointerWheelChanged(object sender, PointerRoutedEventArgs e)
+    {
+        var props = e.GetCurrentPoint(null).Properties;
+        if (!props.IsHorizontalMouseWheel &&
+            Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control)
+                .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down))
+        {
+            if (props.MouseWheelDelta > 0) ViewModel.ZoomIn();
+            else                           ViewModel.ZoomOut();
+            e.Handled = true;
+        }
     }
 
     // ── Sort ──────────────────────────────────────────────────────────────────
@@ -268,10 +325,7 @@ public sealed partial class AlbumListPage : Page
 
     private void UpdateEmptyState()
     {
-        if (Content is not Grid root || root.Children.Count < 3) return;
-        var emptyPanel = root.Children[2] as FrameworkElement;
-        if (emptyPanel is null) return;
-        emptyPanel.Visibility = !ViewModel.IsLoading && ViewModel.Albums.Count == 0
+        EmptyStatePanel.Visibility = !ViewModel.IsLoading && ViewModel.Albums.Count == 0
             ? Visibility.Visible
             : Visibility.Collapsed;
     }
@@ -288,5 +342,42 @@ public sealed partial class AlbumListPage : Page
             if (result is not null) return result;
         }
         return null;
+    }
+
+    // ── Card size toast ───────────────────────────────────────────────────────
+
+    private async Task ShowCardSizeToastAsync(string text)
+    {
+        // Cancel any previous auto-dismiss so only one timer runs at a time
+        _toastCts?.Cancel();
+        _toastCts = new CancellationTokenSource();
+        var ct = _toastCts.Token;
+
+        CardSizeToastText.Text = text;
+
+        // Snap opacity to 0.85 immediately (no fade-in delay)
+        CardSizeToast.Opacity = 0.85;
+
+        try
+        {
+            await Task.Delay(1000, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            return; // superseded by a newer toast — leave it visible
+        }
+
+        // Fade out over 200 ms
+        var sb = new Storyboard();
+        var fade = new DoubleAnimation
+        {
+            From     = 0.85,
+            To       = 0,
+            Duration = new Duration(TimeSpan.FromMilliseconds(200)),
+        };
+        Storyboard.SetTarget(fade, CardSizeToast);
+        Storyboard.SetTargetProperty(fade, "Opacity");
+        sb.Children.Add(fade);
+        sb.Begin();
     }
 }

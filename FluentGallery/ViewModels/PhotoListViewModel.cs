@@ -41,8 +41,14 @@ public sealed partial class PhotoListViewModel : ObservableObject
     // Prevents sort from being written back to DB while LoadAsync is initialising
     // SortField / SortDirection from the album's stored preferences.
     private bool _loadingSort;
-    [ObservableProperty] public partial int            ColumnCount       { get; set; } = 4;
+    [ObservableProperty] public partial int            PhotoCardWidth      { get; set; } = 165; // CardWidthSteps[7]
+    [ObservableProperty] public partial bool           ShowCardSizeToast   { get; set; }
     [ObservableProperty] public partial bool           ConfirmBeforeDelete { get; set; } = true;
+
+    // Non-uniform zoom steps: smaller diffs at small sizes, larger diffs at large sizes.
+    // Range: 60–400 px.
+    private static readonly int[] CardWidthSteps =
+        [60, 70, 80, 90, 100, 110, 120, 130, 150, 175, 200, 230, 260, 300, 350, 400];
 
     public PhotoListViewModel(
         DatabaseService              db,
@@ -68,8 +74,10 @@ public sealed partial class PhotoListViewModel : ObservableObject
             var album    = await _db.GetAlbumAsync(albumId, ct);
             AlbumName    = album?.Name ?? string.Empty;
 
-            var settings = await _db.LoadSettingsAsync(ct);
+            var settings        = await _db.LoadSettingsAsync(ct);
             ConfirmBeforeDelete = settings.ConfirmBeforeDelete;
+            ShowCardSizeToast   = settings.ShowCardSizeToast;
+            PhotoCardWidth      = SnapToStep(settings.PhotoCardWidth);
 
             // Restore the per-album sort preference stored in the database.
             _loadingSort = true;
@@ -289,11 +297,70 @@ public sealed partial class PhotoListViewModel : ObservableObject
     [RelayCommand]
     private void ToggleMultiSelectMode() => IsMultiSelectMode = !IsMultiSelectMode;
 
-    // ── Column count (pinch gesture) ──────────────────────────────────────────
+    // ── Card width (zoom) ─────────────────────────────────────────────────────
 
-    /// <summary>Adjusts column count by <paramref name="delta"/>, clamped to [2, 8].</summary>
-    public void AdjustColumnCount(int delta)
-        => ColumnCount = Math.Clamp(ColumnCount + delta, 2, 8);
+    [RelayCommand]
+    public void ZoomIn()
+    {
+        int idx = CurrentStepIndex();
+        if (idx < CardWidthSteps.Length - 1)
+            PhotoCardWidth = CardWidthSteps[idx + 1];
+    }
+
+    [RelayCommand]
+    public void ZoomOut()
+    {
+        int idx = CurrentStepIndex();
+        if (idx > 0)
+            PhotoCardWidth = CardWidthSteps[idx - 1];
+    }
+
+    /// <summary>Steps in the direction of <paramref name="delta"/> (sign only).</summary>
+    public void AdjustCardWidth(int delta)
+    {
+        if (delta > 0) ZoomIn();
+        else if (delta < 0) ZoomOut();
+    }
+
+    partial void OnPhotoCardWidthChanged(int oldValue, int newValue)
+    {
+        SaveCardWidthSettings();
+        OnPropertyChanged(nameof(CanZoomIn));
+        OnPropertyChanged(nameof(CanZoomOut));
+    }
+
+    public bool CanZoomIn  => PhotoCardWidth < CardWidthSteps[^1];
+    public bool CanZoomOut => PhotoCardWidth > CardWidthSteps[0];
+
+    private int CurrentStepIndex()
+    {
+        int idx = Array.BinarySearch(CardWidthSteps, PhotoCardWidth);
+        if (idx < 0) idx = Math.Clamp(~idx, 0, CardWidthSteps.Length - 1);
+        return idx;
+    }
+
+    private static int SnapToStep(int value)
+    {
+        int idx = Array.BinarySearch(CardWidthSteps, value);
+        if (idx >= 0) return value;
+        idx = ~idx;
+        if (idx >= CardWidthSteps.Length) return CardWidthSteps[^1];
+        if (idx == 0) return CardWidthSteps[0];
+        return value - CardWidthSteps[idx - 1] <= CardWidthSteps[idx] - value
+            ? CardWidthSteps[idx - 1]
+            : CardWidthSteps[idx];
+    }
+
+    private async void SaveCardWidthSettings()
+    {
+        try
+        {
+            var settings          = await _db.LoadSettingsAsync();
+            settings.PhotoCardWidth = PhotoCardWidth;
+            await _db.SaveSettingsAsync(settings);
+        }
+        catch { /* best-effort */ }
+    }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 

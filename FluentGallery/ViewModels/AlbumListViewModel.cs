@@ -19,10 +19,16 @@ public sealed partial class AlbumListViewModel : ObservableObject, IDisposable
 
     public ObservableCollection<AlbumItemViewModel> Albums { get; } = new();
 
-    [ObservableProperty] public partial bool           IsLoading     { get; set; }
-    [ObservableProperty] public partial bool           IsLargeView   { get; set; }
+    [ObservableProperty] public partial bool           IsLoading      { get; set; }
+    [ObservableProperty] public partial int            AlbumCardWidth { get; set; }
+    [ObservableProperty] public partial bool           ShowCardSizeToast { get; set; }
     [ObservableProperty] public partial AlbumSortField SortField     { get; set; }
     [ObservableProperty] public partial SortDirection  SortDirection { get; set; }
+
+    // Non-uniform zoom steps: smaller diffs at small sizes, larger diffs at large sizes.
+    // Range: 100–300 px.
+    private static readonly int[] CardWidthSteps =
+        [100, 110, 120, 130, 150, 175, 200, 230, 260, 300];
 
     // ── Cover-refresh throttle (200 ms timer, UI-thread only) ─────────────────
     //
@@ -44,9 +50,9 @@ public sealed partial class AlbumListViewModel : ObservableObject, IDisposable
         _db         = db;
         _scan       = scan;
         _thumbnails = thumbnails;
-        IsLargeView   = true;
-        SortField     = AlbumSortField.TakenAt;
-        SortDirection = SortDirection.Descending;
+        AlbumCardWidth = CardWidthSteps[5]; // default: 170 px
+        SortField      = AlbumSortField.TakenAt;
+        SortDirection  = SortDirection.Descending;
 
         _scan.PhotosBatchDiscovered += OnPhotosBatchDiscovered;
         _scan.PhotosBatchUpdated    += OnPhotosBatchUpdated;
@@ -210,13 +216,15 @@ public sealed partial class AlbumListViewModel : ObservableObject, IDisposable
         IsLoading = true;
         try
         {
-            // Restore persisted sort preferences before populating the grid.
+            // Restore persisted sort preferences and card width before populating the grid.
             _loadingSort = true;
             try
             {
-                var settings  = await _db.LoadSettingsAsync(ct);
-                SortField     = (AlbumSortField)settings.AlbumSortField;
-                SortDirection = (SortDirection)settings.AlbumSortDirection;
+                var settings      = await _db.LoadSettingsAsync(ct);
+                SortField         = (AlbumSortField)settings.AlbumSortField;
+                SortDirection     = (SortDirection)settings.AlbumSortDirection;
+                AlbumCardWidth    = SnapToStep(settings.AlbumCardWidth);
+                ShowCardSizeToast = settings.ShowCardSizeToast;
             }
             finally { _loadingSort = false; }
 
@@ -243,6 +251,17 @@ public sealed partial class AlbumListViewModel : ObservableObject, IDisposable
             await _db.SaveSettingsAsync(settings);
         }
         catch { /* best-effort: sort preference loss is non-critical */ }
+    }
+
+    private async void SaveCardWidthSettings()
+    {
+        try
+        {
+            var settings           = await _db.LoadSettingsAsync();
+            settings.AlbumCardWidth = AlbumCardWidth;
+            await _db.SaveSettingsAsync(settings);
+        }
+        catch { /* best-effort */ }
     }
 
     // ── Sort ───────────────────────────────────────────────────────────────────
@@ -361,8 +380,62 @@ public sealed partial class AlbumListViewModel : ObservableObject, IDisposable
         vm.IsPinned = pinned;
     }
 
-    // ── View toggle ───────────────────────────────────────────────────────────
+    // ── Card width changed ────────────────────────────────────────────────────
+
+    partial void OnAlbumCardWidthChanged(int oldValue, int newValue)
+    {
+        if (!_loadingSort) SaveCardWidthSettings();
+        OnPropertyChanged(nameof(CanZoomIn));
+        OnPropertyChanged(nameof(CanZoomOut));
+    }
+
+    public bool CanZoomIn  => AlbumCardWidth < CardWidthSteps[^1];
+    public bool CanZoomOut => AlbumCardWidth > CardWidthSteps[0];
+
+    // ── Zoom ──────────────────────────────────────────────────────────────────
 
     [RelayCommand]
-    private void ToggleView() => IsLargeView = !IsLargeView;
+    public void ZoomIn()
+    {
+        int idx = CurrentStepIndex();
+        if (idx < CardWidthSteps.Length - 1)
+            AlbumCardWidth = CardWidthSteps[idx + 1];
+    }
+
+    [RelayCommand]
+    public void ZoomOut()
+    {
+        int idx = CurrentStepIndex();
+        if (idx > 0)
+            AlbumCardWidth = CardWidthSteps[idx - 1];
+    }
+
+    /// <summary>Steps in the direction of <paramref name="delta"/> (sign only).</summary>
+    public void AdjustCardWidth(int delta)
+    {
+        if (delta > 0) ZoomIn();
+        else if (delta < 0) ZoomOut();
+    }
+
+    private int CurrentStepIndex()
+    {
+        // Find the index of the closest step to the current width.
+        int idx = Array.BinarySearch(CardWidthSteps, AlbumCardWidth);
+        if (idx < 0) idx = Math.Clamp(~idx, 0, CardWidthSteps.Length - 1);
+        return idx;
+    }
+
+    private static int SnapToStep(int value)
+    {
+        // Clamp to the nearest defined step.
+        int idx = Array.BinarySearch(CardWidthSteps, value);
+        if (idx >= 0) return value;
+        idx = ~idx;
+        if (idx >= CardWidthSteps.Length) return CardWidthSteps[^1];
+        if (idx == 0) return CardWidthSteps[0];
+        // Pick whichever neighbour is closer.
+        return value - CardWidthSteps[idx - 1] <= CardWidthSteps[idx] - value
+            ? CardWidthSteps[idx - 1]
+            : CardWidthSteps[idx];
+    }
 }

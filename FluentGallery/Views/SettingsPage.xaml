@@ -468,7 +468,27 @@
             </InfoBar>
 
             <!-- ══════════════════════════════════════════════════════════
-                 6. 关于
+                 6. 调试
+            ═══════════════════════════════════════════════════════════ -->
+            <TextBlock
+                Text="调试"
+                Style="{ThemeResource SubtitleTextBlockStyle}"
+                Margin="4,16,0,6" />
+
+            <!-- Show card size toast -->
+            <ctk:SettingsCard
+                Header="相册缩放时显示尺寸">
+                <ctk:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8C8;" />
+                </ctk:SettingsCard.HeaderIcon>
+                <ToggleSwitch
+                    IsOn="{x:Bind ViewModel.ShowCardSizeToast, Mode=TwoWay}"
+                    OnContent=""
+                    OffContent="" />
+            </ctk:SettingsCard>
+
+            <!-- ══════════════════════════════════════════════════════════
+                 7. 关于
             ═══════════════════════════════════════════════════════════ -->
             <TextBlock
                 Text="关于"

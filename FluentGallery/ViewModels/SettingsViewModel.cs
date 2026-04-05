@@ -54,6 +54,9 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] public partial int  PreloadCount               { get; set; }
     [ObservableProperty] public partial int  ThumbnailSizeIndex         { get; set; }
 
+    // ── Debug ────────────────────────────────────────────────────────────────
+    [ObservableProperty] public partial bool ShowCardSizeToast { get; set; }
+
     // ── System integration ───────────────────────────────────────────────
     [ObservableProperty] public partial bool   RegisterFileAssociations      { get; set; }
     [ObservableProperty] public partial bool   HasFileAssociationStatus      { get; set; }
@@ -194,6 +197,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             Theme                    = _settings.Theme;
             ConfirmBeforeDelete      = _settings.ConfirmBeforeDelete;
             PreloadCount             = _settings.PreloadCount;
+            ShowCardSizeToast        = _settings.ShowCardSizeToast;
             RegisterFileAssociations = FileAssociationHelper.AreAssociationsRegistered();
 
             var sizeIdx = Array.IndexOf(ThumbnailSizeOptions, _settings.ThumbnailSize);
@@ -223,6 +227,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         _settings.ConfirmBeforeDelete      = ConfirmBeforeDelete;
         _settings.PreloadCount             = PreloadCount;
         _settings.ThumbnailSize            = ThumbnailSizePixels;
+        _settings.ShowCardSizeToast        = ShowCardSizeToast;
         _settings.RegisterFileAssociations = RegisterFileAssociations;
 
         var langIdx = SelectedLanguageIndex;
@@ -315,6 +320,12 @@ public sealed partial class SettingsViewModel : ObservableObject
     // ────────────────────────────────────────────────────────────────────
     // Auto-save on property changes (only after initial load)
     // ────────────────────────────────────────────────────────────────────
+
+    partial void OnShowCardSizeToastChanged(bool value)
+    {
+        if (!_isInitialized) return;
+        _ = SaveAsync();
+    }
 
     partial void OnThemeChanged(int value)
     {

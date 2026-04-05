@@ -83,4 +83,17 @@ public sealed class AppSettings
     /// Default 512.
     /// </summary>
     public int ThumbnailSize { get; set; } = 512;
+
+    // ── Card display widths ───────────────────────────────────────────────────
+
+    /// <summary>Width in pixels of album cards in the album list. Default 170 (index 5 of album steps).</summary>
+    public int AlbumCardWidth { get; set; } = 170;
+
+    /// <summary>Width in pixels of photo cards in the photo list. Default 165 (index 7 of photo steps).</summary>
+    public int PhotoCardWidth { get; set; } = 165;
+
+    // ── Debug ─────────────────────────────────────────────────────────────────
+
+    /// <summary>Show a size toast when the album/photo card width changes.</summary>
+    public bool ShowCardSizeToast { get; set; } = false;
 }
