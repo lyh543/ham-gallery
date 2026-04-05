@@ -16,8 +16,10 @@ else
   ENV_FLAG = -p:DevBuild=true
 endif
 
-.DEFAULT_GOAL := build
-.PHONY: build run watch build-run test-all test help kill release install
+INSTALL_DIR ?= C:\Tools\FluentGallery
+
+.DEFAULT_GOAL := release-prod
+.PHONY: build run watch build-run test-all test help kill release release-prod install
 
 PID_FILE = .run.pid
 RUN_PS   = powershell -NoProfile -ExecutionPolicy Bypass -File tools/run.ps1 -ExePath $(EXE) -PidFile $(PID_FILE)
@@ -38,21 +40,18 @@ build-run: build
 watch:
 	dotnet watch run --no-hot-reload --project $(PROJ) -p:Platform=x64 $(ENV_FLAG) --runtime win-x64 --no-self-contained -c Debug
 
-## make release ENV=prod  — Release 构建（输出到 bin\x64\Release\...）
-## make install INSTALL_DIR=<path> — Release 构建后复制到指定目录
+## make / make release     — Release 构建（ENV=prod，输出到 bin\x64\Release\...）
+## make install            — 复制已构建的文件到 INSTALL_DIR（默认 C:\Tools\FluentGallery）
+
+release-prod:
+	$(MAKE) release ENV=prod
 
 release:
-	dotnet build $(PROJ) -p:Platform=x64 -c Release --runtime win-x64 --no-self-contained
+	dotnet build $(PROJ) -p:Platform=x64 -c Release --runtime win-x64 --no-self-contained $(ENV_FLAG)
 
-ifdef INSTALL_DIR
-install: release
+install:
 	powershell -NoProfile -Command "robocopy '$(RELEASE_BIN)' '$(INSTALL_DIR)' /MIR /IS /IT /NJH /NFL /NDL /NP; if ($$LASTEXITCODE -le 7) { exit 0 } else { exit $$LASTEXITCODE }"
 	@echo Installed to: $(INSTALL_DIR)
-else
-install:
-	@echo 请指定安装目录，例如：
-	@echo   make install INSTALL_DIR="C:\Apps\FluentGallery"
-endif
 
 ## make test-all          — 运行全部测试（安静模式）
 ## make test              — 运行全部测试（详细输出）
@@ -78,8 +77,10 @@ help:
 	@echo   make build-run ENV=prod                 Build (prod) then run
 	@echo   make watch                              Watch mode (rebuild+restart on file change)
 	@echo   make watch ENV=prod                     Watch mode (prod)
+	@echo   make                                    Release build (prod, same as make release ENV=prod)
 	@echo   make release ENV=prod                   Release build (bin\x64\Release\...)
-	@echo   make install ENV=prod INSTALL_DIR=C:\Apps\Ham    Release build then copy to install dir
+	@echo   make install                            Copy release build to INSTALL_DIR (default: C:\Tools\FluentGallery)
+	@echo   make install INSTALL_DIR=C:\Apps\Ham    Copy release build to custom dir
 	@echo   make test-all                           Run all tests (quiet)
 	@echo   make test                               Run all tests (verbose)
 	@echo   make test FILTER=X                      Run tests matching name X

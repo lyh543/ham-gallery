@@ -25,8 +25,8 @@ public sealed partial class MainWindow : Window
     // ── State ─────────────────────────────────────────────────────────────────
     private readonly MainWindowViewModel _vm;
 
-#if DEBUG
     // ── Dev Warning Toast ─────────────────────────────────────────────────────
+#if DEBUG
     private readonly DispatcherTimer _devWarnTimer;
     private bool _devWarnMuted = false;
 #endif
@@ -196,9 +196,9 @@ public sealed partial class MainWindow : Window
             NavView.Header = found.Content?.ToString();
     }
 
-#if DEBUG
     // ── Dev Warning Toast ─────────────────────────────────────────────────────
 
+#if DEBUG
     private void OnDevWarningLogged(string category, string message)
     {
         if (_devWarnMuted) return;
@@ -215,7 +215,7 @@ public sealed partial class MainWindow : Window
     private void ShowDevWarnToast(string message)
     {
         _devWarnTimer.Stop();
-        DevWarnToastText.Text        = message;
+        DevWarnToastText.Text             = message;
         DevWarnToastHost.IsHitTestVisible = true;
         AnimateDevWarnOpacity(1.0, durationMs: 180);
         _devWarnTimer.Start();
@@ -226,21 +226,6 @@ public sealed partial class MainWindow : Window
         _devWarnTimer.Stop();
         AnimateDevWarnOpacity(0.0, durationMs: 250);
         DevWarnToastHost.IsHitTestVisible = false;
-    }
-
-    private void DevWarnClose_Click(object sender, RoutedEventArgs e)
-        => HideDevWarnToast();
-
-    private void DevWarnToast_PointerEntered(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
-        => _devWarnTimer.Stop();
-
-    private void DevWarnToast_PointerExited(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
-        => _devWarnTimer.Start();
-
-    private void DevWarnMute_Click(object sender, RoutedEventArgs e)
-    {
-        _devWarnMuted = true;
-        HideDevWarnToast();
     }
 
     private void AnimateDevWarnOpacity(double target, double durationMs = 200)
@@ -258,5 +243,34 @@ public sealed partial class MainWindow : Window
         sb.Begin();
     }
 #endif
+
+    private void DevWarnClose_Click(object sender, RoutedEventArgs e)
+    {
+#if DEBUG
+        HideDevWarnToast();
+#endif
+    }
+
+    private void DevWarnToast_PointerEntered(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+    {
+#if DEBUG
+        _devWarnTimer.Stop();
+#endif
+    }
+
+    private void DevWarnToast_PointerExited(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+    {
+#if DEBUG
+        _devWarnTimer.Start();
+#endif
+    }
+
+    private void DevWarnMute_Click(object sender, RoutedEventArgs e)
+    {
+#if DEBUG
+        _devWarnMuted = true;
+        HideDevWarnToast();
+#endif
+    }
 }
 

@@ -103,15 +103,21 @@ dotnet test FluentGallery.Tests\FluentGallery.Tests.csproj -p:Platform=x64 --run
 ### 一键构建并安装到本机
 
 ```powershell
-make install INSTALL_DIR="C:\Tools\FluentGallery"
+make && make install
+```
+
+默认安装到 `C:\Tools\FluentGallery`，可通过 `INSTALL_DIR` 覆盖：
+
+```powershell
+make install INSTALL_DIR="C:\Apps\FluentGallery"
 ```
 
 ### 分步说明
 
 | 命令 | 说明 |
-|------|------|
-| `make release ENV=prod` | Release 构建（输出到 `bin\x64\Release\...`） |
-| `make install ENV=prod INSTALL_DIR="C:\Tools\FluentGallery"` | Release 构建后镜像复制到指定目录 |
+| ---- | ---- |
+| `make` | Release 构建（等同于 `make release ENV=prod`） |
+| `make install` | 将已构建的文件镜像复制到 `INSTALL_DIR`（默认 `C:\Tools\FluentGallery`） |
 
 安装完成后，在目标目录找到 `FluentGallery.exe`，右键 → **发送到桌面快捷方式** 即可从桌面启动。
 
