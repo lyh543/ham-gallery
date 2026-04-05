@@ -1,3 +1,4 @@
+using ImageMagick;
 using MetadataExtractor;
 using MetadataExtractor.Formats.Exif;
 using MetadataExtractor.Formats.Jpeg;
@@ -33,6 +34,7 @@ public sealed class ExifService
             ExtractExifIfd0(directories, result);
             ExtractGps(directories, result);
             ExtractColorInfo(directories, result);
+            FillMissingDimensionsViaMagick(filePath, result);
         }
         catch (Exception ex)
         {
@@ -63,6 +65,32 @@ public sealed class ExifService
         {
             result.Width  = png.GetInt32(PngDirectory.TagImageWidth);
             result.Height = png.GetInt32(PngDirectory.TagImageHeight);
+        }
+    }
+
+    private static readonly string[] _heicExtensions = [".heic", ".heif"];
+
+    /// <summary>
+    /// Falls back to Magick.NET to read image dimensions for formats (e.g. HEIC)
+    /// not covered by MetadataExtractor's format-specific directories.
+    /// Only called when <see cref="ExtractDimensions"/> left Width/Height null.
+    /// </summary>
+    private void FillMissingDimensionsViaMagick(string filePath, ExifData result)
+    {
+        if (result.Width.HasValue && result.Height.HasValue) return;
+
+        var ext = Path.GetExtension(filePath).ToLowerInvariant();
+        if (!_heicExtensions.Contains(ext)) return;
+
+        try
+        {
+            var info = new MagickImageInfo(filePath);
+            result.Width  ??= (int)info.Width;
+            result.Height ??= (int)info.Height;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Magick dimension read failed for {Path}", filePath);
         }
     }
 

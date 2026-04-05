@@ -27,7 +27,8 @@
                 <!-- Layer 2: thumbnail image (covers placeholder when source is set) -->
                 <Image
                     Source="{x:Bind ThumbnailSource, Mode=OneWay}"
-                    Stretch="UniformToFill"/>
+                    Stretch="UniformToFill"
+                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
                 <!-- Layer 3: loading overlay (shown while thumbnail is being generated) -->
                 <Border

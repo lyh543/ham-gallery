@@ -31,7 +31,8 @@
                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         <!-- Layer 2: cover thumbnail (covers placeholder once loaded) -->
                         <Image Source="{x:Bind CoverThumbnailSource, Mode=OneWay}"
-                               Stretch="UniformToFill"/>
+                               Stretch="UniformToFill"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         <!-- Layer 3: loading ring while thumbnail is being generated -->
                         <ProgressRing
                             IsActive="{x:Bind IsCoverLoading, Mode=OneWay}"
@@ -91,7 +92,8 @@
                                   Glyph="&#xE93C;" FontSize="32" Opacity="0.3"
                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         <Image Source="{x:Bind CoverThumbnailSource, Mode=OneWay}"
-                               Stretch="UniformToFill"/>
+                               Stretch="UniformToFill"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Grid>
                 </Border>
 
