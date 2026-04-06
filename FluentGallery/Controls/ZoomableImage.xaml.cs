@@ -275,6 +275,29 @@ public sealed partial class ZoomableImage : UserControl
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Displays a pre-decoded <see cref="SoftwareBitmapSource"/> from the caller's cache
+    /// (used for HEIC/HEIF preloading and video first-frame preloading).
+    /// Call only from the UI thread.
+    /// </summary>
+    public Task LoadSoftwareBitmapFromCacheAsync(SoftwareBitmapSource source, int width, int height,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        MainImage.Opacity = 0;
+        MainImage.Source  = source;
+        CurrentBitmap     = null;
+        MainImage.Width   = width;
+        MainImage.Height  = height;
+        _isAt100Percent   = false;
+        FitToWindow();
+        HideLoading();
+        FadeInImage();
+
+        return Task.CompletedTask;
+    }
+
     /// <summary>Scales the image so it fits entirely within the current viewport.</summary>
     public void FitToWindow()
     {
