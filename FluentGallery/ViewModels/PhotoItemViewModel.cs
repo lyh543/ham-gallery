@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using FluentGallery.Data;
 using FluentGallery.Models;
 using Microsoft.UI.Xaml.Media.Imaging;
+using Serilog;
 
 namespace FluentGallery.ViewModels;
 
@@ -47,6 +48,7 @@ public sealed partial class PhotoItemViewModel : ObservableObject
     {
         if (ThumbnailSource is not null || IsLoading) return;
         IsLoading = true;
+        bool cancelled = false;
         try
         {
             var path = await Task.Run(() => thumbService.GetOrCreateThumbnailAsync(_photo, ct), ct);
@@ -65,11 +67,20 @@ public sealed partial class PhotoItemViewModel : ObservableObject
             // buffer read back through the UI message pump.
             ThumbnailSource = new BitmapImage(new Uri(displayPath));
         }
-        catch (OperationCanceledException) { throw; }
-        catch { /* thumbnail failures are silent; the placeholder remains visible */ }
+        catch (OperationCanceledException)
+        {
+            // Page is navigating away. Skip IsLoading = false to avoid firing PropertyChanged
+            // into a torn-down XAML binding, which crashes via DispatcherQueueSynchronizationContext.
+            cancelled = true;
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "LoadThumbnailAsync failed for {Path}", _photo.FilePath);
+        }
         finally
         {
-            IsLoading = false;
+            if (!cancelled)
+                IsLoading = false;
         }
     }
 

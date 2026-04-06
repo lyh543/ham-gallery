@@ -33,6 +33,32 @@ public partial class App : Application
     {
         Services = ConfigureServices();
         this.InitializeComponent();
+
+        // ── Unhandled exception handlers — log crash then flush before dying ──
+        this.UnhandledException += (_, e) =>
+        {
+            Log.Fatal(e.Exception, "Unhandled WinUI exception (handled={Handled})", e.Handled);
+            Log.CloseAndFlush();
+        };
+
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        {
+            Log.Fatal(e.ExceptionObject as Exception, "Unhandled AppDomain exception (terminating={Terminating})", e.IsTerminating);
+            Log.CloseAndFlush();
+        };
+
+        AppDomain.CurrentDomain.ProcessExit += (_, _) =>
+        {
+            Log.Information("Process exiting");
+            Log.CloseAndFlush();
+        };
+
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            Log.Error(e.Exception, "Unobserved task exception");
+            Log.CloseAndFlush();
+            e.SetObserved();
+        };
     }
 
     private static IServiceProvider ConfigureServices()
@@ -51,6 +77,7 @@ public partial class App : Application
                 logPath,
                 rollingInterval:        RollingInterval.Day,
                 retainedFileCountLimit: 7,
+                flushToDiskInterval:    TimeSpan.FromSeconds(1),
                 outputTemplate:
                     "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}")
 #if DEBUG

@@ -169,23 +169,22 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
 
     /// <summary>
     /// Returns the file paths of adjacent photos to preload.
-    /// Preloads <see cref="PreloadCount"/> photos: next photos weighted first,
-    /// alternating forward/backward around <paramref name="currentIndex"/>.
+    /// Preloads <see cref="PreloadCount"/> photos in each direction (N±1 … N±PreloadCount),
+    /// totalling up to <c>PreloadCount * 2</c> photos, next photos weighted first.
     /// </summary>
     public IReadOnlyList<string> GetPreloadPaths(int currentIndex)
     {
         var result = new List<string>();
         int count  = PreloadCount;
 
-        // Build alternating deltas: +1,-1,+2,-2,+3,-3,...
-        for (int step = 1; result.Count < count && step <= count; step++)
+        // Build alternating deltas: +1,-1,+2,-2,...,+count,-count
+        for (int step = 1; step <= count; step++)
         {
             foreach (int sign in new[] { 1, -1 })
             {
                 int i = currentIndex + sign * step;
                 if (i >= 0 && i < _photos.Count)
                     result.Add(_photos[i].FilePath);
-                if (result.Count >= count) break;
             }
         }
         return result;

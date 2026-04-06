@@ -180,7 +180,8 @@ public sealed partial class SettingsViewModel : ObservableObject
     [RelayCommand]
     public async Task LoadAsync(CancellationToken ct = default)
     {
-        _dispatcher    = DispatcherQueue.GetForCurrentThread();
+        try   { _dispatcher = DispatcherQueue.GetForCurrentThread(); }
+        catch (System.Runtime.InteropServices.COMException) { _dispatcher = null; }
         _isInitialized = false;
         IsLoading      = true;
         try
@@ -340,8 +341,10 @@ public sealed partial class SettingsViewModel : ObservableObject
     partial void OnUseAcrylicBackdropChanged(bool value)
     {
         if (!_isInitialized) return;
+#if !TEST_BUILD
         if (App.Current.MainWindow is FluentGallery.MainWindow win)
             win.ApplyBackdrop(value);
+#endif
         _ = SaveAsync();
     }
 

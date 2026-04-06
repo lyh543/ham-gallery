@@ -25,7 +25,7 @@ public static class ThreadGuard
     [Conditional("DEBUG")]
     public static void EnsureBackground([CallerMemberName] string caller = "")
     {
-        if (DispatcherQueue.GetForCurrentThread() is not null)
+        if (IsOnUiThread())
             throw new InvalidOperationException(
                 $"[ThreadGuard] '{caller}' must not run on the UI thread. " +
                 $"Wrap the call site in Task.Run() or use ConfigureAwait(false) " +
@@ -39,8 +39,19 @@ public static class ThreadGuard
     [Conditional("DEBUG")]
     public static void EnsureUiThread([CallerMemberName] string caller = "")
     {
-        if (DispatcherQueue.GetForCurrentThread() is null)
+        if (!IsOnUiThread())
             throw new InvalidOperationException(
                 $"[ThreadGuard] '{caller}' must run on the UI thread.");
+    }
+
+    /// <summary>
+    /// Returns true when the calling thread has a WinUI DispatcherQueue (i.e. is the UI thread).
+    /// Returns false both when on a background thread AND when the Windows App SDK COM server
+    /// is not initialized (e.g. unit test processes), treating both as non-UI-thread.
+    /// </summary>
+    private static bool IsOnUiThread()
+    {
+        try   { return DispatcherQueue.GetForCurrentThread() is not null; }
+        catch (System.Runtime.InteropServices.COMException) { return false; }
     }
 }

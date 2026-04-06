@@ -30,7 +30,14 @@
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260317003" />
     <!-- Magick.NET: needed by MagickImageDecoder (HEIC/HEIF built-in decoder) -->
     <PackageReference Include="Magick.NET-Q8-AnyCPU" Version="14.11.1" />
+    <!-- MetadataExtractor: needed by ExifService (pulled in via ScanService → SettingsViewModel) -->
+    <PackageReference Include="MetadataExtractor" Version="2.8.1" />
   </ItemGroup>
+
+  <PropertyGroup>
+    <!-- Prevent SettingsViewModel from calling into WinUI App/MainWindow -->
+    <DefineConstants>$(DefineConstants);TEST_BUILD</DefineConstants>
+  </PropertyGroup>
 
   <ItemGroup>
     <!-- Decoder pipeline (HEIC/HEIF support) -->
@@ -52,7 +59,13 @@
     <!-- SettingsViewModel and its dependencies (no WinUI types) -->
     <Compile Include="..\FluentGallery\Helpers\AppDataPaths.cs" />
     <Compile Include="..\FluentGallery\Services\IThemeService.cs" />
+    <Compile Include="..\FluentGallery\Data\ExifService.cs" />
+    <Compile Include="..\FluentGallery\Data\ScanService.cs" />
     <Compile Include="..\FluentGallery\ViewModels\SettingsViewModel.cs" />
+    <!-- Helpers required by SettingsViewModel and the services it pulls in -->
+    <Compile Include="..\FluentGallery\Helpers\ThreadGuard.cs" />
+    <Compile Include="..\FluentGallery\Helpers\FileGuard.cs" />
+    <Compile Include="..\FluentGallery\Helpers\FileAssociationHelper.cs" />
   </ItemGroup>
 
   <!-- Test data: images used as regression fixtures -->

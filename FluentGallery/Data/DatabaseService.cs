@@ -596,7 +596,7 @@ public sealed class DatabaseService
         var cutoff = DateTime.UtcNow.AddMonths(-1).ToString("O");
         using var db = _factory.CreateDbContext();
         int deleted = await db.DeletedPhotos
-            .Where(d => string.Compare(d.DeletedAt, cutoff, StringComparison.Ordinal) < 0)
+            .Where(d => string.Compare(d.DeletedAt, cutoff) < 0)
             .ExecuteDeleteAsync(ct).ConfigureAwait(false);
         if (deleted > 0)
             _logger.LogInformation("Cleaned up {N} stale DeletedPhoto records", deleted);

@@ -37,11 +37,15 @@ public sealed class SettingsViewModelTests : IAsyncLifetime
 
     private SettingsViewModel BuildSut()
     {
-        var pipeline        = new FluentGallery.Decoders.ImageDecoderPipeline();
+        var pipeline         = new FluentGallery.Decoders.ImageDecoderPipeline();
         var thumbnailService = new ThumbnailService(
             _db!, NullLogger<ThumbnailService>.Instance, pipeline);
+        var exifService      = new ExifService(NullLogger<ExifService>.Instance);
+        var scanService      = new ScanService(
+            _db!, exifService, NullLogger<ScanService>.Instance);
         return new SettingsViewModel(
-            _db!, thumbnailService, new NullThemeService(), NullLogger<SettingsViewModel>.Instance);
+            _db!, thumbnailService, scanService, new NullThemeService(),
+            NullLogger<SettingsViewModel>.Instance);
     }
 
     private SettingsViewModel Sut => _sut!;

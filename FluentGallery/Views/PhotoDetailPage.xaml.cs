@@ -1,6 +1,7 @@
 using FluentGallery.Helpers;
 using FluentGallery.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -46,11 +47,12 @@ public sealed partial class PhotoDetailPage : Page
 
     private PhotoDetailArgs? _pendingArgs;
 
-    // ── Image preload cache (LRU-evicted, size = PreloadCount + 1) ────────────
-    // HEIC/HEIF images are not cached here because they are displayed via
-    // SoftwareBitmapSource (not BitmapImage) and are decoded on demand.
+    // ── Image preload cache (LRU-evicted, max = PreloadCount * 2 + 1) ─────────
+    // HEIC/HEIF images are not cached here; they are decoded on demand via
+    // ZoomableImage's decoder pipeline.
 
-    private readonly Dictionary<string, BitmapImage> _imageCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, BitmapImage> _imageCache =
+        new(StringComparer.OrdinalIgnoreCase);
 
     private static readonly HashSet<string> _noBitmapCacheExtensions =
         new(StringComparer.OrdinalIgnoreCase) { ".heic", ".heif" };
@@ -59,6 +61,9 @@ public sealed partial class PhotoDetailPage : Page
 
     private readonly DispatcherTimer _toastTimer;
     private enum ToastKind { Normal, Error }
+
+    private readonly ILogger<PhotoDetailPage> _logger =
+        App.Current.Services.GetRequiredService<ILogger<PhotoDetailPage>>();
 
     // ── Constructor ───────────────────────────────────────────────────────────
 
@@ -137,6 +142,7 @@ public sealed partial class PhotoDetailPage : Page
         var path = ViewModel.CurrentImagePath;
         if (string.IsNullOrEmpty(path)) return;
 
+        _logger.LogDebug("LoadCurrentImage: {Path}", path);
         try
         {
             bool useCache = !_noBitmapCacheExtensions.Contains(Path.GetExtension(path));
@@ -148,12 +154,12 @@ public sealed partial class PhotoDetailPage : Page
             else
             {
                 await ZoomImage.LoadImageAsync(path, _cts.Token);
-                // Only add BitmapImage results (non-HEIC) to the preload cache
                 if (useCache && ZoomImage.CurrentBitmap is { } bmp)
                     AddToCache(path, bmp);
             }
         }
         catch (OperationCanceledException) { }
+        catch (Exception ex) { _logger.LogWarning(ex, "LoadCurrentImage failed: {Path}", path); }
     }
 
     // ── Image preloading ──────────────────────────────────────────────────────
@@ -178,8 +184,7 @@ public sealed partial class PhotoDetailPage : Page
     private void AddToCache(string path, BitmapImage bmp)
     {
         _imageCache[path] = bmp;
-        // Keep at most PreloadCount + 1 (current + adjacent)
-        int maxCached = ViewModel.PreloadCount + 1;
+        int maxCached = ViewModel.PreloadCount * 2 + 1;
         while (_imageCache.Count > maxCached)
         {
             var oldest = _imageCache.Keys.First();
