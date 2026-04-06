@@ -428,6 +428,24 @@
                                IsTextSelectionEnabled="True"
                                Visibility="Collapsed" />
 
+                    <!-- ── GIF 信息 ── -->
+                    <StackPanel x:Name="GifSection" Visibility="Collapsed">
+                        <MenuFlyoutSeparator Margin="0,10" />
+                        <TextBlock Text="时长 / 帧数" Style="{StaticResource InfoLabelStyle}" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock x:Name="InfoGifDuration"
+                                       Style="{StaticResource InfoValueStyle}" />
+                            <TextBlock Text="/"
+                                       Style="{StaticResource InfoValueStyle}"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <TextBlock x:Name="InfoGifFrames"
+                                       Style="{StaticResource InfoValueStyle}" />
+                        </StackPanel>
+                        <TextBlock Text="帧率" Style="{StaticResource InfoLabelStyle}" />
+                        <TextBlock x:Name="InfoGifFrameRate"
+                                   Style="{StaticResource InfoValueStyle}" />
+                    </StackPanel>
+
                 </StackPanel>
             </ScrollViewer>
         </Border>

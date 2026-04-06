@@ -50,13 +50,20 @@ public sealed partial class PhotoItemViewModel : ObservableObject
         try
         {
             var path = await Task.Run(() => thumbService.GetOrCreateThumbnailAsync(_photo, ct), ct);
-            if (path is null || !File.Exists(path)) return;
+
+            // GIF thumbnails are disabled (ThumbnailDisabled=true in DB); fall back
+            // to the source file so the animated GIF displays in the grid.
+            var displayPath = path ?? (string.Equals(
+                Path.GetExtension(_photo.FilePath), ".gif",
+                StringComparison.OrdinalIgnoreCase) ? _photo.FilePath : null);
+
+            if (displayPath is null || !File.Exists(displayPath)) return;
 
             // UriSource triggers a background decode without blocking the UI thread.
             // SetSourceAsync + File.OpenRead().AsRandomAccessStream() would create
             // an STA-bound stream on the UI thread, causing WIC to marshal every
             // buffer read back through the UI message pump.
-            ThumbnailSource = new BitmapImage(new Uri(path));
+            ThumbnailSource = new BitmapImage(new Uri(displayPath));
         }
         catch (OperationCanceledException) { throw; }
         catch { /* thumbnail failures are silent; the placeholder remains visible */ }

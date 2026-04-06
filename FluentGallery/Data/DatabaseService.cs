@@ -56,6 +56,18 @@ public sealed class DatabaseService
         if (!columns.Contains("PhotoSortDirection"))
             await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Albums\" ADD COLUMN \"PhotoSortDirection\" INTEGER NOT NULL DEFAULT 1", ct).ConfigureAwait(false);
 
+        // Idempotent: add ThumbnailDisabled column to Thumbnails (existing databases).
+        var thumbColumns = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = "PRAGMA table_info(\"Thumbnails\")";
+            using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+            while (await reader.ReadAsync(ct).ConfigureAwait(false))
+                thumbColumns.Add(reader.GetString(1));
+        }
+        if (!thumbColumns.Contains("ThumbnailDisabled"))
+            await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Thumbnails\" ADD COLUMN \"ThumbnailDisabled\" INTEGER NOT NULL DEFAULT 0", ct).ConfigureAwait(false);
+
         // Fix: value 5 was the old "Natural" sort which has been removed.
         // Reset any albums that still have it back to TakenAt (4).
         await db.Database.ExecuteSqlRawAsync(
@@ -219,6 +231,17 @@ public sealed class DatabaseService
     {
         using var db = _factory.CreateDbContext();
         await db.Albums.Where(a => a.Id == id).ExecuteDeleteAsync(ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Deletes albums that have no photos (e.g. after a scan directory is removed).</summary>
+    public async Task DeleteEmptyAlbumsAsync(CancellationToken ct = default)
+    {
+        using var db = _factory.CreateDbContext();
+        int deleted = await db.Albums
+            .Where(a => !db.Photos.Any(p => p.AlbumId == a.Id))
+            .ExecuteDeleteAsync(ct).ConfigureAwait(false);
+        if (deleted > 0)
+            _logger.LogInformation("Removed {N} empty albums", deleted);
     }
 
     /// <summary>
@@ -410,6 +433,16 @@ public sealed class DatabaseService
     // Thumbnails
     // ────────────────────────────────────────────────────────────────────────
 
+    public async Task<IReadOnlyList<string>> GetAllThumbnailPathsAsync(CancellationToken ct = default)
+    {
+        using var db = _factory.CreateDbContext();
+        return await db.Thumbnails
+            .AsNoTracking()
+            .Where(t => t.ThumbPath != null && t.ThumbPath != "")
+            .Select(t => t.ThumbPath!)
+            .ToListAsync(ct).ConfigureAwait(false);
+    }
+
     public async Task<Thumbnail?> GetThumbnailAsync(long photoId, CancellationToken ct = default)
     {
         using var db = _factory.CreateDbContext();
@@ -427,9 +460,10 @@ public sealed class DatabaseService
             db.Thumbnails.Add(thumb);
         else
         {
-            existing.ThumbPath        = thumb.ThumbPath;
-            existing.GeneratedAt      = thumb.GeneratedAt;
-            existing.SourceModifiedAt = thumb.SourceModifiedAt;
+            existing.ThumbPath          = thumb.ThumbPath;
+            existing.ThumbnailDisabled  = thumb.ThumbnailDisabled;
+            existing.GeneratedAt        = thumb.GeneratedAt;
+            existing.SourceModifiedAt   = thumb.SourceModifiedAt;
         }
 
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
@@ -468,6 +502,14 @@ public sealed class DatabaseService
     // ────────────────────────────────────────────────────────────────────────
     // Maintenance
     // ────────────────────────────────────────────────────────────────────────
+
+    /// <summary>Deletes only the Thumbnails rows, leaving Photos intact.</summary>
+    public async Task ClearThumbnailsAsync(CancellationToken ct = default)
+    {
+        using var db = _factory.CreateDbContext();
+        await db.Thumbnails.ExecuteDeleteAsync(ct).ConfigureAwait(false);
+        _logger.LogInformation("Thumbnail DB entries cleared");
+    }
 
     /// <summary>Deletes all Photos and Thumbnails rows while preserving Albums and Settings.</summary>
     public async Task ClearPhotoCacheAsync(CancellationToken ct = default)

@@ -158,6 +158,19 @@
                 </ComboBox>
             </ctk:SettingsCard>
 
+            <!-- Acrylic backdrop -->
+            <ctk:SettingsCard
+                Header="亚克力材料"
+                Description="使用亚克力效果替代 Mica，立即生效">
+                <ctk:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xEA80;" />
+                </ctk:SettingsCard.HeaderIcon>
+                <ToggleSwitch
+                    IsOn="{x:Bind ViewModel.UseAcrylicBackdrop, Mode=TwoWay}"
+                    OnContent=""
+                    OffContent="" />
+            </ctk:SettingsCard>
+
             <!-- ══════════════════════════════════════════════════════════
                  3. 行为
             ═══════════════════════════════════════════════════════════ -->

@@ -64,7 +64,7 @@ public static class RecycleBinHelper
                 File.Move(entry.RFilePath, originalPath);
                 // Remove the $I metadata file so Windows doesn't show a ghost entry
                 if (File.Exists(entry.IFilePath))
-                    File.Delete(entry.IFilePath);
+                    FileGuard.DeleteRecycleBinMetadata(entry.IFilePath);
             }).ConfigureAwait(false);
             return true;
         }

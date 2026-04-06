@@ -21,7 +21,8 @@ namespace FluentGallery.Data;
 public record ThumbnailBatchProgress(int Done, int Total, double SpeedPerSec, TimeSpan? Eta);
 
 /// <summary>
-/// Generates and caches JPEG thumbnails using WIC (Windows.Graphics.Imaging).
+/// Generates and caches thumbnails using WIC (Windows.Graphics.Imaging).
+/// JPEG is used for most formats; GIF source files are copied as-is to preserve animation.
 /// The fit-inside box size is configurable via <see cref="ThumbSize"/> (default 512 px).
 /// Thumbnail files are stored under <see cref="AppDataPaths.ThumbnailsDirectory"/>;
 /// their paths and source modification times are persisted in the Thumbnails table.
@@ -76,31 +77,50 @@ public sealed class ThumbnailService
         if (!_pipeline.CanDecode(photo.FilePath))
             return null;
 
-        var thumbPath        = GetThumbPath(photo.FilePath);
+        bool isGif           = IsGif(photo.FilePath);
         var sourceModifiedAt = photo.ModifiedAt;
 
-        // Fast-path: valid cached thumbnail
+        // Fast-path: valid cached entry
         var cached = await _db.GetThumbnailAsync(photo.Id, ct).ConfigureAwait(false);
-        if (cached is not null
-            && cached.SourceModifiedAt == sourceModifiedAt
-            && File.Exists(cached.ThumbPath))
+        if (cached is not null && cached.SourceModifiedAt == sourceModifiedAt)
         {
-            return cached.ThumbPath;
+            if (cached.ThumbnailDisabled)
+                return null; // GIF — show original directly, no thumbnail file
+
+            if (cached.ThumbPath is not null && File.Exists(cached.ThumbPath))
+                return cached.ThumbPath;
         }
 
         // Generate — bounded by semaphore to avoid disk I/O saturation
         await _semaphore.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            // Re-check cache in case another worker already generated it while we waited
+            // Re-check after acquiring semaphore
             cached = await _db.GetThumbnailAsync(photo.Id, ct).ConfigureAwait(false);
-            if (cached is not null
-                && cached.SourceModifiedAt == sourceModifiedAt
-                && File.Exists(cached.ThumbPath))
+            if (cached is not null && cached.SourceModifiedAt == sourceModifiedAt)
             {
-                return cached.ThumbPath;
+                if (cached.ThumbnailDisabled)
+                    return null;
+
+                if (cached.ThumbPath is not null && File.Exists(cached.ThumbPath))
+                    return cached.ThumbPath;
             }
 
+            if (isGif)
+            {
+                // GIF thumbnails are disabled — no file is created; use the source directly.
+                // Store "" instead of null: older databases may have ThumbPath NOT NULL.
+                await _db.UpsertThumbnailAsync(new Thumbnail
+                {
+                    PhotoId           = photo.Id,
+                    ThumbPath         = "",
+                    ThumbnailDisabled = true,
+                    SourceModifiedAt  = sourceModifiedAt,
+                }, ct).ConfigureAwait(false);
+                return null;
+            }
+
+            var thumbPath = GetThumbPath(photo.FilePath);
             await GenerateViaDecoderAsync(photo.FilePath, thumbPath, ThumbSize, ct).ConfigureAwait(false);
 
             await _db.UpsertThumbnailAsync(new Thumbnail
@@ -156,25 +176,36 @@ public sealed class ThumbnailService
             {
                 if (_pipeline.CanDecode(photo.FilePath))
                 {
-                    var thumbPath = GetThumbPath(photo.FilePath);
-
-                    // Skip photos whose thumbnail is already valid on disk
                     var cached = await _db.GetThumbnailAsync(photo.Id, innerCt).ConfigureAwait(false);
-                    bool needsGeneration = cached is null
-                        || cached.SourceModifiedAt != photo.ModifiedAt
-                        || !File.Exists(cached.ThumbPath);
+                    bool upToDate = cached is not null
+                        && cached.SourceModifiedAt == photo.ModifiedAt
+                        && (cached.ThumbnailDisabled || (cached.ThumbPath is not null && File.Exists(cached.ThumbPath)));
 
-                    if (needsGeneration)
+                    if (!upToDate)
                     {
                         try
                         {
-                            await GenerateAsync(photo.FilePath, thumbPath, ThumbSize, innerCt).ConfigureAwait(false);
-                            await _db.UpsertThumbnailAsync(new Thumbnail
+                            if (IsGif(photo.FilePath))
                             {
-                                PhotoId          = photo.Id,
-                                ThumbPath        = thumbPath,
-                                SourceModifiedAt = photo.ModifiedAt,
-                            }, innerCt).ConfigureAwait(false);
+                                await _db.UpsertThumbnailAsync(new Thumbnail
+                                {
+                                    PhotoId           = photo.Id,
+                                    ThumbPath         = "",
+                                    ThumbnailDisabled = true,
+                                    SourceModifiedAt  = photo.ModifiedAt,
+                                }, innerCt).ConfigureAwait(false);
+                            }
+                            else
+                            {
+                                var thumbPath = GetThumbPath(photo.FilePath);
+                                await GenerateViaDecoderAsync(photo.FilePath, thumbPath, ThumbSize, innerCt).ConfigureAwait(false);
+                                await _db.UpsertThumbnailAsync(new Thumbnail
+                                {
+                                    PhotoId          = photo.Id,
+                                    ThumbPath        = thumbPath,
+                                    SourceModifiedAt = photo.ModifiedAt,
+                                }, innerCt).ConfigureAwait(false);
+                            }
                         }
                         catch (OperationCanceledException) { throw; }
                         catch (Exception ex)
@@ -194,11 +225,15 @@ public sealed class ThumbnailService
             }).ConfigureAwait(false);
     }
 
+    // ── Format helpers ───────────────────────────────────────────────────────
+
+    private static bool IsGif(string filePath) =>
+        string.Equals(Path.GetExtension(filePath), ".gif", StringComparison.OrdinalIgnoreCase);
+
     // ── Path helper ──────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Derives a stable thumbnail filename from the source path using MD5.
-    /// This avoids illegal characters and path-length issues.
+    /// Derives a stable JPEG thumbnail filename from the source path using MD5.
     /// </summary>
     private static string GetThumbPath(string filePath)
     {

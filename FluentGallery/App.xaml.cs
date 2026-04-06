@@ -125,7 +125,10 @@ public partial class App : Application
         var db = Services.GetRequiredService<DatabaseService>();
         await db.InitializeAsync();
         var settings = await db.LoadSettingsAsync();
-        ((MainWindow)_window).RestoreWindowSize(settings);
+        var mainWindow = (MainWindow)_window;
+        mainWindow.RestoreWindowSize(settings);
+        if (settings.UseAcrylicBackdrop)
+            mainWindow.ApplyBackdrop(true);
 
         _window.Activate();
 

@@ -241,6 +241,16 @@ public sealed partial class PhotoDetailPage : Page
             case nameof(PhotoDetailViewModel.InfoBitDepth):
                 InfoBitDepth.Text    = ViewModel.InfoBitDepth    ?? "—"; break;
 
+            case nameof(PhotoDetailViewModel.InfoGifDuration):
+                InfoGifDuration.Text = ViewModel.InfoGifDuration ?? "—";
+                GifSection.Visibility = ViewModel.InfoGifDuration is not null
+                    ? Visibility.Visible : Visibility.Collapsed;
+                break;
+            case nameof(PhotoDetailViewModel.InfoGifFrames):
+                InfoGifFrames.Text   = ViewModel.InfoGifFrames   ?? "—"; break;
+            case nameof(PhotoDetailViewModel.InfoGifFrameRate):
+                InfoGifFrameRate.Text = ViewModel.InfoGifFrameRate ?? "—"; break;
+
             case nameof(PhotoDetailViewModel.CurrentIndex):
                 SyncFilmStripSelection();
                 break;

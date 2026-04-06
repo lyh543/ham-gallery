@@ -28,6 +28,9 @@ public sealed class AppSettings
     /// <summary>0 = System, 1 = Light, 2 = Dark (maps to ElementTheme).</summary>
     public int Theme { get; set; } = 0;
 
+    /// <summary>Use Acrylic system backdrop instead of Mica.</summary>
+    public bool UseAcrylicBackdrop { get; set; } = false;
+
     // ── Behaviour ───────────────────────────────────────────────────────────
 
     /// <summary>Show a confirmation dialog before deleting a photo.</summary>

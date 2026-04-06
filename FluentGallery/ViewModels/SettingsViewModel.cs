@@ -46,8 +46,9 @@ public sealed partial class SettingsViewModel : ObservableObject
     public ObservableCollection<string> ExcludeDirectories { get; } = [];
 
     // ── Appearance ──────────────────────────────────────────────────────
-    [ObservableProperty] public partial int SelectedLanguageIndex { get; set; }
-    [ObservableProperty] public partial int Theme                 { get; set; }
+    [ObservableProperty] public partial int  SelectedLanguageIndex { get; set; }
+    [ObservableProperty] public partial int  Theme                 { get; set; }
+    [ObservableProperty] public partial bool UseAcrylicBackdrop    { get; set; }
 
     // ── Behaviour ───────────────────────────────────────────────────────
     [ObservableProperty] public partial bool ConfirmBeforeDelete        { get; set; }
@@ -195,6 +196,7 @@ public sealed partial class SettingsViewModel : ObservableObject
                 ExcludeDirectories.Add(d);
 
             Theme                    = _settings.Theme;
+            UseAcrylicBackdrop       = _settings.UseAcrylicBackdrop;
             ConfirmBeforeDelete      = _settings.ConfirmBeforeDelete;
             PreloadCount             = _settings.PreloadCount;
             ShowCardSizeToast        = _settings.ShowCardSizeToast;
@@ -224,6 +226,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         _settings.ExcludeDirectories       = [.. ExcludeDirectories];
         _settings.RecursiveScan            = true;   // always recursive
         _settings.Theme                    = Theme;
+        _settings.UseAcrylicBackdrop       = UseAcrylicBackdrop;
         _settings.ConfirmBeforeDelete      = ConfirmBeforeDelete;
         _settings.PreloadCount             = PreloadCount;
         _settings.ThumbnailSize            = ThumbnailSizePixels;
@@ -331,6 +334,14 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         if (!_isInitialized) return;
         _themeService.Apply(value);
+        _ = SaveAsync();
+    }
+
+    partial void OnUseAcrylicBackdropChanged(bool value)
+    {
+        if (!_isInitialized) return;
+        if (App.Current.MainWindow is FluentGallery.MainWindow win)
+            win.ApplyBackdrop(value);
         _ = SaveAsync();
     }
 
@@ -444,16 +455,18 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         try
         {
-            var dir = AppDataPaths.ThumbnailsDirectory;
-            if (Directory.Exists(dir))
+            // Collect paths from DB entries so every format (jpg, gif, …) is covered,
+            // then clear the DB rows and delete the files.
+            var paths = await _db.GetAllThumbnailPathsAsync(ct);
+            await _db.ClearThumbnailsAsync(ct);
+            await Task.Run(() =>
             {
-                await Task.Run(() =>
+                foreach (var path in paths)
                 {
-                    foreach (var f in Directory.EnumerateFiles(dir, "*.jpg",
-                                 SearchOption.AllDirectories))
-                        File.Delete(f);
-                }, ct);
-            }
+                    try { FileGuard.DeleteAppDataFile(path); }
+                    catch { /* best-effort — file may already be gone */ }
+                }
+            }, ct);
             await RefreshThumbnailCacheSizeAsync(ct);
             IsWarningStatus = false;
             StatusMessage   = "缩略图缓存已清除";
@@ -474,8 +487,12 @@ public sealed partial class SettingsViewModel : ObservableObject
         {
             await _db.ClearPhotoCacheAsync(ct);
             IsWarningStatus = false;
-            StatusMessage   = "数据库缓存已清除（照片和缩略图记录已删除，相册结构保留）";
+            StatusMessage   = "数据库缓存已清除，正在重新扫描…";
             _logger.LogInformation("Database photo cache cleared");
+
+            // Immediately kick off a rescan so the gallery repopulates without
+            // requiring the user to manually trigger one.
+            await _scan.StartAsync(_settings, _dispatcher);
         }
         catch (Exception ex)
         {
@@ -499,7 +516,7 @@ public sealed partial class SettingsViewModel : ObservableObject
                 {
                     foreach (var f in Directory.EnumerateFiles(dir, "*.jpg",
                                  SearchOption.AllDirectories))
-                        File.Delete(f);
+                        FileGuard.DeleteAppDataFile(f);
                 }, ct);
             }
 

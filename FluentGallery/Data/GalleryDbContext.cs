@@ -75,6 +75,9 @@ public sealed class GalleryDbContext : DbContext
             // PhotoId is both PK and FK (1:1 with Photo)
             e.HasKey(t => t.PhotoId);
 
+            e.Property(t => t.ThumbPath).IsRequired(false);
+            e.Property(t => t.ThumbnailDisabled).HasDefaultValue(false);
+
             e.HasOne<Photo>()
              .WithOne()
              .HasForeignKey<Thumbnail>(t => t.PhotoId)

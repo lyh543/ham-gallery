@@ -85,12 +85,16 @@ public sealed partial class AlbumItemViewModel : ObservableObject
             // Offload to thread pool so ThumbnailService.GetOrCreateThumbnailAsync
             // (which requires a background thread) does not run on the UI thread.
             var path = await Task.Run(() => thumbnails.GetOrCreateThumbnailAsync(photo, ct), ct);
-            if (path is null || !File.Exists(path)) { CoverThumbnailSource = null; return; }
+
+            // path is null when ThumbnailDisabled (e.g. GIF) — fall back to the source file.
+            var displayPath = (path is not null && File.Exists(path)) ? path
+                            : (File.Exists(photo.FilePath)            ? photo.FilePath : null);
+            if (displayPath is null) { CoverThumbnailSource = null; return; }
 
             // UriSource triggers a background decode without blocking the UI thread,
             // unlike SetSourceAsync(File.OpenRead(...).AsRandomAccessStream()) which
             // pins the stream to the STA and causes WIC to marshal every read back.
-            CoverThumbnailSource = new BitmapImage(new Uri(path));
+            CoverThumbnailSource = new BitmapImage(new Uri(displayPath));
         }
         catch (OperationCanceledException) { throw; }
         catch { CoverThumbnailSource = null; }

@@ -68,6 +68,16 @@ public sealed partial class MainWindow : Window
     // ── Window size persistence ───────────────────────────────────────────────
 
     /// <summary>
+    /// Switches the system backdrop between Mica (default) and Acrylic.
+    /// </summary>
+    public void ApplyBackdrop(bool useAcrylic)
+    {
+        SystemBackdrop = useAcrylic
+            ? new DesktopAcrylicBackdrop()
+            : new MicaBackdrop();
+    }
+
+    /// <summary>
     /// Called by <see cref="App"/> before <c>Activate()</c> so the window opens
     /// at the saved geometry with no visible resize flash.
     /// </summary>

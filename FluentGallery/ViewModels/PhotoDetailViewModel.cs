@@ -103,6 +103,11 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
     [ObservableProperty] public partial string? InfoColorSpace  { get; set; }
     [ObservableProperty] public partial string? InfoBitDepth    { get; set; }
 
+    // GIF-specific (null / hidden for non-GIF photos)
+    [ObservableProperty] public partial string? InfoGifDuration  { get; set; }
+    [ObservableProperty] public partial string? InfoGifFrames    { get; set; }
+    [ObservableProperty] public partial string? InfoGifFrameRate { get; set; }
+
     // ── Settings ─────────────────────────────────────────────────────────────
 
     /// <summary>Whether to show a confirmation dialog before deleting.</summary>
@@ -250,8 +255,11 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
         InfoShutter     = null;
         InfoIso         = null;
         InfoFocalLength = null;
-        InfoColorSpace  = null;
-        InfoBitDepth    = null;
+        InfoColorSpace   = null;
+        InfoBitDepth     = null;
+        InfoGifDuration  = null;
+        InfoGifFrames    = null;
+        InfoGifFrameRate = null;
         InfoGps = (photo.Latitude.HasValue && photo.Longitude.HasValue)
             ? $"{photo.Latitude:F6}, {photo.Longitude:F6}"
             : null;
@@ -270,11 +278,72 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
             InfoFocalLength = exif.FocalLength.HasValue  ? $"{exif.FocalLength:F0} mm"  : null;
             InfoColorSpace  = exif.ColorSpace;
             InfoBitDepth    = exif.BitDepth.HasValue     ? $"{exif.BitDepth} bit"       : null;
+
+            if (string.Equals(
+                    Path.GetExtension(filePath), ".gif", StringComparison.OrdinalIgnoreCase))
+            {
+                await LoadGifInfoAsync(filePath, ct);
+            }
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Extended EXIF load failed for {Path}", filePath);
+        }
+    }
+
+    /// <summary>
+    /// Reads frame count, total duration and frame rate from a GIF file via WIC.
+    /// Each frame's delay is stored in the GCE (/grctlext/Delay) in centiseconds.
+    /// </summary>
+    private async Task LoadGifInfoAsync(string filePath, CancellationToken ct)
+    {
+        try
+        {
+            var storageFile = await StorageFile.GetFileFromPathAsync(filePath).AsTask(ct);
+            using var ras = await storageFile.OpenAsync(Windows.Storage.FileAccessMode.Read).AsTask(ct);
+            var decoder = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(ras).AsTask(ct);
+
+            uint frameCount = decoder.FrameCount;
+            if (frameCount == 0) return;
+
+            // Sum per-frame delays (in centiseconds; 0 means "use default ~10 cs").
+            double totalCs = 0;
+            for (uint i = 0; i < frameCount; i++)
+            {
+                var frame = await decoder.GetFrameAsync(i).AsTask(ct);
+                try
+                {
+                    var props = await frame.BitmapProperties
+                        .GetPropertiesAsync(["/grctlext/Delay"]).AsTask(ct);
+
+                    if (props.TryGetValue("/grctlext/Delay", out var v) && v.Value is ushort delay)
+                        totalCs += delay > 0 ? delay : 10; // treat 0 as 10 cs (browser default)
+                    else
+                        totalCs += 10;
+                }
+                catch
+                {
+                    totalCs += 10;
+                }
+            }
+
+            double totalMs  = totalCs * 10.0;
+            double totalSec = totalMs / 1000.0;
+            double fps      = totalSec > 0 ? frameCount / totalSec : 0;
+
+            string durationStr = totalSec >= 1
+                ? $"{totalSec:F2} s"
+                : $"{totalMs:F0} ms";
+
+            InfoGifFrames    = $"{frameCount} 帧";
+            InfoGifDuration  = durationStr;
+            InfoGifFrameRate = fps > 0 ? $"{fps:F2} fps" : null;
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "GIF info load failed for {Path}", filePath);
         }
     }
 
@@ -518,13 +587,18 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
             await encoder.BitmapProperties.SetPropertiesAsync(props).AsTask(ct);
             await encoder.FlushAsync().AsTask(ct);
 
+            // Write to a temp file first, then atomically rename over the original.
+            // This ensures the original is never left in a truncated/corrupt state
+            // if the process crashes or is cancelled mid-write.
             memRas.Seek(0);
-            await using var dstStream = File.Create(filePath);
-            await memRas.AsStreamForRead().CopyToAsync(dstStream, ct);
+            await using (var dstStream = File.Create(tempPath))
+                await memRas.AsStreamForRead().CopyToAsync(dstStream, ct);
+
+            File.Move(tempPath, filePath, overwrite: true);
         }
         catch
         {
-            if (File.Exists(tempPath)) File.Delete(tempPath);
+            if (File.Exists(tempPath)) FileGuard.DeleteTempFile(tempPath);
             throw;
         }
     }

@@ -158,8 +158,9 @@ public sealed class ScanService : IDisposable
         DispatcherQueue? dispatcher,
         CancellationToken ct)
     {
-        // Reset per-scan counters
+        // Reset per-scan state
         _countNew = _countUpdated = _countSkipped = 0;
+        _albumIdCache.Clear(); // stale IDs cause FK failures if albums were deleted between scans
 
         _logger.LogInformation(
             "═══ 扫描开始 ═══  目录数: {DirCount}  递归: {Recursive}",
@@ -169,9 +170,10 @@ public sealed class ScanService : IDisposable
 
         if (settings.ScanDirectories.Count == 0)
         {
-            _logger.LogWarning("未配置任何扫描目录，清除所有照片记录。");
+            _logger.LogInformation("未配置任何扫描目录，清除所有照片记录。");
             // No directories → treat every existing photo as stale and remove it.
             await _db.DeleteStalePhotosAsync([], ct).ConfigureAwait(false);
+            await _db.DeleteEmptyAlbumsAsync(ct).ConfigureAwait(false);
             DispatchProgress(new ScanProgress(0, 0, IsCompleted: true), dispatcher, force: true);
             Dispatch(dispatcher, () => ScanCompleted?.Invoke());
             return;
@@ -224,6 +226,14 @@ public sealed class ScanService : IDisposable
         {
             await foreach (var path in channel.Reader.ReadAllAsync(ct).ConfigureAwait(false))
             {
+                // Skip files whose parent scan directory was removed after enumeration
+                if (!BelongsToAnyScanDir(path, settings))
+                {
+                    _logger.LogDebug("跳过已移除目录中的文件: {Path}", path);
+                    Interlocked.Increment(ref processed);
+                    continue;
+                }
+
                 await ProcessFileAsync(path, knownPhotos, ct).ConfigureAwait(false);
 
                 int n = Interlocked.Increment(ref processed);
@@ -251,6 +261,10 @@ public sealed class ScanService : IDisposable
         // ── 7. Prune stale DB records ─────────────────────────────────────────
         if (!ct.IsCancellationRequested)
             await _db.DeleteStalePhotosAsync(allFiles, ct).ConfigureAwait(false);
+
+        // ── 7b. Remove albums that are now empty (e.g. scan directory was removed) ─
+        if (!ct.IsCancellationRequested)
+            await _db.DeleteEmptyAlbumsAsync(ct).ConfigureAwait(false);
 
         // ── 8. Repair photos that were previously inserted without an AlbumId ──
         if (!ct.IsCancellationRequested)
@@ -313,6 +327,23 @@ public sealed class ScanService : IDisposable
         {
             if (!string.IsNullOrEmpty(excl) &&
                 path.StartsWith(excl, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when <paramref name="filePath"/> starts with at least one of the
+    /// currently configured scan directories in <paramref name="settings"/>.
+    /// Called inside the worker loop so that files whose parent directory was removed by the
+    /// user after enumeration are silently skipped rather than written to the database.
+    /// </summary>
+    private static bool BelongsToAnyScanDir(string filePath, AppSettings settings)
+    {
+        foreach (var dir in settings.ScanDirectories)
+        {
+            if (!string.IsNullOrEmpty(dir) &&
+                filePath.StartsWith(dir, StringComparison.OrdinalIgnoreCase))
                 return true;
         }
         return false;
