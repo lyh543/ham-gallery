@@ -52,7 +52,8 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     // ── Behaviour ───────────────────────────────────────────────────────
     [ObservableProperty] public partial bool ConfirmBeforeDelete        { get; set; }
-    [ObservableProperty] public partial int  PreloadCount               { get; set; }
+    [ObservableProperty] public partial int  PreloadCountBack            { get; set; }
+    [ObservableProperty] public partial int  PreloadCountForward         { get; set; }
     [ObservableProperty] public partial int  ThumbnailSizeIndex         { get; set; }
 
     // ── Debug ────────────────────────────────────────────────────────────────
@@ -199,7 +200,8 @@ public sealed partial class SettingsViewModel : ObservableObject
             Theme                    = _settings.Theme;
             UseAcrylicBackdrop       = _settings.UseAcrylicBackdrop;
             ConfirmBeforeDelete      = _settings.ConfirmBeforeDelete;
-            PreloadCount             = _settings.PreloadCount;
+            PreloadCountBack         = _settings.PreloadCountBack;
+            PreloadCountForward      = _settings.PreloadCountForward;
             ShowCardSizeToast        = _settings.ShowCardSizeToast;
             RegisterFileAssociations = FileAssociationHelper.AreAssociationsRegistered();
 
@@ -229,7 +231,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         _settings.Theme                    = Theme;
         _settings.UseAcrylicBackdrop       = UseAcrylicBackdrop;
         _settings.ConfirmBeforeDelete      = ConfirmBeforeDelete;
-        _settings.PreloadCount             = PreloadCount;
+        _settings.PreloadCountBack         = PreloadCountBack;
+        _settings.PreloadCountForward      = PreloadCountForward;
         _settings.ThumbnailSize            = ThumbnailSizePixels;
         _settings.ShowCardSizeToast        = ShowCardSizeToast;
         _settings.RegisterFileAssociations = RegisterFileAssociations;
@@ -388,7 +391,13 @@ public sealed partial class SettingsViewModel : ObservableObject
         _ = SaveAsync();
     }
 
-    partial void OnPreloadCountChanged(int value)
+    partial void OnPreloadCountBackChanged(int value)
+    {
+        if (!_isInitialized) return;
+        _ = SaveAsync();
+    }
+
+    partial void OnPreloadCountForwardChanged(int value)
     {
         if (!_isInitialized) return;
         _ = SaveAsync();

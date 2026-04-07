@@ -73,6 +73,7 @@ public sealed partial class PhotoDetailPage : Page
 
         _wicLoader  = App.Current.Services.GetRequiredService<WicImageLoader>();
         _heicLoader = App.Current.Services.GetRequiredService<HeicImageLoader>();
+        ApplyPreloadCount(ViewModel.PreloadCountBack, ViewModel.PreloadCountForward);
 
         // Auto-hide timer
         _hideTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
@@ -134,6 +135,19 @@ public sealed partial class PhotoDetailPage : Page
         _cts.Cancel();
         ViewModel.PropertyChanged -= ViewModel_PropertyChanged;
         ViewModel.Dispose();
+
+        // Release the currently displayed BitmapImage so the WIC decoder surface
+        // (~48 MB per 12 MP HEIC in BGRA8) is freed as soon as GC runs.
+        // Without this, the page stays in Frame's BackStack with MainImage.Source
+        // still set, keeping the COM reference count alive and locking WIC memory.
+        ZoomImage.SetLoading();
+
+        // Loaders are singletons; clear their caches when leaving the page so
+        // BitmapImage objects (and their GPU/WIC memory) are released promptly.
+        _wicLoader.ClearCache();
+        _heicLoader.ClearCache();
+
+        _logger.LogDebug("OnNavigatedFrom: image caches cleared");
     }
 
     // ── Image loading ─────────────────────────────────────────────────────────
@@ -144,6 +158,7 @@ public sealed partial class PhotoDetailPage : Page
         if (string.IsNullOrEmpty(path)) return;
 
         _logger.LogDebug("LoadCurrentImage: {Path}", path);
+        ZoomImage.SetLoading();
         try
         {
             var loader = GetLoader(path);
@@ -235,7 +250,19 @@ public sealed partial class PhotoDetailPage : Page
             case nameof(PhotoDetailViewModel.CurrentIndex):
                 SyncFilmStripSelection();
                 break;
+
+            case nameof(PhotoDetailViewModel.PreloadCountBack):
+            case nameof(PhotoDetailViewModel.PreloadCountForward):
+                ApplyPreloadCount(ViewModel.PreloadCountBack, ViewModel.PreloadCountForward);
+                break;
         }
+    }
+
+    private void ApplyPreloadCount(int back, int forward)
+    {
+        int cacheSize = back + forward + 1;
+        _wicLoader.MaxCacheSize  = cacheSize;
+        _heicLoader.MaxCacheSize = cacheSize;
     }
 
     // ── Toolbar chrome show / hide ────────────────────────────────────────────

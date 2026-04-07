@@ -113,8 +113,11 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
     /// <summary>Whether to show a confirmation dialog before deleting.</summary>
     public bool ConfirmBeforeDelete => _settings.ConfirmBeforeDelete;
 
-    /// <summary>Number of adjacent photos to preload (from settings, default 5).</summary>
-    public int PreloadCount => _settings.PreloadCount;
+    /// <summary>Number of photos before the current one to preload (from settings, default 2).</summary>
+    public int PreloadCountBack => _settings.PreloadCountBack;
+
+    /// <summary>Number of photos after the current one to preload (from settings, default 5).</summary>
+    public int PreloadCountForward => _settings.PreloadCountForward;
 
     // ── Filmstrip ───────────────────────────────────────────────────────────
 
@@ -169,20 +172,28 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
 
     /// <summary>
     /// Returns the file paths of adjacent photos to preload.
-    /// Preloads <see cref="PreloadCount"/> photos in each direction (N±1 … N±PreloadCount),
-    /// totalling up to <c>PreloadCount * 2</c> photos, next photos weighted first.
+    /// Preloads <see cref="PreloadCountForward"/> photos after and <see cref="PreloadCountBack"/>
+    /// photos before the current one, forward photos weighted first.
     /// </summary>
     public IReadOnlyList<string> GetPreloadPaths(int currentIndex)
     {
-        var result = new List<string>();
-        int count  = PreloadCount;
+        var result   = new List<string>();
+        int forward  = PreloadCountForward;
+        int back     = PreloadCountBack;
+        int maxSteps = Math.Max(forward, back);
 
-        // Build alternating deltas: +1,-1,+2,-2,...,+count,-count
-        for (int step = 1; step <= count; step++)
+        // Interleave forward (+) and backward (-) steps, forward first each round
+        for (int step = 1; step <= maxSteps; step++)
         {
-            foreach (int sign in new[] { 1, -1 })
+            if (step <= forward)
             {
-                int i = currentIndex + sign * step;
+                int i = currentIndex + step;
+                if (i >= 0 && i < _photos.Count)
+                    result.Add(_photos[i].FilePath);
+            }
+            if (step <= back)
+            {
+                int i = currentIndex - step;
                 if (i >= 0 && i < _photos.Count)
                     result.Add(_photos[i].FilePath);
             }

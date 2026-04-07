@@ -129,6 +129,15 @@ public sealed partial class SettingsPage : Page
     }
 
     // ────────────────────────────────────────────────────────────────────
+    // Debug
+    // ────────────────────────────────────────────────────────────────────
+
+    private void ForceGC_Click(object sender, RoutedEventArgs e)
+    {
+        GC.Collect(2, GCCollectionMode.Forced, blocking: false);
+    }
+
+    // ────────────────────────────────────────────────────────────────────
     // InfoBar closed
     // ────────────────────────────────────────────────────────────────────
 

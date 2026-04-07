@@ -104,6 +104,18 @@ public sealed partial class ZoomableImage : UserControl
     public BitmapImage? CurrentBitmap { get; private set; }
 
     /// <summary>
+    /// Clears the current image and shows the loading indicator immediately.
+    /// Call this before awaiting a slow decode so the old image disappears right away.
+    /// </summary>
+    public void SetLoading()
+    {
+        MainImage.Source  = null;
+        MainImage.Opacity = 0;
+        CurrentBitmap     = null;
+        ShowLoading();
+    }
+
+    /// <summary>
     /// Displays a <see cref="BitmapImage"/> and fits it to the viewport.
     /// <list type="bullet">
     ///   <item>If already decoded (<see cref="BitmapImage.PixelWidth"/> &gt; 0): shows immediately.</item>

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace FluentGallery.Loaders;
@@ -20,11 +21,20 @@ public sealed class WicImageLoader : IImageLoader
     private static readonly HashSet<string> _heicExts =
         new(StringComparer.OrdinalIgnoreCase) { ".heic", ".heif" };
 
+    private readonly ILogger<WicImageLoader> _logger;
+
     // FIFO cache bounded by MaxCacheSize.
     private readonly Dictionary<string, BitmapImage> _cache =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly List<string> _insertionOrder = [];
-    private const int MaxCacheSize = 11;
+
+    /// <inheritdoc/>
+    public int MaxCacheSize { get; set; } = 11;
+
+    public WicImageLoader(ILogger<WicImageLoader> logger)
+    {
+        _logger = logger;
+    }
 
     // ── IImageLoader ──────────────────────────────────────────────────────────
 
@@ -73,5 +83,13 @@ public sealed class WicImageLoader : IImageLoader
             _insertionOrder.RemoveAt(0);
             _cache.Remove(oldest);
         }
+
+        _logger.LogDebug(
+            "WicCache [{Count}/{Max}] First={First} Last={Last} Added={Added}",
+            _insertionOrder.Count,
+            MaxCacheSize,
+            Path.GetFileName(_insertionOrder[0]),
+            Path.GetFileName(_insertionOrder[^1]),
+            Path.GetFileName(path));
     }
 }

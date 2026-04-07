@@ -417,28 +417,46 @@
                 Margin="4,16,0,6" />
 
             <!-- Preload count -->
-            <ctk:SettingsCard
+            <ctk:SettingsExpander
                 Header="预加载张数"
-                Description="预加载更多张数，快速翻看时更流畅，但会占用更多内存（1–5 张）">
-                <ctk:SettingsCard.HeaderIcon>
+                Description="预加载更多张数，快速翻看时更流畅，但会占用更多内存"
+                IsExpanded="True">
+                <ctk:SettingsExpander.HeaderIcon>
                     <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8C8;" />
-                </ctk:SettingsCard.HeaderIcon>
-                <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                    <Slider
-                        Value="{x:Bind ViewModel.PreloadCount, Mode=TwoWay}"
-                        Minimum="1"
-                        Maximum="5"
-                        StepFrequency="1"
-                        TickFrequency="1"
-                        TickPlacement="Outside"
-                        Width="180" />
-                    <TextBlock
-                        Text="{x:Bind ViewModel.PreloadCount, Mode=OneWay}"
-                        VerticalAlignment="Center"
-                        Style="{ThemeResource BodyStrongTextBlockStyle}"
-                        MinWidth="16" />
-                </StackPanel>
-            </ctk:SettingsCard>
+                </ctk:SettingsExpander.HeaderIcon>
+                <ctk:SettingsExpander.Items>
+                    <ctk:SettingsCard Header="向前预加载张数" Description="额外预加载前方图片">
+                        <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                            <Slider
+                                Value="{x:Bind ViewModel.PreloadCountBack, Mode=TwoWay}"
+                                Minimum="0"
+                                Maximum="5"
+                                StepFrequency="1"
+                                Width="200" />
+                            <TextBlock
+                                Text="{x:Bind ViewModel.PreloadCountBack, Mode=OneWay}"
+                                VerticalAlignment="Center"
+                                Style="{ThemeResource BodyStrongTextBlockStyle}"
+                                MinWidth="20" />
+                        </StackPanel>
+                    </ctk:SettingsCard>
+                    <ctk:SettingsCard Header="向后预加载张数" Description="额外预加载后方图片">
+                        <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                            <Slider
+                                Value="{x:Bind ViewModel.PreloadCountForward, Mode=TwoWay}"
+                                Minimum="0"
+                                Maximum="10"
+                                StepFrequency="1"
+                                Width="200" />
+                            <TextBlock
+                                Text="{x:Bind ViewModel.PreloadCountForward, Mode=OneWay}"
+                                VerticalAlignment="Center"
+                                Style="{ThemeResource BodyStrongTextBlockStyle}"
+                                MinWidth="20" />
+                        </StackPanel>
+                    </ctk:SettingsCard>
+                </ctk:SettingsExpander.Items>
+            </ctk:SettingsExpander>
 
             <!-- Thumbnail size -->
             <ctk:SettingsCard
@@ -453,8 +471,6 @@
                         Minimum="0"
                         Maximum="7"
                         StepFrequency="1"
-                        TickFrequency="1"
-                        TickPlacement="Outside"
                         IsThumbToolTipEnabled="False"
                         Width="200" />
                     <TextBlock
@@ -487,6 +503,16 @@
                 Text="调试"
                 Style="{ThemeResource SubtitleTextBlockStyle}"
                 Margin="4,16,0,6" />
+
+            <!-- Force GC -->
+            <ctk:SettingsCard
+                Header="强制 GC"
+                Description="释放非托管内存（WIC 解码面、COM 对象）。切换页面后内存未及时回收时使用。">
+                <ctk:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE74D;" />
+                </ctk:SettingsCard.HeaderIcon>
+                <Button Content="立即回收" Click="ForceGC_Click" />
+            </ctk:SettingsCard>
 
             <!-- Show card size toast -->
             <ctk:SettingsCard

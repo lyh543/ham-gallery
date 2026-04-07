@@ -30,4 +30,11 @@ public interface IImageLoader
 
     /// <summary>Clears the internal preload cache.</summary>
     void ClearCache();
+
+    /// <summary>
+    /// Maximum number of entries kept in the internal cache.
+    /// Set to <c>PreloadCountBack + PreloadCountForward + 1</c> so the cache covers the current photo
+    /// plus all preloaded neighbours in both directions.
+    /// </summary>
+    int MaxCacheSize { get; set; }
 }

@@ -48,7 +48,9 @@ public sealed class HeicImageLoader : IImageLoader
     private readonly Dictionary<string, byte[]> _pngCache =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly List<string> _insertionOrder = [];
-    private const int MaxCacheSize = 11;
+
+    /// <inheritdoc/>
+    public int MaxCacheSize { get; set; } = 11;
 
     public HeicImageLoader(ImageDecoderPipeline pipeline, ILogger<HeicImageLoader> logger)
     {
@@ -94,29 +96,34 @@ public sealed class HeicImageLoader : IImageLoader
     /// Must be called from the UI thread.
     public async Task<BitmapImage?> LoadAsync(string filePath, CancellationToken ct)
     {
-        byte[]? pngBytes;
-
-        if (!_pngCache.TryGetValue(filePath, out pngBytes))
+        // Run decode + encode on a background thread so we don't block the UI.
+        // Intentionally NO ConfigureAwait(false) on Task.Run: we need the continuation
+        // to resume on the UI SynchronizationContext for BitmapImage + SetSourceAsync.
+#pragma warning disable CAC001
+        var pngBytes = await Task.Run(async () =>
+#pragma warning restore CAC001
         {
+            if (_pngCache.TryGetValue(filePath, out var cached)) return cached;
+
             await _semaphore.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                if (!_pngCache.TryGetValue(filePath, out pngBytes))
-                {
-                    var decoded = await _pipeline
-                        .TryDecodeAsync(filePath, 0, 0, ct, concurrentSafe: true)
-                        .ConfigureAwait(false);
-                    if (decoded is null) return null;
-                    pngBytes = await EncodeToPngBytesAsync(decoded, ct).ConfigureAwait(false);
-                    AddToCache(filePath, pngBytes);
-                }
+                if (_pngCache.TryGetValue(filePath, out var cached2)) return cached2;
+                var decoded = await _pipeline
+                    .TryDecodeAsync(filePath, 0, 0, ct, concurrentSafe: true)
+                    .ConfigureAwait(false);
+                if (decoded is null) return null;
+                var bytes = await EncodeToPngBytesAsync(decoded, ct).ConfigureAwait(false);
+                AddToCache(filePath, bytes);
+                return bytes;
             }
             finally { _semaphore.Release(); }
-        }
+        }, ct);
 
+        if (pngBytes is null) return null;
         ct.ThrowIfCancellationRequested();
 
-        // SetSourceAsync must run on the UI thread (caller's responsibility).
+        // Now on the UI thread — BitmapImage and SetSourceAsync are safe.
         using var stream = new MemoryStream(pngBytes).AsRandomAccessStream();
         var bmp = new BitmapImage();
         await bmp.SetSourceAsync(stream);
@@ -180,5 +187,15 @@ public sealed class HeicImageLoader : IImageLoader
             _insertionOrder.RemoveAt(0);
             _pngCache.Remove(oldest);
         }
+
+        long totalBytes = _pngCache.Values.Sum(b => (long)b.Length);
+        _logger.LogDebug(
+            "HeicCache [{Count}/{Max}] First={First} Last={Last} Added={Added} TotalMB={TotalMB:F1}",
+            _insertionOrder.Count,
+            MaxCacheSize,
+            Path.GetFileName(_insertionOrder[0]),
+            Path.GetFileName(_insertionOrder[^1]),
+            Path.GetFileName(path),
+            totalBytes / (1024.0 * 1024.0));
     }
 }
