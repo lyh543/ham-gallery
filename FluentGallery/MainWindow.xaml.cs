@@ -51,6 +51,8 @@ public sealed partial class MainWindow : Window
 
         Closed += OnWindowClosed;
 
+        Title = AppDataPaths.DisplayName;
+
         // Navigate to default page
         NavView.SelectedItem = AlbumsNavItem;
 
