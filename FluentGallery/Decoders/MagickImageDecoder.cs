@@ -29,6 +29,10 @@ public sealed class MagickImageDecoder : IImageDecoder
     public bool IsAvailable => true;
 
     /// <inheritdoc/>
+    /// Magick.NET (libheif) is thread-safe for concurrent decode calls.
+    public bool SupportsConcurrentDecode => true;
+
+    /// <inheritdoc/>
     public Task<DecodedImageData> DecodeAsync(
         string filePath, uint maxWidth, uint maxHeight, CancellationToken ct)
     {

@@ -1,4 +1,5 @@
 using FluentGallery.Decoders;
+using FluentGallery.Loaders;
 using System.Runtime.InteropServices.WindowsRuntime;
 using Windows.Graphics.Imaging;
 using Xunit;
@@ -221,5 +222,51 @@ public sealed class HeicPreloadTests
         // The final batch should complete successfully (not cancelled).
         var result = await lastBatchTask!;
         Assert.NotNull(result);
+    }
+
+    // ── 7. HeicImageLoader.EncodeToPngBytesAsync — headless PNG encode ───────
+
+    /// <summary>
+    /// EncodeToPngBytesAsync must return bytes starting with the PNG magic header (\x89PNG).
+    /// This is testable without a UI dispatcher because BitmapEncoder with an
+    /// InMemoryRandomAccessStream does not require WinUI.
+    /// </summary>
+    [Fact]
+    public async Task EncodeToPngBytesAsync_ProducesValidPngHeader()
+    {
+        var pipeline = BuildPipeline();
+        var decoded  = await pipeline.TryDecodeAsync(HeicFixture, 0, 0);
+        Assert.NotNull(decoded);
+
+        var bytes = await HeicImageLoader.EncodeToPngBytesAsync(decoded, CancellationToken.None);
+
+        Assert.True(bytes.Length > 8, "PNG output must be larger than 8 bytes");
+        // PNG magic: 0x89 'P' 'N' 'G' \r \n 0x1A \n
+        Assert.Equal(0x89, bytes[0]);
+        Assert.Equal((byte)'P', bytes[1]);
+        Assert.Equal((byte)'N', bytes[2]);
+        Assert.Equal((byte)'G', bytes[3]);
+    }
+
+    /// <summary>
+    /// The round-trip HEIC → raw → PNG encode must preserve image dimensions:
+    /// decoding the PNG bytes back via BitmapDecoder must yield the same width/height.
+    /// </summary>
+    [Fact]
+    public async Task EncodeToPngBytesAsync_RoundTripPreservesDimensions()
+    {
+        var pipeline = BuildPipeline();
+        var decoded  = await pipeline.TryDecodeAsync(HeicFixture, 0, 0);
+        Assert.NotNull(decoded);
+
+        var bytes = await HeicImageLoader.EncodeToPngBytesAsync(decoded, CancellationToken.None);
+
+        // Decode the PNG bytes back through WIC to check dimensions.
+        using var stream = new MemoryStream(bytes);
+        using var ras    = stream.AsRandomAccessStream();
+        var bmpDecoder   = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(ras);
+
+        Assert.Equal(decoded.Width,  bmpDecoder.PixelWidth);
+        Assert.Equal(decoded.Height, bmpDecoder.PixelHeight);
     }
 }

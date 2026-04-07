@@ -45,6 +45,10 @@
     <Compile Include="..\FluentGallery\Decoders\WicImageDecoder.cs" />
     <Compile Include="..\FluentGallery\Decoders\MagickImageDecoder.cs" />
     <Compile Include="..\FluentGallery\Decoders\ImageDecoderPipeline.cs" />
+    <!-- Image loaders (HeicImageLoader.EncodeToPngBytesAsync is tested headlessly) -->
+    <Compile Include="..\FluentGallery\Loaders\IImageLoader.cs" />
+    <Compile Include="..\FluentGallery\Loaders\WicImageLoader.cs" />
+    <Compile Include="..\FluentGallery\Loaders\HeicImageLoader.cs" />
 
     <!-- Reference data-layer source files directly to avoid the WinExe entry point -->
     <Compile Include="..\FluentGallery\Models\Album.cs" />

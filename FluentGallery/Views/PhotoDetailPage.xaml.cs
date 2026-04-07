@@ -1,17 +1,14 @@
-using FluentGallery.Decoders;
 using FluentGallery.Helpers;
+using FluentGallery.Loaders;
 using FluentGallery.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System.Runtime.InteropServices.WindowsRuntime;
-using Windows.Graphics.Imaging;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
-using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.UI.Xaml.Navigation;
 using Windows.Foundation;
 using Windows.System;
@@ -42,7 +39,7 @@ public sealed partial class PhotoDetailPage : Page
 
     private bool _isFullscreen = false;
 
-    // ── CancellationToken ─────────────────────────────────────────────────────
+    // ── CancellationTokens ────────────────────────────────────────────────────
 
     private CancellationTokenSource _cts = new();
 
@@ -53,31 +50,10 @@ public sealed partial class PhotoDetailPage : Page
 
     private PhotoDetailArgs? _pendingArgs;
 
-    // ── Image preload caches (LRU-evicted, max = PreloadCount * 2 + 1) ────────
-    // Standard formats  → BitmapImage       (_imageCache)
-    // HEIC/HEIF + video → SoftwareBitmapSource (_softwareBitmapCache)
+    // ── Image loaders ─────────────────────────────────────────────────────────
 
-    private readonly Dictionary<string, BitmapImage> _imageCache =
-        new(StringComparer.OrdinalIgnoreCase);
-
-    private readonly record struct SoftwareBitmapEntry(SoftwareBitmapSource Source, int Width, int Height);
-    private readonly Dictionary<string, SoftwareBitmapEntry> _softwareBitmapCache =
-        new(StringComparer.OrdinalIgnoreCase);
-
-    // Tracks paths currently being decoded for preload to avoid duplicate tasks.
-    private readonly HashSet<string> _preloadingPaths = new(StringComparer.OrdinalIgnoreCase);
-
-    // Limits concurrent pipeline decodes for preloading to 1 so preloads don't
-    // compete with the current-image decode or exhaust memory with many HEIC buffers.
-    private static readonly SemaphoreSlim _preloadDecodeSemaphore = new(1, 1);
-
-    private static readonly HashSet<string> _noBitmapCacheExtensions =
-        new(StringComparer.OrdinalIgnoreCase) { ".heic", ".heif" };
-
-    // Lazy-resolved decoder pipeline (same registration as ZoomableImage uses internally).
-    private ImageDecoderPipeline? _decoderPipeline;
-    private ImageDecoderPipeline DecoderPipeline =>
-        _decoderPipeline ??= App.Current.Services.GetRequiredService<ImageDecoderPipeline>();
+    private readonly WicImageLoader  _wicLoader;
+    private readonly HeicImageLoader _heicLoader;
 
     // ── Toast ─────────────────────────────────────────────────────────────────
 
@@ -94,6 +70,9 @@ public sealed partial class PhotoDetailPage : Page
         InitializeComponent();
 
         ViewModel = App.Current.Services.GetRequiredService<PhotoDetailViewModel>();
+
+        _wicLoader  = App.Current.Services.GetRequiredService<WicImageLoader>();
+        _heicLoader = App.Current.Services.GetRequiredService<HeicImageLoader>();
 
         // Auto-hide timer
         _hideTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
@@ -167,45 +146,10 @@ public sealed partial class PhotoDetailPage : Page
         _logger.LogDebug("LoadCurrentImage: {Path}", path);
         try
         {
-            bool isPipeline = _noBitmapCacheExtensions.Contains(Path.GetExtension(path));
-
-            if (isPipeline)
-            {
-                if (_softwareBitmapCache.TryGetValue(path, out var entry))
-                {
-                    await ZoomImage.LoadSoftwareBitmapFromCacheAsync(entry.Source, entry.Width, entry.Height, _cts.Token);
-                }
-                else
-                {
-                    // Cancel any in-flight preloads so they release the semaphore quickly,
-                    // then acquire it ourselves — this serialises ALL WIC HEIC decodes and
-                    // prevents the concurrent-WIC crash that occurs during rapid navigation.
-                    _preloadCts.Cancel();
-                    _preloadCts = new CancellationTokenSource();
-
-                    await _preloadDecodeSemaphore.WaitAsync(_cts.Token);
-                    try
-                    {
-                        // Re-check cache: a preload may have finished just before we cancelled.
-                        if (_softwareBitmapCache.TryGetValue(path, out entry))
-                            await ZoomImage.LoadSoftwareBitmapFromCacheAsync(entry.Source, entry.Width, entry.Height, _cts.Token);
-                        else
-                            await ZoomImage.LoadImageAsync(path, _cts.Token);
-                    }
-                    finally { _preloadDecodeSemaphore.Release(); }
-                }
-            }
-            else
-            {
-                if (_imageCache.TryGetValue(path, out var cached))
-                    await ZoomImage.LoadImageFromCacheAsync(cached, _cts.Token);
-                else
-                {
-                    await ZoomImage.LoadImageAsync(path, _cts.Token);
-                    if (ZoomImage.CurrentBitmap is { } bmp)
-                        AddToCache(path, bmp);
-                }
-            }
+            var loader = GetLoader(path);
+            var bmp    = await loader.LoadAsync(path, _cts.Token);
+            if (bmp is null) return;
+            ZoomImage.SetSource(bmp, _cts.Token);
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { _logger.LogWarning(ex, "LoadCurrentImage failed: {Path}", path); }
@@ -215,94 +159,12 @@ public sealed partial class PhotoDetailPage : Page
 
     private void PreloadAdjacent(int currentIndex)
     {
-        var paths = ViewModel.GetPreloadPaths(currentIndex);
-        foreach (var path in paths)
-        {
-            var ext = Path.GetExtension(path);
-            if (_noBitmapCacheExtensions.Contains(ext))
-            {
-                // HEIC/HEIF: decode in background → SoftwareBitmapSource
-                if (!_softwareBitmapCache.ContainsKey(path) && !_preloadingPaths.Contains(path))
-                    _ = PreloadSoftwareBitmapAsync(path, _preloadCts.Token);
-            }
-            else
-            {
-                if (_imageCache.ContainsKey(path)) continue;
-                try
-                {
-                    var bmp = new BitmapImage(new Uri(path));
-                    AddToCache(path, bmp);
-                }
-                catch { /* skip invalid paths */ }
-            }
-        }
+        foreach (var path in ViewModel.GetPreloadPaths(currentIndex))
+            _ = GetLoader(path).PreloadAsync(path, _preloadCts.Token);
     }
 
-    /// <summary>
-    /// Decodes a HEIC/HEIF (or video first-frame) in the background and stores the result
-    /// as a ready-to-display <see cref="SoftwareBitmapSource"/> in <see cref="_softwareBitmapCache"/>.
-    /// Must be fire-and-forgotten from the UI thread so the UI remains responsive.
-    /// </summary>
-    private async Task PreloadSoftwareBitmapAsync(string path, CancellationToken ct)
-    {
-        _preloadingPaths.Add(path);
-        try
-        {
-            await _preloadDecodeSemaphore.WaitAsync(ct);
-            DecodedImageData? decoded;
-            try   { decoded = await DecoderPipeline.TryDecodeAsync(path, 0, 0, ct); }
-            finally { _preloadDecodeSemaphore.Release(); }
-
-            if (decoded is null || ct.IsCancellationRequested) return;
-
-            // Pixel conversion is fast; after TryDecodeAsync the SynchronizationContext
-            // resumes on the UI thread, which is required for SoftwareBitmapSource.
-            using var sbIgnore = SoftwareBitmap.CreateCopyFromBuffer(
-                decoded.Pixels.AsBuffer(),
-                BitmapPixelFormat.Bgra8,
-                (int)decoded.Width,
-                (int)decoded.Height,
-                BitmapAlphaMode.Ignore);
-            using var sbPremul = SoftwareBitmap.Convert(
-                sbIgnore, BitmapPixelFormat.Bgra8, BitmapAlphaMode.Premultiplied);
-
-            if (ct.IsCancellationRequested) return;
-
-            var source = new SoftwareBitmapSource();
-            await source.SetBitmapAsync(sbPremul);
-
-            if (!ct.IsCancellationRequested)
-                AddToSoftwareBitmapCache(path, source, (int)decoded.Width, (int)decoded.Height);
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception ex) { _logger.LogWarning(ex, "PreloadSoftwareBitmap failed: {Path}", path); }
-        finally
-        {
-            _preloadingPaths.Remove(path);
-        }
-    }
-
-    private void AddToCache(string path, BitmapImage bmp)
-    {
-        _imageCache[path] = bmp;
-        int maxCached = ViewModel.PreloadCount * 2 + 1;
-        while (_imageCache.Count > maxCached)
-        {
-            var oldest = _imageCache.Keys.First();
-            _imageCache.Remove(oldest);
-        }
-    }
-
-    private void AddToSoftwareBitmapCache(string path, SoftwareBitmapSource source, int width, int height)
-    {
-        _softwareBitmapCache[path] = new SoftwareBitmapEntry(source, width, height);
-        int maxCached = ViewModel.PreloadCount * 2 + 1;
-        while (_softwareBitmapCache.Count > maxCached)
-        {
-            var oldest = _softwareBitmapCache.Keys.First();
-            _softwareBitmapCache.Remove(oldest);
-        }
-    }
+    private IImageLoader GetLoader(string path) =>
+        _heicLoader.IsSupported(Path.GetExtension(path)) ? _heicLoader : _wicLoader;
 
     // ── ViewModel property changes → UI ───────────────────────────────────────
 
@@ -312,11 +174,11 @@ public sealed partial class PhotoDetailPage : Page
         switch (e.PropertyName)
         {
             case nameof(PhotoDetailViewModel.CurrentImagePath):
+                _preloadCts.Cancel();
+                _preloadCts = new CancellationTokenSource();
                 _ = LoadCurrentImageAsync();
                 UpdateCounterText();
                 TitleText.Text = ViewModel.CurrentPhoto?.FileName ?? string.Empty;
-                _preloadCts.Cancel();
-                _preloadCts = new CancellationTokenSource();
                 PreloadAdjacent(ViewModel.CurrentIndex);
                 break;
 
@@ -569,7 +431,7 @@ public sealed partial class PhotoDetailPage : Page
 
         if (ViewModel.ConfirmBeforeDelete)
         {
-            // Build the checkbox "下次不再提示"
+            // Build the checkbox「下次不再提示」
             var dontAskCheck = new CheckBox
             {
                 Content = "下次不再提示",
@@ -593,7 +455,6 @@ public sealed partial class PhotoDetailPage : Page
 
             if (!confirmed) return;
 
-            // If user checked "下次不再提示", disable confirmation and notify
             if (dontAskCheck.IsChecked == true)
             {
                 await ViewModel.DisableDeleteConfirmAsync(_cts.Token);
@@ -611,7 +472,6 @@ public sealed partial class PhotoDetailPage : Page
 
         ShowToast($"照片「{deletedName}」已删除", ToastKind.Normal, showUndo: true);
 
-        // If no photos remain, go back
         if (ViewModel.CurrentImagePath is null)
         {
             if (Frame.CanGoBack) Frame.GoBack();
@@ -629,13 +489,9 @@ public sealed partial class PhotoDetailPage : Page
         var restoredName = await ViewModel.UndoDeleteAsync(_cts.Token);
 
         if (restoredName is null)
-        {
             ShowToast("恢复失败，文件可能已被移动或删除", ToastKind.Error, showUndo: false);
-        }
         else
-        {
             ShowToast($"照片「{restoredName}」已恢复", ToastKind.Normal, showUndo: false);
-        }
     }
 
     // ── Toast undo button handler ─────────────────────────────────────────────
@@ -651,7 +507,6 @@ public sealed partial class PhotoDetailPage : Page
 
         ToastText.Text = message;
 
-        // Visual mode
         if (kind == ToastKind.Error)
         {
             ToastCard.Background = new SolidColorBrush(Color.FromArgb(0xE0, 0xC0, 0x20, 0x20));
@@ -664,13 +519,9 @@ public sealed partial class PhotoDetailPage : Page
         }
 
         ToastUndoButton.Visibility = showUndo ? Visibility.Visible : Visibility.Collapsed;
-
-        // Make the host hit-testable only when the undo button is shown
         ToastHost.IsHitTestVisible = showUndo;
 
-        // Fade in
         AnimateOpacity(ToastHost, 1.0, durationMs: 180);
-
         _toastTimer.Start();
     }
 

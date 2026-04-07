@@ -54,6 +54,13 @@ public sealed class WicImageDecoder : IImageDecoder
     public bool IsAvailable => _isAvailable.Value;
 
     /// <inheritdoc/>
+    /// WIC HEIC/HEIF codecs are NOT concurrent-safe (COM crash under parallel MTA calls).
+    /// Standard-format WIC codecs (JPEG, PNG, etc.) are safe.
+    public bool SupportsConcurrentDecode =>
+        _extensions.All(e => !string.Equals(e, ".heic", StringComparison.OrdinalIgnoreCase)
+                          && !string.Equals(e, ".heif", StringComparison.OrdinalIgnoreCase));
+
+    /// <inheritdoc/>
     public async Task<DecodedImageData> DecodeAsync(
         string filePath, uint maxWidth, uint maxHeight, CancellationToken ct)
     {

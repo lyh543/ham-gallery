@@ -47,3 +47,5 @@ usersecrets.json
 TestResults/
 
 /data
+
+/.claude/settings.local.json

@@ -1,6 +1,7 @@
 using FluentGallery.Data;
 using FluentGallery.Decoders;
 using FluentGallery.Helpers;
+using FluentGallery.Loaders;
 using FluentGallery.Services;
 using FluentGallery.ViewModels;
 using FluentGallery.Views;
@@ -120,6 +121,10 @@ public partial class App : Application
             pipeline.Register(new MagickImageDecoder());                   // heic/heif built-in fallback
             return pipeline;
         });
+
+        // Image loaders (singleton — share their preload cache across pages)
+        services.AddSingleton<WicImageLoader>();
+        services.AddSingleton<HeicImageLoader>();
 
         // Data services
         services.AddSingleton<ExifService>();

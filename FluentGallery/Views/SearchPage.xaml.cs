@@ -1,5 +1,6 @@
 using FluentGallery.Data;
 using FluentGallery.Helpers;
+using FluentGallery.Loaders;
 using FluentGallery.Models;
 using FluentGallery.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
@@ -176,6 +177,7 @@ public sealed partial class SearchPage : Page
         if (args.Item is PhotoItemViewModel photoVm)
             _ = photoVm.LoadThumbnailAsync(
                     App.Current.Services.GetRequiredService<ThumbnailService>(),
+                    App.Current.Services.GetRequiredService<WicImageLoader>(),
                     _pageCts.Token);
     }
 

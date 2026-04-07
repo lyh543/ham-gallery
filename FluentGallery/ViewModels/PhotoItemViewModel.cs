@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using FluentGallery.Data;
+using FluentGallery.Loaders;
 using FluentGallery.Models;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Serilog;
@@ -44,7 +45,7 @@ public sealed partial class PhotoItemViewModel : ObservableObject
     /// Must be called on the UI thread so that <see cref="BitmapImage"/> is created
     /// on the correct dispatcher.
     /// </summary>
-    public async Task LoadThumbnailAsync(ThumbnailService thumbService, CancellationToken ct = default)
+    public async Task LoadThumbnailAsync(ThumbnailService thumbService, WicImageLoader wicLoader, CancellationToken ct = default)
     {
         if (ThumbnailSource is not null || IsLoading) return;
         IsLoading = true;
@@ -61,11 +62,7 @@ public sealed partial class PhotoItemViewModel : ObservableObject
 
             if (displayPath is null || !File.Exists(displayPath)) return;
 
-            // UriSource triggers a background decode without blocking the UI thread.
-            // SetSourceAsync + File.OpenRead().AsRandomAccessStream() would create
-            // an STA-bound stream on the UI thread, causing WIC to marshal every
-            // buffer read back through the UI message pump.
-            ThumbnailSource = new BitmapImage(new Uri(displayPath));
+            ThumbnailSource = await wicLoader.LoadAsync(displayPath, ct);
         }
         catch (OperationCanceledException)
         {

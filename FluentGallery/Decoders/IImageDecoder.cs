@@ -42,6 +42,14 @@ public interface IImageDecoder
     bool IsAvailable { get; }
 
     /// <summary>
+    /// <c>true</c> when this decoder is safe to call concurrently from multiple threads.
+    /// The WIC HEIC codec (<see cref="WicImageDecoder"/> for HEIC/HEIF) is <c>false</c>
+    /// because its COM implementation crashes under concurrent MTA access.
+    /// <see cref="MagickImageDecoder"/> (libheif) is always <c>true</c>.
+    /// </summary>
+    bool SupportsConcurrentDecode { get; }
+
+    /// <summary>
     /// Decodes the image at <paramref name="filePath"/> and returns BGRA8 pixel data
     /// with EXIF orientation applied; the output is already correctly oriented.
     /// <para>

@@ -1,14 +1,10 @@
-using FluentGallery.Decoders;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Media.Imaging;
-using System.Runtime.InteropServices.WindowsRuntime;
 using Windows.Foundation;
-using Windows.Graphics.Imaging;
 using Windows.System;
 using Windows.UI.Core;
 
@@ -20,7 +16,7 @@ namespace FluentGallery.Controls;
 ///   <item>Pinch-to-zoom (built-in via ScrollViewer ZoomMode="Enabled")</item>
 ///   <item>Mouse-wheel zoom (handled here; no Ctrl required when cursor is over the image)</item>
 ///   <item>Double-tap: toggle between "fit to window" and 100 % (original size)</item>
-///   <item>Asynchronous image loading from a local file path</item>
+///   <item>Asynchronous image display via <see cref="SetSource"/></item>
 ///   <item>Visual rotation via the <see cref="RotationAngle"/> dependency property</item>
 /// </list>
 /// </summary>
@@ -30,15 +26,6 @@ public sealed partial class ZoomableImage : UserControl
 
     private float _fitZoom        = 1f;
     private bool  _isAt100Percent = false;
-
-    // Extensions that require the decoder pipeline instead of BitmapImage.UriSource
-    private static readonly HashSet<string> _pipelineExtensions =
-        new(StringComparer.OrdinalIgnoreCase) { ".heic", ".heif" };
-
-    // Lazy-resolved decoder pipeline (avoids App dependency at construction time)
-    private ImageDecoderPipeline? _decoderPipeline;
-    private ImageDecoderPipeline DecoderPipeline =>
-        _decoderPipeline ??= App.Current.Services.GetRequiredService<ImageDecoderPipeline>();
 
     // ── Swipe-to-navigate events (fired when at fit-zoom + horizontal swipe) ─
 
@@ -117,193 +104,68 @@ public sealed partial class ZoomableImage : UserControl
     public BitmapImage? CurrentBitmap { get; private set; }
 
     /// <summary>
-    /// Loads the image at <paramref name="filePath"/> and fits it to the viewport.
+    /// Displays a <see cref="BitmapImage"/> and fits it to the viewport.
     /// <list type="bullet">
-    ///   <item>Standard formats (JPEG, PNG, …): uses <see cref="BitmapImage.UriSource"/>
-    ///     for non-blocking background decode.</item>
-    ///   <item>HEIC/HEIF: uses <see cref="ImageDecoderPipeline"/> (WIC if available,
-    ///     otherwise the built-in Magick.NET decoder) and displays via
-    ///     <see cref="SoftwareBitmapSource"/>.</item>
+    ///   <item>If already decoded (<see cref="BitmapImage.PixelWidth"/> &gt; 0): shows immediately.</item>
+    ///   <item>Otherwise: attaches <c>ImageOpened</c> / <c>ImageFailed</c> handlers and shows
+    ///     when the background decode completes.</item>
     /// </list>
+    /// Must be called from the UI thread.
     /// </summary>
-    public Task LoadImageAsync(string filePath, CancellationToken ct = default)
+    public void SetSource(BitmapImage bitmap, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
 
         MainImage.Opacity = 0;
         MainImage.Source  = null;
-        CurrentBitmap     = null;
+        CurrentBitmap     = bitmap;
         ShowLoading();
 
-        if (_pipelineExtensions.Contains(Path.GetExtension(filePath)))
-            return LoadViaDecoderPipelineAsync(filePath, ct);
-
-        return LoadViaBitmapImageAsync(filePath, ct);
-    }
-
-    /// <summary>
-    /// HEIC/HEIF path: decodes via <see cref="ImageDecoderPipeline"/> and renders
-    /// using a <see cref="SoftwareBitmapSource"/> (no temporary file, no re-encoding,
-    /// fully lossless).
-    /// </summary>
-    private async Task LoadViaDecoderPipelineAsync(string filePath, CancellationToken ct)
-    {
-        try
+        if (bitmap.PixelWidth > 0)
         {
-            var decoded = await DecoderPipeline.TryDecodeAsync(filePath, 0, 0, ct);
-            if (decoded is null)
-            {
-                HideLoading();
-                return;
-            }
-
-            // Create SoftwareBitmap from raw BGRA8 pixels (un-premultiplied)
-            using var sbIgnore = SoftwareBitmap.CreateCopyFromBuffer(
-                decoded.Pixels.AsBuffer(),
-                BitmapPixelFormat.Bgra8,
-                (int)decoded.Width,
-                (int)decoded.Height,
-                BitmapAlphaMode.Ignore);
-
-            // SoftwareBitmapSource requires Premultiplied alpha
-            using var sbPremul = SoftwareBitmap.Convert(
-                sbIgnore, BitmapPixelFormat.Bgra8, BitmapAlphaMode.Premultiplied);
-
-            var source = new SoftwareBitmapSource();
-            await source.SetBitmapAsync(sbPremul);
-
-            MainImage.Width  = decoded.Width;
-            MainImage.Height = decoded.Height;
-            MainImage.Source = source;
-            _isAt100Percent  = false;
-            FitToWindow();
-            HideLoading();
-            FadeInImage();
-        }
-        catch (OperationCanceledException) { HideLoading(); throw; }
-        catch { HideLoading(); }
-    }
-
-    /// <summary>
-    /// Standard-format path: uses <see cref="BitmapImage.UriSource"/> for
-    /// non-blocking background decode (returns immediately).
-    /// </summary>
-    private Task LoadViaBitmapImageAsync(string filePath, CancellationToken ct)
-    {
-        try
-        {
-            var bmp = new BitmapImage();
-            bmp.ImageOpened += (_, _) =>
-            {
-                // Set explicit size so the ScrollViewer knows the scrollable extent.
-                MainImage.Width  = bmp.PixelWidth;
-                MainImage.Height = bmp.PixelHeight;
-                _isAt100Percent  = false;
-                FitToWindow();
-                HideLoading();
-                FadeInImage();
-            };
-            bmp.ImageFailed += (_, _) => HideLoading();
-            // UriSource triggers background decode without blocking the UI thread,
-            // unlike SetSourceAsync which awaits full decode before returning.
-            bmp.UriSource    = new Uri(filePath);
-            MainImage.Source = bmp;
-            CurrentBitmap    = bmp;
-        }
-        catch (OperationCanceledException) { HideLoading(); throw; }
-        catch { MainImage.Source = null; HideLoading(); }
-
-        return Task.CompletedTask;
-    }
-
-    /// <summary>
-    /// Displays a pre-loaded <see cref="BitmapImage"/> from the caller's cache.
-    /// Falls back to path-based loading if the cached bitmap has no pixel data yet.
-    /// </summary>
-    public Task LoadImageFromCacheAsync(BitmapImage cached, CancellationToken ct = default)
-    {
-        ct.ThrowIfCancellationRequested();
-
-        if (cached.PixelWidth > 0)
-        {
-            // Already decoded — display immediately with a quick fade-in.
-            MainImage.Opacity = 0;
-            MainImage.Source  = cached;
-            CurrentBitmap     = cached;
-            MainImage.Width   = cached.PixelWidth;
-            MainImage.Height  = cached.PixelHeight;
+            // Already decoded — display immediately.
+            MainImage.Source  = bitmap;
+            MainImage.Width   = bitmap.PixelWidth;
+            MainImage.Height  = bitmap.PixelHeight;
             _isAt100Percent   = false;
             FitToWindow();
             HideLoading();
             FadeInImage();
+            return;
         }
-        else
+
+        // Still decoding in background — attach Source now so WinUI continues the decode
+        // and fires ImageOpened.  Setting Source=null here would detach the BitmapImage.
+        MainImage.Source = bitmap;
+
+        RoutedEventHandler?          onOpened = null;
+        ExceptionRoutedEventHandler? onFailed = null;
+
+        onOpened = (_, _) =>
         {
-            // Still decoding in background — attach as Source NOW so WinUI actually
-            // starts / continues the decode and fires ImageOpened. Setting Source=null
-            // here would leave the BitmapImage detached and ImageOpened would never fire.
-            MainImage.Opacity = 0;
-            MainImage.Source  = cached;
-            CurrentBitmap     = cached;
-            ShowLoading();
+            bitmap.ImageOpened -= onOpened;
+            bitmap.ImageFailed -= onFailed;
+            MainImage.Width  = bitmap.PixelWidth;
+            MainImage.Height = bitmap.PixelHeight;
+            _isAt100Percent  = false;
+            FitToWindow();
+            HideLoading();
+            FadeInImage();
+        };
+        onFailed = (_, _) =>
+        {
+            bitmap.ImageOpened -= onOpened;
+            bitmap.ImageFailed -= onFailed;
+            HideLoading();
+        };
 
-            // Use named local handlers so we can unsubscribe after first fire and
-            // avoid accumulating handlers if the same BitmapImage is reused.
-            RoutedEventHandler?          onOpened = null;
-            ExceptionRoutedEventHandler? onFailed = null;
-            onOpened = (_, _) =>
-            {
-                cached.ImageOpened -= onOpened;
-                cached.ImageFailed -= onFailed;
-                MainImage.Width  = cached.PixelWidth;
-                MainImage.Height = cached.PixelHeight;
-                _isAt100Percent  = false;
-                FitToWindow();
-                HideLoading();
-                FadeInImage();
-            };
-            onFailed = (_, _) =>
-            {
-                cached.ImageOpened -= onOpened;
-                cached.ImageFailed -= onFailed;
-                HideLoading();
-            };
-            cached.ImageOpened += onOpened;
-            cached.ImageFailed += onFailed;
-        }
-
-        return Task.CompletedTask;
-    }
-
-    /// <summary>
-    /// Displays a pre-decoded <see cref="SoftwareBitmapSource"/> from the caller's cache
-    /// (used for HEIC/HEIF preloading and video first-frame preloading).
-    /// Call only from the UI thread.
-    /// </summary>
-    public Task LoadSoftwareBitmapFromCacheAsync(SoftwareBitmapSource source, int width, int height,
-        CancellationToken ct = default)
-    {
-        ct.ThrowIfCancellationRequested();
-
-        MainImage.Opacity = 0;
-        MainImage.Source  = source;
-        CurrentBitmap     = null;
-        MainImage.Width   = width;
-        MainImage.Height  = height;
-        _isAt100Percent   = false;
-        FitToWindow();
-        HideLoading();
-        FadeInImage();
-
-        return Task.CompletedTask;
+        bitmap.ImageOpened += onOpened;
+        bitmap.ImageFailed += onFailed;
     }
 
     /// <summary>Scales the image so it fits entirely within the current viewport.</summary>
     public void FitToWindow()
     {
-        // Resolve image dimensions: BitmapImage carries its own, SoftwareBitmapSource
-        // does not, so we fall back to the explicitly set MainImage.Width/Height
-        // (set before calling FitToWindow in both loading paths).
         double imgW, imgH;
         if (MainImage.Source is BitmapImage bmp)
         {
@@ -348,7 +210,7 @@ public sealed partial class ZoomableImage : UserControl
         }
     }
 
-    // ── Mouse-wheel zoom (Ctrl + scroll, per spec) ───────────────────────────
+    // ── Mouse-wheel zoom ─────────────────────────────────────────────────────
 
     private void OnPointerWheelChanged(object sender, PointerRoutedEventArgs e)
     {
@@ -407,7 +269,6 @@ public sealed partial class ZoomableImage : UserControl
 
     private void OnScrollSizeChanged(object sender, SizeChangedEventArgs e)
     {
-        // Re-fit whenever the viewport resizes (e.g. window resize, panel open/close)
         if (!_isAt100Percent)
             FitToWindow();
     }

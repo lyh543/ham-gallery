@@ -45,6 +45,13 @@ public sealed class ImageDecoderTests
     }
 
     [Fact]
+    public void MagickDecoder_SupportsConcurrentDecode_IsTrue()
+    {
+        Assert.True(new MagickImageDecoder().SupportsConcurrentDecode,
+            "MagickImageDecoder must support concurrent decode (libheif is thread-safe).");
+    }
+
+    [Fact]
     public void MagickDecoder_SupportedExtensions_ContainsHeicAndHeif()
     {
         var exts = new MagickImageDecoder().SupportedExtensions;
@@ -187,6 +194,42 @@ public sealed class ImageDecoderTests
     {
         var result = await BuildHeicPipeline().TryDecodeAsync("image.xyz");
         Assert.Null(result);
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // WicImageDecoder — SupportsConcurrentDecode
+    // ════════════════════════════════════════════════════════════════════════
+
+    [Fact]
+    public void WicDecoder_StandardFormats_SupportsConcurrentDecode_IsTrue()
+    {
+        Assert.True(WicImageDecoder.CreateForStandardFormats().SupportsConcurrentDecode,
+            "Standard-format WIC codecs (JPEG, PNG, …) must support concurrent decode.");
+    }
+
+    [Fact]
+    public void WicDecoder_ForHeic_SupportsConcurrentDecode_IsFalse()
+    {
+        Assert.False(WicImageDecoder.CreateForHeic().SupportsConcurrentDecode,
+            "WIC HEIC codec must NOT report concurrent-safe (COM crash under parallel MTA calls).");
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // ImageDecoderPipeline — concurrentSafe filter
+    // ════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// When concurrentSafe=true, GetDecoder must skip WIC HEIC and return Magick.NET
+    /// (assuming both are registered — WIC HEIC may or may not be available).
+    /// </summary>
+    [Fact]
+    public void Pipeline_GetDecoder_ConcurrentSafe_ReturnsMagickForHeic()
+    {
+        var pipeline = BuildHeicPipeline(); // WIC first, Magick fallback
+        var decoder  = pipeline.GetDecoder(HeicFixture, concurrentSafe: true);
+
+        Assert.NotNull(decoder);
+        Assert.IsType<MagickImageDecoder>(decoder);
     }
 
     // ════════════════════════════════════════════════════════════════════════

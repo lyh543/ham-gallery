@@ -40,13 +40,19 @@ public sealed class ImageDecoderPipeline
     /// Returns the highest-priority available decoder for the given file path,
     /// or <c>null</c> when no decoder is registered or available for that extension.
     /// </summary>
-    public IImageDecoder? GetDecoder(string filePath)
+    /// <param name="filePath">Source file path (extension is used for lookup).</param>
+    /// <param name="concurrentSafe">
+    /// When <c>true</c>, only decoders whose <see cref="IImageDecoder.SupportsConcurrentDecode"/>
+    /// is <c>true</c> are considered. Use this when calling from multiple threads simultaneously
+    /// to avoid COM crashes in non-thread-safe codecs (e.g. WIC HEIC).
+    /// </param>
+    public IImageDecoder? GetDecoder(string filePath, bool concurrentSafe = false)
     {
         var ext = Path.GetExtension(filePath);
         if (string.IsNullOrEmpty(ext)) return null;
 
         return _byExtension.TryGetValue(ext, out var list)
-            ? list.FirstOrDefault(d => d.IsAvailable)
+            ? list.FirstOrDefault(d => d.IsAvailable && (!concurrentSafe || d.SupportsConcurrentDecode))
             : null;
     }
 
@@ -65,18 +71,23 @@ public sealed class ImageDecoderPipeline
     /// <see cref="OperationCanceledException"/> is always re-thrown immediately.
     /// </para>
     /// </summary>
+    /// <param name="concurrentSafe">
+    /// When <c>true</c>, skips decoders where <see cref="IImageDecoder.SupportsConcurrentDecode"/>
+    /// is <c>false</c>. Pass <c>true</c> when calling concurrently from multiple threads.
+    /// </param>
     public async Task<DecodedImageData?> TryDecodeAsync(
         string            filePath,
-        uint              maxWidth  = 0,
-        uint              maxHeight = 0,
-        CancellationToken ct        = default)
+        uint              maxWidth      = 0,
+        uint              maxHeight     = 0,
+        CancellationToken ct            = default,
+        bool              concurrentSafe = false)
     {
         var ext = Path.GetExtension(filePath);
         if (string.IsNullOrEmpty(ext)) return null;
 
         if (!_byExtension.TryGetValue(ext, out var decoders)) return null;
 
-        foreach (var decoder in decoders.Where(d => d.IsAvailable))
+        foreach (var decoder in decoders.Where(d => d.IsAvailable && (!concurrentSafe || d.SupportsConcurrentDecode)))
         {
             ct.ThrowIfCancellationRequested();
             try
