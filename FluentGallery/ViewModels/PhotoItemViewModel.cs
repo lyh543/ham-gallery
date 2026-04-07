@@ -2,7 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using FluentGallery.Data;
 using FluentGallery.Loaders;
 using FluentGallery.Models;
-using Microsoft.UI.Xaml.Media.Imaging;
+using Microsoft.UI.Xaml.Media;
 using Serilog;
 
 namespace FluentGallery.ViewModels;
@@ -28,7 +28,7 @@ public sealed partial class PhotoItemViewModel : ObservableObject
 
     // ── Observable state ─────────────────────────────────────────────────────
 
-    [ObservableProperty] public partial BitmapImage? ThumbnailSource { get; set; }
+    [ObservableProperty] public partial ImageSource? ThumbnailSource { get; set; }
     [ObservableProperty] public partial bool         IsLoading       { get; set; }
 
     public PhotoItemViewModel(Photo photo) => _photo = photo;
@@ -62,7 +62,8 @@ public sealed partial class PhotoItemViewModel : ObservableObject
 
             if (displayPath is null || !File.Exists(displayPath)) return;
 
-            ThumbnailSource = await wicLoader.LoadAsync(displayPath, ct);
+            var loaded = await wicLoader.LoadAsync(displayPath, ct);
+            ThumbnailSource = loaded?.Source;
         }
         catch (OperationCanceledException)
         {
@@ -84,6 +85,8 @@ public sealed partial class PhotoItemViewModel : ObservableObject
     /// <summary>Clears the loaded thumbnail (called when an item is recycled by the GridView).</summary>
     public void ClearThumbnail()
     {
+        var old = ThumbnailSource;
         ThumbnailSource = null;
+        (old as IDisposable)?.Dispose();
     }
 }

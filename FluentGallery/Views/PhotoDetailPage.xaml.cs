@@ -46,6 +46,10 @@ public sealed partial class PhotoDetailPage : Page
     // Cancelled and recreated on every intra-page navigation to abort stale preloads.
     private CancellationTokenSource _preloadCts = new();
 
+    // Incremented on every photo navigation; stale LoadCurrentImageAsync completions
+    // check this and discard their result if a newer load has started.
+    private int _loadGeneration = 0;
+
     // ── Pending navigation args (set in OnNavigatedTo, consumed in Loaded) ───
 
     private PhotoDetailArgs? _pendingArgs;
@@ -154,6 +158,7 @@ public sealed partial class PhotoDetailPage : Page
 
     private async Task LoadCurrentImageAsync()
     {
+        int gen  = ++_loadGeneration;
         var path = ViewModel.CurrentImagePath;
         if (string.IsNullOrEmpty(path)) return;
 
@@ -162,9 +167,17 @@ public sealed partial class PhotoDetailPage : Page
         try
         {
             var loader = GetLoader(path);
-            var bmp    = await loader.LoadAsync(path, _cts.Token);
-            if (bmp is null) return;
-            ZoomImage.SetSource(bmp, _cts.Token);
+            var loaded = await loader.LoadAsync(path, _cts.Token);
+            if (loaded is null) return;
+
+            // Another navigation started while we were loading — discard this result.
+            if (gen != _loadGeneration)
+            {
+                (loaded.Source as IDisposable)?.Dispose();
+                return;
+            }
+
+            ZoomImage.SetSource(loaded, _cts.Token);
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { _logger.LogWarning(ex, "LoadCurrentImage failed: {Path}", path); }

@@ -2,6 +2,7 @@ using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Windows.Foundation;
@@ -26,6 +27,10 @@ public sealed partial class ZoomableImage : UserControl
 
     private float _fitZoom        = 1f;
     private bool  _isAt100Percent = false;
+
+    // Tracks the disposable source currently displayed (SoftwareBitmapSource).
+    // BitmapImage (GIF) is not IDisposable so _currentDisposable stays null for those.
+    private IDisposable? _currentDisposable;
 
     // ── Swipe-to-navigate events (fired when at fit-zoom + horizontal swipe) ─
 
@@ -100,45 +105,50 @@ public sealed partial class ZoomableImage : UserControl
 
     // ── Public API ───────────────────────────────────────────────────────────
 
-    /// <summary>The <see cref="BitmapImage"/> currently displayed (null if no image is loaded).</summary>
-    public BitmapImage? CurrentBitmap { get; private set; }
-
     /// <summary>
     /// Clears the current image and shows the loading indicator immediately.
-    /// Call this before awaiting a slow decode so the old image disappears right away.
+    /// Disposes the previous <see cref="SoftwareBitmapSource"/> (if any) so GPU memory
+    /// is released promptly.
     /// </summary>
     public void SetLoading()
     {
         MainImage.Source  = null;
+        MainImage.Width   = 0;
+        MainImage.Height  = 0;
         MainImage.Opacity = 0;
-        CurrentBitmap     = null;
+        _currentDisposable?.Dispose();
+        _currentDisposable = null;
         ShowLoading();
     }
 
     /// <summary>
-    /// Displays a <see cref="BitmapImage"/> and fits it to the viewport.
+    /// Displays a <see cref="LoadedImage"/> and fits it to the viewport.
     /// <list type="bullet">
-    ///   <item>If already decoded (<see cref="BitmapImage.PixelWidth"/> &gt; 0): shows immediately.</item>
-    ///   <item>Otherwise: attaches <c>ImageOpened</c> / <c>ImageFailed</c> handlers and shows
-    ///     when the background decode completes.</item>
+    ///   <item>If <see cref="Loaders.LoadedImage.PixelWidth"/> &gt; 0 (SoftwareBitmapSource):
+    ///     shows immediately.</item>
+    ///   <item>If <see cref="Loaders.LoadedImage.PixelWidth"/> == 0 (BitmapImage / GIF):
+    ///     attaches <c>ImageOpened</c> / <c>ImageFailed</c> handlers and shows when decoded.</item>
     /// </list>
+    /// Disposes the previous <see cref="SoftwareBitmapSource"/> before showing the new image.
     /// Must be called from the UI thread.
     /// </summary>
-    public void SetSource(BitmapImage bitmap, CancellationToken ct = default)
+    public void SetSource(Loaders.LoadedImage image, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
 
+        // Clear Source first so the compositor drops its reference before we dispose.
         MainImage.Opacity = 0;
         MainImage.Source  = null;
-        CurrentBitmap     = bitmap;
+        _currentDisposable?.Dispose();
+        _currentDisposable = image.Source as IDisposable;
         ShowLoading();
 
-        if (bitmap.PixelWidth > 0)
+        if (image.PixelWidth > 0)
         {
-            // Already decoded — display immediately.
-            MainImage.Source  = bitmap;
-            MainImage.Width   = bitmap.PixelWidth;
-            MainImage.Height  = bitmap.PixelHeight;
+            // SoftwareBitmapSource is already decoded — show immediately.
+            MainImage.Source  = image.Source;
+            MainImage.Width   = image.PixelWidth;
+            MainImage.Height  = image.PixelHeight;
             _isAt100Percent   = false;
             FitToWindow();
             HideLoading();
@@ -146,9 +156,10 @@ public sealed partial class ZoomableImage : UserControl
             return;
         }
 
-        // Still decoding in background — attach Source now so WinUI continues the decode
-        // and fires ImageOpened.  Setting Source=null here would detach the BitmapImage.
-        MainImage.Source = bitmap;
+        // BitmapImage / GIF: still decoding in background — wait for ImageOpened.
+        MainImage.Source = image.Source;
+
+        if (image.Source is not BitmapImage bitmap) return;
 
         RoutedEventHandler?          onOpened = null;
         ExceptionRoutedEventHandler? onFailed = null;
@@ -178,19 +189,10 @@ public sealed partial class ZoomableImage : UserControl
     /// <summary>Scales the image so it fits entirely within the current viewport.</summary>
     public void FitToWindow()
     {
-        double imgW, imgH;
-        if (MainImage.Source is BitmapImage bmp)
-        {
-            if (bmp.PixelWidth == 0) return;
-            imgW = bmp.PixelWidth;
-            imgH = bmp.PixelHeight;
-        }
-        else if (MainImage.Width > 0 && MainImage.Height > 0)
-        {
-            imgW = MainImage.Width;
-            imgH = MainImage.Height;
-        }
-        else return;
+        double imgW = MainImage.Width;
+        double imgH = MainImage.Height;
+
+        if (!double.IsFinite(imgW) || imgW <= 0 || !double.IsFinite(imgH) || imgH <= 0) return;
 
         double vpW = Scroll.ViewportWidth;
         double vpH = Scroll.ViewportHeight;
