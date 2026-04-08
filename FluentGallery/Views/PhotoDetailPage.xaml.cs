@@ -1,3 +1,4 @@
+using FluentGallery.Data;
 using FluentGallery.Helpers;
 using FluentGallery.Loaders;
 using FluentGallery.ViewModels;
@@ -10,6 +11,8 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Navigation;
+using System;
+using System.IO;
 using Windows.Foundation;
 using Windows.System;
 using Windows.UI;
@@ -35,6 +38,18 @@ public sealed partial class PhotoDetailPage : Page
 
     private bool _suppressFilmStripChange = false;
 
+    // ── Filmstrip lazy-loading ────────────────────────────────────────────────
+
+    private HashSet<int> _loadedFilmstripIndices = new();
+    private readonly object _filmstripLoadLock = new();
+
+    // ── Filmstrip drag-scroll ──────────────────────────────────────────────────
+
+    private bool _filmstripDragging = false;
+    private bool _filmstripPointerCaptured = false;
+    private double _filmstripLastX = 0;
+    private Point _filmstripDragStart = default;
+
     // ── Fullscreen ────────────────────────────────────────────────────────────
 
     private bool _isFullscreen = false;
@@ -57,6 +72,7 @@ public sealed partial class PhotoDetailPage : Page
     // Fires 1 s after the last navigation to start/update preload tasks.
     private readonly DispatcherTimer _preloadDebounce;
     private int _pendingPreloadIndex = -1;
+    private bool _isInitialized = false;
 
     // ── Pending navigation args (set in OnNavigatedTo, consumed in Loaded) ───
 
@@ -133,6 +149,16 @@ public sealed partial class PhotoDetailPage : Page
         ElasticScrollHelper.Attach(FilmStrip, ElasticScrollHelper.ScrollAxis.Horizontal);
         ElasticScrollHelper.Attach(InfoScrollViewer);
 
+        // Add pointer event handlers to FilmStrip to capture drag events even on ListViewItems
+        FilmStrip.AddHandler(UIElement.PointerPressedEvent,
+            new PointerEventHandler(FilmStrip_PointerPressed), handledEventsToo: true);
+        FilmStrip.AddHandler(UIElement.PointerMovedEvent,
+            new PointerEventHandler(FilmStrip_PointerMoved), handledEventsToo: true);
+        FilmStrip.AddHandler(UIElement.PointerReleasedEvent,
+            new PointerEventHandler(FilmStrip_PointerReleased), handledEventsToo: true);
+        FilmStrip.AddHandler(UIElement.PointerCanceledEvent,
+            new PointerEventHandler(FilmStrip_PointerReleased), handledEventsToo: true);
+
         var args = _pendingArgs;
         if (args is null) return;
 
@@ -148,6 +174,12 @@ public sealed partial class PhotoDetailPage : Page
         ApplyFilmStripPinState();
         ApplyShowPreloadStatus();
         ShowChrome();
+
+        // Mark initialization complete; subsequent navigations will use debounce
+        _isInitialized = true;
+
+        // Ensure focus so keyboard navigation works immediately
+        Focus(FocusState.Programmatic);
     }
 
     protected override void OnNavigatedFrom(NavigationEventArgs e)
@@ -317,10 +349,19 @@ public sealed partial class PhotoDetailPage : Page
                 _ = LoadCurrentImageAsync();
                 UpdateCounterText();
                 TitleText.Text = ViewModel.CurrentPhoto?.FileName ?? string.Empty;
-                // Debounce: restart the 1s timer so preloads only fire after the user settles.
-                _pendingPreloadIndex = ViewModel.CurrentIndex;
-                _preloadDebounce.Stop();
-                _preloadDebounce.Start();
+                // Only debounce if initialized; skip debounce on first navigation
+                if (_isInitialized)
+                {
+                    _pendingPreloadIndex = ViewModel.CurrentIndex;
+                    _preloadDebounce.Stop();
+                    _preloadDebounce.Start();
+                }
+                else
+                {
+                    // First load: trigger preload immediately without debounce
+                    _pendingPreloadIndex = ViewModel.CurrentIndex;
+                    UpdatePreloadTasks(_pendingPreloadIndex);
+                }
                 break;
 
             case nameof(PhotoDetailViewModel.InfoFileName):
@@ -546,6 +587,8 @@ public sealed partial class PhotoDetailPage : Page
 
     private void FilmStrip_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        // Ignore selection changes while dragging
+        if (_filmstripDragging) return;
         if (_suppressFilmStripChange) return;
         if (FilmStrip.SelectedIndex < 0) return;
         _ = ViewModel.NavigateToIndexAsync(FilmStrip.SelectedIndex, _cts.Token);
@@ -563,6 +606,153 @@ public sealed partial class PhotoDetailPage : Page
         {
             _suppressFilmStripChange = false;
         }
+    }
+
+    // ── Filmstrip lazy-loading (load thumbnails on demand) ────────────────────
+
+    private void FilmStrip_ContainerContentChanging(
+        ListViewBase sender,
+        ContainerContentChangingEventArgs args)
+    {
+        if (args.InRecycleQueue)
+        {
+            return;
+        }
+
+        int index = args.ItemIndex;
+        if (index < 0 || index >= ViewModel.FilmStripItems.Count)
+            return;
+
+        // Only load if not already loaded
+        lock (_filmstripLoadLock)
+        {
+            if (_loadedFilmstripIndices.Contains(index))
+                return;
+            _loadedFilmstripIndices.Add(index);
+        }
+
+        _logger.LogInformation("Filmstrip lazy-loading started for index {Index}", index);
+
+        // Load the thumbnail for this item asynchronously
+        _ = LoadFilmstripThumbnailAsync(index);
+    }
+
+    private async Task LoadFilmstripThumbnailAsync(int index)
+    {
+        try
+        {
+            if (index < 0 || index >= ViewModel.FilmStripItems.Count)
+                return;
+
+            var item = ViewModel.FilmStripItems[index];
+            if (!string.IsNullOrEmpty(item.ThumbPath))
+                return;
+
+            var photo = item.Photo;
+            if (photo == null || string.IsNullOrEmpty(photo.FilePath))
+                return;
+
+            if (!File.Exists(photo.FilePath))
+                return;
+
+            var thumbnail = App.Current.Services.GetRequiredService<ThumbnailService>();
+            var thumbPath = await Task.Run(
+                () => thumbnail.GetOrCreateThumbnailAsync(photo, _cts.Token),
+                _cts.Token);
+
+            if (thumbPath is not null && index < ViewModel.FilmStripItems.Count)
+            {
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    if (index < ViewModel.FilmStripItems.Count)
+                    {
+                        ViewModel.FilmStripItems[index].ThumbPath = thumbPath;
+                        _logger.LogInformation("Filmstrip lazy-loading completed for index {Index}", index);
+                    }
+                });
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Filmstrip thumb load failed for index {Index}", index);
+        }
+    }
+
+    // ── Filmstrip drag-scroll (mouse + touch) ──────────────────────────────────
+
+    private void FilmStrip_PointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        // Only capture for non-touch pointer (mouse, pen)
+        if (e.Pointer.PointerDeviceType == Microsoft.UI.Input.PointerDeviceType.Touch)
+            return;
+
+        var pt = e.GetCurrentPoint(FilmStrip);
+        _filmstripDragStart = pt.Position;
+        _filmstripLastX = _filmstripDragStart.X;
+        _filmstripDragging = false;
+        _filmstripPointerCaptured = FilmStrip.CapturePointer(e.Pointer);
+    }
+
+    private void FilmStrip_PointerMoved(object sender, PointerRoutedEventArgs e)
+    {
+        if (!_filmstripPointerCaptured) return;
+        if (e.Pointer.PointerDeviceType == Microsoft.UI.Input.PointerDeviceType.Touch)
+            return;
+
+        var pt = e.GetCurrentPoint(FilmStrip);
+        double currentX = pt.Position.X;
+        double delta = currentX - _filmstripLastX;
+
+        // Start dragging if movement exceeds threshold
+        if (!_filmstripDragging && Math.Abs(currentX - _filmstripDragStart.X) > 5)
+        {
+            _filmstripDragging = true;
+        }
+
+        if (_filmstripDragging)
+        {
+            if (Math.Abs(delta) > 0.5)
+            {
+                var scrollViewer = FindScrollViewer(FilmStrip);
+                if (scrollViewer != null)
+                {
+                    double newOffset = scrollViewer.HorizontalOffset - delta;
+                    newOffset = Math.Max(0, Math.Min(newOffset, scrollViewer.ScrollableWidth));
+                    scrollViewer.ChangeView(newOffset, null, null, disableAnimation: true);
+                }
+            }
+            e.Handled = true;
+        }
+
+        _filmstripLastX = currentX;
+    }
+
+    private void FilmStrip_PointerReleased(object sender, PointerRoutedEventArgs e)
+    {
+        if (_filmstripDragging)
+        {
+            e.Handled = true;
+        }
+
+        _filmstripDragging = false;
+        _filmstripPointerCaptured = false;
+        FilmStrip.ReleasePointerCapture(e.Pointer);
+    }
+
+    private static ScrollViewer? FindScrollViewer(DependencyObject root)
+    {
+        int count = VisualTreeHelper.GetChildrenCount(root);
+        for (int i = 0; i < count; i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+            if (child is ScrollViewer sv) return sv;
+            var found = FindScrollViewer(child);
+            if (found != null) return found;
+        }
+        return null;
     }
 
     // ── Info panel toggle ─────────────────────────────────────────────────────

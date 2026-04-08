@@ -270,6 +270,7 @@
                 ScrollViewer.HorizontalScrollMode="Enabled"
                 ScrollViewer.VerticalScrollMode="Disabled"
                 SelectionChanged="FilmStrip_SelectionChanged"
+                ContainerContentChanging="FilmStrip_ContainerContentChanging"
                 Height="80"
                 Padding="4,0">
                 <ListView.ItemsPanel>

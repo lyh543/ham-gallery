@@ -587,35 +587,13 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
 
     // ── Background filmstrip thumbnail loader ───────────────────────────────
 
+    /// <summary>
+    /// Lazy-loads filmstrip thumbnails on demand via ContainerContentChanging.
+    /// This method is kept for backward compatibility but now mainly manages
+    /// the preload CTS lifecycle.
+    /// </summary>
     private Task LoadFilmStripThumbsAsync(DispatcherQueue dispatcher, CancellationToken ct)
-        => Task.Run(() => LoadFilmStripThumbsCoreAsync(dispatcher, ct), ct);
-
-    private async Task LoadFilmStripThumbsCoreAsync(DispatcherQueue dispatcher, CancellationToken ct)
-    {
-        for (int i = 0; i < _photos.Count; i++)
-        {
-            if (ct.IsCancellationRequested) break;
-            try
-            {
-                var path = await _thumbnail.GetOrCreateThumbnailAsync(_photos[i], ct)
-                    .ConfigureAwait(false);
-                if (path is null || i >= FilmStripItems.Count) continue;
-
-                int    captured     = i;
-                string capturedPath = path;
-                dispatcher.TryEnqueue(() =>
-                {
-                    if (captured < FilmStripItems.Count)
-                        FilmStripItems[captured].ThumbPath = capturedPath;
-                });
-            }
-            catch (OperationCanceledException) { break; }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Filmstrip thumb failed for index {I}", i);
-            }
-        }
-    }
+        => Task.CompletedTask;
 
     // ── EXIF orientation write-back ─────────────────────────────────────────
 
