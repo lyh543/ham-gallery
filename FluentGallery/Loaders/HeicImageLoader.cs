@@ -1,8 +1,8 @@
 using FluentGallery.Decoders;
 using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml.Media.Imaging;
+using System.Runtime.InteropServices.WindowsRuntime;
 using Windows.Graphics.Imaging;
-using Windows.Storage.Streams;
 
 namespace FluentGallery.Loaders;
 
@@ -11,22 +11,29 @@ namespace FluentGallery.Loaders;
 ///
 /// <para>
 /// <b>Preload strategy:</b> decodes HEIC → raw BGRA8 pixels via
-/// <see cref="ImageDecoderPipeline"/>, then encodes to PNG bytes in memory.
-/// PNG bytes are stored in the bounded preload cache (background-thread-safe,
-/// ~7 MB per 12 MP image vs ~48 MB for raw BGRA8).
+/// <see cref="ImageDecoderPipeline"/> (Magick.NET / libheif, thread-safe) and stores the
+/// <see cref="DecodedImageData"/> pixel buffer directly in the bounded preload cache.
+/// No WIC is used during preloading: all N preloads run fully in parallel.
 /// </para>
 /// <para>
-/// <b>Display:</b> PNG bytes → <see cref="SoftwareBitmap"/> (via <see cref="BitmapDecoder"/>
-/// on a thread-pool MTA thread) → <see cref="SoftwareBitmapSource.SetBitmapAsync"/> on the
-/// UI thread. The caller owns the returned <see cref="SoftwareBitmapSource"/> and must
+/// <b>Display:</b> BGRA8 pixels →
+/// <see cref="SoftwareBitmap.CreateCopyFromBuffer"/> (no WIC, no <see cref="WicGate"/>) →
+/// <see cref="SoftwareBitmap.Convert"/> to Premultiplied →
+/// <see cref="SoftwareBitmapSource.SetBitmapAsync"/> on the UI thread.
+/// The caller owns the returned <see cref="SoftwareBitmapSource"/> and must
 /// <see cref="IDisposable.Dispose"/> it when switching photos.
 /// </para>
 /// <para>
-/// <b>Thread safety:</b> all WIC operations (BitmapEncoder, BitmapDecoder) run on MTA
-/// thread-pool threads and are serialised via <see cref="WicGate"/> to prevent concurrent
-/// access crashes. Only <see cref="SoftwareBitmapSource.SetBitmapAsync"/> runs on the UI
-/// thread (ASTA), as required by WinUI. <see cref="LoadAsync"/> must be called from the UI
-/// thread. <see cref="PreloadAsync"/> can be fire-and-forgotten from any thread.
+/// <b>Thread safety:</b> all decode operations (Magick.NET) run on MTA thread-pool threads
+/// without any global gate; <see cref="WicGate"/> is not used in this loader.
+/// Only <see cref="SoftwareBitmapSource.SetBitmapAsync"/> runs on the UI thread (ASTA).
+/// <see cref="LoadAsync"/> must be called from the UI thread.
+/// <see cref="PreloadAsync"/> can be fire-and-forgotten from any thread.
+/// </para>
+/// <para>
+/// <b>Memory:</b> cache stores raw BGRA8 pixels (~48 MB per 12 MP image vs ~7 MB for
+/// the previous PNG-bytes approach). For the default 8-slot cache this is ~384 MB for
+/// 12 MP images; real usage is proportional to actual image resolution.
 /// </para>
 /// </summary>
 public sealed class HeicImageLoader : IImageLoader
@@ -34,12 +41,12 @@ public sealed class HeicImageLoader : IImageLoader
     private static readonly HashSet<string> _heicExts =
         new(StringComparer.OrdinalIgnoreCase) { ".heic", ".heif" };
 
-    private readonly ImageDecoderPipeline   _pipeline;
+    private readonly ImageDecoderPipeline    _pipeline;
     private readonly ILogger<HeicImageLoader> _logger;
 
-    // PNG bytes preload cache — accessed from Task.Run (thread pool), so all mutations
+    // BGRA8 pixel cache — accessed from Task.Run (thread pool), so all mutations
     // are protected by _cacheLock. Reads that might race a write also use the lock.
-    private readonly Dictionary<string, byte[]> _pngCache =
+    private readonly Dictionary<string, DecodedImageData> _pixelCache =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly List<string> _insertionOrder = [];
     private readonly object _cacheLock = new();
@@ -61,7 +68,7 @@ public sealed class HeicImageLoader : IImageLoader
     /// <inheritdoc/>
     public Task PreloadAsync(string filePath, CancellationToken ct)
     {
-        lock (_cacheLock) { if (_pngCache.ContainsKey(filePath)) return Task.CompletedTask; }
+        lock (_cacheLock) { if (_pixelCache.ContainsKey(filePath)) return Task.CompletedTask; }
         return PreloadInternalAsync(filePath, ct);
     }
 
@@ -69,7 +76,7 @@ public sealed class HeicImageLoader : IImageLoader
     {
         try
         {
-            lock (_cacheLock) { if (_pngCache.ContainsKey(filePath)) return; }
+            lock (_cacheLock) { if (_pixelCache.ContainsKey(filePath)) return; }
             ct.ThrowIfCancellationRequested();
 
             var decoded = await _pipeline
@@ -77,12 +84,7 @@ public sealed class HeicImageLoader : IImageLoader
                 .ConfigureAwait(false);
             if (decoded is null) return;
 
-            // WicGate serialises all WIC BitmapEncoder calls across threads (Low = preload).
-            await WicGate.WaitAsync(WicPriority.Low, ct).ConfigureAwait(false);
-            byte[] bytes;
-            try { bytes = await EncodeToPngBytesAsync(decoded, ct).ConfigureAwait(false); }
-            finally { WicGate.Release(); }
-            AddToCache(filePath, bytes);
+            AddToCache(filePath, decoded);
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { _logger.LogWarning(ex, "HeicImageLoader preload failed: {Path}", filePath); }
@@ -93,49 +95,42 @@ public sealed class HeicImageLoader : IImageLoader
     public async Task<LoadedImage?> LoadAsync(string filePath, CancellationToken ct,
         WicPriority priority = WicPriority.High)
     {
-        // All WIC work (BitmapEncoder + BitmapDecoder) runs on MTA thread-pool threads,
-        // avoiding ASTA/MTA apartment-crossing COMExceptions.
+        // All pixel work runs on a thread-pool MTA thread.
         // Task.Run without ConfigureAwait(false) resumes on the UI SynchronizationContext
         // so SetBitmapAsync is safe.
 #pragma warning disable CAC001
         var (softwareBitmap, w, h) = await Task.Run(async () =>
 #pragma warning restore CAC001
         {
-            // ── Step 1: get PNG bytes (cache hit or fresh encode) ─────────────
-            byte[]? pngBytes;
-            int w = 0, h = 0;
-            lock (_cacheLock) { _pngCache.TryGetValue(filePath, out pngBytes); }
+            // ── Step 1: get decoded pixels (cache hit or fresh decode) ────────
+            DecodedImageData? decoded;
+            lock (_cacheLock) { _pixelCache.TryGetValue(filePath, out decoded); }
 
-            if (pngBytes is null)
+            if (decoded is null)
             {
-                var decoded = await _pipeline
+                decoded = await _pipeline
                     .TryDecodeAsync(filePath, 0, 0, ct, concurrentSafe: true)
                     .ConfigureAwait(false);
                 if (decoded is null) return ((SoftwareBitmap?)null, 0, 0);
-
-                await WicGate.WaitAsync(priority, ct).ConfigureAwait(false);
-                try { pngBytes = await EncodeToPngBytesAsync(decoded, ct).ConfigureAwait(false); }
-                finally { WicGate.Release(); }
-                AddToCache(filePath, pngBytes);
-                w = (int)decoded.Width;
-                h = (int)decoded.Height;
+                AddToCache(filePath, decoded);
             }
 
-            // ── Step 2: PNG bytes → SoftwareBitmap (MTA, WIC-gated) ──────────
-            await WicGate.WaitAsync(priority, ct).ConfigureAwait(false);
-            SoftwareBitmap sb;
-            try
-            {
-                using var stream  = new MemoryStream(pngBytes).AsRandomAccessStream();
-                var decoder = await BitmapDecoder.CreateAsync(stream).AsTask(ct).ConfigureAwait(false);
-                if (w == 0) w = (int)decoder.PixelWidth;
-                if (h == 0) h = (int)decoder.PixelHeight;
-                sb = await decoder
-                    .GetSoftwareBitmapAsync(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Premultiplied)
-                    .AsTask(ct)
-                    .ConfigureAwait(false);
-            }
-            finally { WicGate.Release(); }
+            ct.ThrowIfCancellationRequested();
+
+            int w = (int)decoded.Width;
+            int h = (int)decoded.Height;
+
+            // ── Step 2: BGRA8 pixels → SoftwareBitmap — no WicGate needed ────
+            using var sbIgnore = SoftwareBitmap.CreateCopyFromBuffer(
+                decoded.Pixels.AsBuffer(),
+                BitmapPixelFormat.Bgra8,
+                w, h,
+                BitmapAlphaMode.Ignore);
+
+            var sb = SoftwareBitmap.Convert(
+                sbIgnore,
+                BitmapPixelFormat.Bgra8,
+                BitmapAlphaMode.Premultiplied);
 
             return (sb, w, h);
         }, ct);
@@ -156,52 +151,20 @@ public sealed class HeicImageLoader : IImageLoader
     {
         lock (_cacheLock)
         {
-            _pngCache.Clear();
+            _pixelCache.Clear();
             _insertionOrder.Clear();
         }
-        _logger.LogDebug("HeicImageLoader: PNG preload cache cleared");
-    }
-
-    // ── PNG encoding ──────────────────────────────────────────────────────────
-
-    internal static async Task<byte[]> EncodeToPngBytesAsync(
-        DecodedImageData decoded, CancellationToken ct)
-    {
-        ct.ThrowIfCancellationRequested();
-
-        using var memRas  = new InMemoryRandomAccessStream();
-        var encoder = await BitmapEncoder
-            .CreateAsync(BitmapEncoder.PngEncoderId, memRas)
-            .AsTask(ct)
-            .ConfigureAwait(false);
-
-        encoder.SetPixelData(
-            BitmapPixelFormat.Bgra8,
-            BitmapAlphaMode.Ignore,
-            decoded.Width,
-            decoded.Height,
-            decoded.DpiX,
-            decoded.DpiY,
-            decoded.Pixels);
-
-        await encoder.FlushAsync().AsTask(ct).ConfigureAwait(false);
-
-        memRas.Seek(0);
-        var bytes = new byte[memRas.Size];
-        using var reader = new DataReader(memRas);
-        await reader.LoadAsync((uint)bytes.Length).AsTask(ct).ConfigureAwait(false);
-        reader.ReadBytes(bytes);
-        return bytes;
+        _logger.LogDebug("HeicImageLoader: pixel cache cleared");
     }
 
     // ── Cache helpers ─────────────────────────────────────────────────────────
 
-    private void AddToCache(string path, byte[] bytes)
+    private void AddToCache(string path, DecodedImageData decoded)
     {
         int count; string first, last; long totalBytes;
         lock (_cacheLock)
         {
-            _pngCache[path] = bytes;
+            _pixelCache[path] = decoded;
             _insertionOrder.Remove(path);
             _insertionOrder.Add(path);
 
@@ -209,13 +172,13 @@ public sealed class HeicImageLoader : IImageLoader
             {
                 var oldest = _insertionOrder[0];
                 _insertionOrder.RemoveAt(0);
-                _pngCache.Remove(oldest);
+                _pixelCache.Remove(oldest);
             }
 
             count      = _insertionOrder.Count;
             first      = _insertionOrder[0];
             last       = _insertionOrder[^1];
-            totalBytes = _pngCache.Values.Sum(b => (long)b.Length);
+            totalBytes = _pixelCache.Values.Sum(d => (long)d.Pixels.Length);
         }
 
         _logger.LogDebug(

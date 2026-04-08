@@ -690,19 +690,38 @@ public sealed partial class PhotoDetailPage : Page
             return;
 
         var pt = e.GetCurrentPoint(FilmStrip);
+        // Check if left mouse button or pen is pressed
+        if (!pt.Properties.IsLeftButtonPressed && e.Pointer.PointerDeviceType != Microsoft.UI.Input.PointerDeviceType.Pen)
+            return;
+
         _filmstripDragStart = pt.Position;
         _filmstripLastX = _filmstripDragStart.X;
         _filmstripDragging = false;
-        _filmstripPointerCaptured = FilmStrip.CapturePointer(e.Pointer);
+        _filmstripPointerCaptured = false;
     }
 
     private void FilmStrip_PointerMoved(object sender, PointerRoutedEventArgs e)
     {
-        if (!_filmstripPointerCaptured) return;
         if (e.Pointer.PointerDeviceType == Microsoft.UI.Input.PointerDeviceType.Touch)
             return;
 
         var pt = e.GetCurrentPoint(FilmStrip);
+        
+        // If not pressed, stop dragging
+        if (!pt.Properties.IsLeftButtonPressed && e.Pointer.PointerDeviceType != Microsoft.UI.Input.PointerDeviceType.Pen)
+        {
+            if (_filmstripDragging)
+            {
+                _filmstripDragging = false;
+                if (_filmstripPointerCaptured)
+                {
+                    FilmStrip.ReleasePointerCapture(e.Pointer);
+                    _filmstripPointerCaptured = false;
+                }
+            }
+            return;
+        }
+
         double currentX = pt.Position.X;
         double delta = currentX - _filmstripLastX;
 
@@ -710,19 +729,17 @@ public sealed partial class PhotoDetailPage : Page
         if (!_filmstripDragging && Math.Abs(currentX - _filmstripDragStart.X) > 5)
         {
             _filmstripDragging = true;
+            _filmstripPointerCaptured = FilmStrip.CapturePointer(e.Pointer);
         }
 
-        if (_filmstripDragging)
+        if (_filmstripDragging && Math.Abs(delta) > 0.5)
         {
-            if (Math.Abs(delta) > 0.5)
+            var scrollViewer = FindScrollViewer(FilmStrip);
+            if (scrollViewer != null)
             {
-                var scrollViewer = FindScrollViewer(FilmStrip);
-                if (scrollViewer != null)
-                {
-                    double newOffset = scrollViewer.HorizontalOffset - delta;
-                    newOffset = Math.Max(0, Math.Min(newOffset, scrollViewer.ScrollableWidth));
-                    scrollViewer.ChangeView(newOffset, null, null, disableAnimation: true);
-                }
+                double newOffset = scrollViewer.HorizontalOffset - delta;
+                newOffset = Math.Max(0, Math.Min(newOffset, scrollViewer.ScrollableWidth));
+                scrollViewer.ChangeView(newOffset, null, null, disableAnimation: true);
             }
             e.Handled = true;
         }
@@ -738,8 +755,11 @@ public sealed partial class PhotoDetailPage : Page
         }
 
         _filmstripDragging = false;
-        _filmstripPointerCaptured = false;
-        FilmStrip.ReleasePointerCapture(e.Pointer);
+        if (_filmstripPointerCaptured)
+        {
+            FilmStrip.ReleasePointerCapture(e.Pointer);
+            _filmstripPointerCaptured = false;
+        }
     }
 
     private static ScrollViewer? FindScrollViewer(DependencyObject root)

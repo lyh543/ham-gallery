@@ -45,7 +45,8 @@
     <Compile Include="..\FluentGallery\Decoders\WicImageDecoder.cs" />
     <Compile Include="..\FluentGallery\Decoders\MagickImageDecoder.cs" />
     <Compile Include="..\FluentGallery\Decoders\ImageDecoderPipeline.cs" />
-    <!-- Image loaders (HeicImageLoader.EncodeToPngBytesAsync is tested headlessly) -->
+    <!-- Image loaders (HeicImageLoader display path tested headlessly via CreateCopyFromBuffer) -->
+    <Compile Include="..\FluentGallery\Loaders\WicGate.cs" />
     <Compile Include="..\FluentGallery\Loaders\IImageLoader.cs" />
     <Compile Include="..\FluentGallery\Loaders\WicImageLoader.cs" />
     <Compile Include="..\FluentGallery\Loaders\HeicImageLoader.cs" />
