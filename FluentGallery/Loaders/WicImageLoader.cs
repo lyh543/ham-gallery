@@ -70,7 +70,7 @@ public sealed class WicImageLoader : IImageLoader
         try
         {
 #pragma warning disable CAC002
-            var loaded = await DecodeToLoadedImageAsync(filePath, ct).ConfigureAwait(true);
+            var loaded = await DecodeToLoadedImageAsync(filePath, ct, WicPriority.Low).ConfigureAwait(true);
 #pragma warning restore CAC002
             if (loaded is null) return;
 
@@ -88,7 +88,8 @@ public sealed class WicImageLoader : IImageLoader
     }
 
     /// <inheritdoc/>
-    public async Task<LoadedImage?> LoadAsync(string filePath, CancellationToken ct)
+    public async Task<LoadedImage?> LoadAsync(string filePath, CancellationToken ct,
+        WicPriority priority = WicPriority.High)
     {
         ct.ThrowIfCancellationRequested();
 
@@ -105,7 +106,7 @@ public sealed class WicImageLoader : IImageLoader
         }
 
 #pragma warning disable CAC002
-        return await DecodeToLoadedImageAsync(filePath, ct).ConfigureAwait(true);
+        return await DecodeToLoadedImageAsync(filePath, ct, priority).ConfigureAwait(true);
 #pragma warning restore CAC002
     }
 
@@ -132,7 +133,8 @@ public sealed class WicImageLoader : IImageLoader
     /// Must resume on the UI thread so <see cref="SoftwareBitmapSource.SetBitmapAsync"/> is safe.
     /// </summary>
 #pragma warning disable CAC001
-    private async Task<LoadedImage?> DecodeToLoadedImageAsync(string filePath, CancellationToken ct)
+    private async Task<LoadedImage?> DecodeToLoadedImageAsync(string filePath, CancellationToken ct,
+        WicPriority priority)
     {
         ct.ThrowIfCancellationRequested();
 
@@ -143,7 +145,7 @@ public sealed class WicImageLoader : IImageLoader
         var (softwareBitmap, w, h) = await Task.Run(async () =>
 #pragma warning restore CAC001
         {
-            await WicGate.Semaphore.WaitAsync(ct).ConfigureAwait(false);
+            await WicGate.WaitAsync(priority, ct).ConfigureAwait(false);
             try
             {
                 using var stream  = File.OpenRead(filePath).AsRandomAccessStream();
@@ -154,7 +156,7 @@ public sealed class WicImageLoader : IImageLoader
                     .ConfigureAwait(false);
                 return (sb, (int)decoder.PixelWidth, (int)decoder.PixelHeight);
             }
-            finally { WicGate.Semaphore.Release(); }
+            finally { WicGate.Release(); }
         }, ct);
 
         ct.ThrowIfCancellationRequested();

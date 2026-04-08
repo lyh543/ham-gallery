@@ -43,12 +43,20 @@ public sealed partial class PhotoDetailPage : Page
 
     private CancellationTokenSource _cts = new();
 
-    // Cancelled and recreated on every intra-page navigation to abort stale preloads.
-    private CancellationTokenSource _preloadCts = new();
+    // Per-path CTS for in-flight preload tasks. Allows cancelling individual paths
+    // rather than all at once when the preload window shifts.
+    private readonly Dictionary<string, CancellationTokenSource> _preloadTasks =
+        new(StringComparer.OrdinalIgnoreCase);
 
     // Incremented on every photo navigation; stale LoadCurrentImageAsync completions
     // check this and discard their result if a newer load has started.
     private int _loadGeneration = 0;
+
+    // ── Preload debounce ──────────────────────────────────────────────────────
+
+    // Fires 1 s after the last navigation to start/update preload tasks.
+    private readonly DispatcherTimer _preloadDebounce;
+    private int _pendingPreloadIndex = -1;
 
     // ── Pending navigation args (set in OnNavigatedTo, consumed in Loaded) ───
 
@@ -82,6 +90,15 @@ public sealed partial class PhotoDetailPage : Page
         // Auto-hide timer
         _hideTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
         _hideTimer.Tick += (_, _) => HideChrome();
+
+        // Preload debounce: 1 s after last navigation, compute diff and launch tasks.
+        _preloadDebounce = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _preloadDebounce.Tick += (_, _) =>
+        {
+            _preloadDebounce.Stop();
+            if (_pendingPreloadIndex >= 0)
+                UpdatePreloadTasks(_pendingPreloadIndex);
+        };
 
         // Toast auto-dismiss timer (3 s)
         _toastTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
@@ -137,10 +154,16 @@ public sealed partial class PhotoDetailPage : Page
     {
         base.OnNavigatedFrom(e);
         _hideTimer.Stop();
+        _preloadDebounce.Stop();
         _toastTimer.Stop();
         _cts.Cancel();
         ViewModel.PropertyChanged -= ViewModel_PropertyChanged;
         ViewModel.Dispose();
+
+        // Signal cancellation on all in-flight preload tasks. Do NOT Dispose here —
+        // each task's ContinueWith callback owns the CTS lifetime and will Dispose it.
+        foreach (var cts in _preloadTasks.Values) cts.Cancel();
+        _preloadTasks.Clear();
 
         // Release the currently displayed BitmapImage so the WIC decoder surface
         // (~48 MB per 12 MP HEIC in BGRA8) is freed as soon as GC runs.
@@ -183,6 +206,12 @@ public sealed partial class PhotoDetailPage : Page
             }
 
             ZoomImage.SetSource(loaded, _cts.Token);
+
+            // Mark the directly-loaded photo as preloaded so it won't be re-queued
+            // when UpdatePreloadTasks runs for adjacent photos.
+            var loadedItem = FindFilmStripItem(path);
+            if (loadedItem is not null)
+                loadedItem.PreloadState = PreloadState.Loaded;
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { _logger.LogWarning(ex, "LoadCurrentImage failed: {Path}", path); }
@@ -190,29 +219,67 @@ public sealed partial class PhotoDetailPage : Page
 
     // ── Image preloading ──────────────────────────────────────────────────────
 
-    private void PreloadAdjacent(int currentIndex)
+    /// <summary>
+    /// Computes the diff between the current in-flight preload set and the new window
+    /// around <paramref name="newIndex"/>, then cancels dropped paths and starts new ones.
+    /// Called 1 s after navigation via <see cref="_preloadDebounce"/>.
+    /// </summary>
+    private void UpdatePreloadTasks(int newIndex)
     {
-        var paths = ViewModel.GetPreloadPaths(currentIndex);
-        foreach (var path in paths)
+        var newPaths = new HashSet<string>(
+            ViewModel.GetPreloadPaths(newIndex),
+            StringComparer.OrdinalIgnoreCase);
+
+        // Cancel tasks for paths that are no longer in the preload window.
+        // Only signal Cancel — do NOT Dispose here. The ContinueWith callback owns
+        // the CTS lifetime and will Dispose it when the task finishes.
+        foreach (var path in _preloadTasks.Keys.Where(p => !newPaths.Contains(p)).ToList())
         {
-            var item = ViewModel.FilmStripItems.FirstOrDefault(
-                i => string.Equals(i.Photo.FilePath, path, StringComparison.OrdinalIgnoreCase));
-            if (item is not null && item.PreloadState == PreloadState.NotLoaded)
+            _preloadTasks[path].Cancel();
+            _preloadTasks.Remove(path);
+
+            var item = FindFilmStripItem(path);
+            if (item?.PreloadState == PreloadState.Loading)
+                item.PreloadState = PreloadState.NotLoaded;
+        }
+
+        // Start tasks for new paths not already in-flight, loaded, or loading.
+        foreach (var path in newPaths)
+        {
+            if (_preloadTasks.ContainsKey(path)) continue;
+
+            var item = FindFilmStripItem(path);
+            if (item is null) continue;
+            if (item.PreloadState is PreloadState.Loaded or PreloadState.Loading) continue;
+
+            var cts          = new CancellationTokenSource();
+            var capturedPath = path;
+            var captured     = item;
+            _preloadTasks[path] = cts;
+            item.PreloadState   = PreloadState.Loading;
+
+            _ = GetLoader(path).PreloadAsync(path, cts.Token).ContinueWith(t =>
             {
-                item.PreloadState = PreloadState.Loading;
-                var captured = item;
-                var token    = _preloadCts.Token;
-                _ = GetLoader(path).PreloadAsync(path, token).ContinueWith(_ =>
+                // Capture success before entering DispatcherQueue — do NOT access
+                // cts.Token after this point (CTS may have been cancelled and will
+                // be disposed below, making Token access throw ObjectDisposedException).
+                bool succeeded = t.IsCompletedSuccessfully;
+                DispatcherQueue.TryEnqueue(() =>
                 {
-                    DispatcherQueue.TryEnqueue(() =>
-                    {
-                        if (!token.IsCancellationRequested)
-                            captured.PreloadState = PreloadState.Loaded;
-                    });
-                }, TaskScheduler.Default);
-            }
+                    captured.PreloadState = succeeded ? PreloadState.Loaded : PreloadState.NotLoaded;
+                    // No-op if already removed by a subsequent UpdatePreloadTasks call.
+                    if (_preloadTasks.TryGetValue(capturedPath, out var current) &&
+                        ReferenceEquals(current, cts))
+                        _preloadTasks.Remove(capturedPath);
+                    cts.Dispose();
+                });
+            }, TaskScheduler.Default);
         }
     }
+
+    private PhotoThumbItem? FindFilmStripItem(string path) =>
+        ViewModel.FilmStripItems.FirstOrDefault(
+            i => string.Equals(i.Photo.FilePath, path, StringComparison.OrdinalIgnoreCase));
 
     private IImageLoader GetLoader(string path) =>
         _heicLoader.IsSupported(Path.GetExtension(path)) ? _heicLoader : _wicLoader;
@@ -247,12 +314,13 @@ public sealed partial class PhotoDetailPage : Page
         switch (e.PropertyName)
         {
             case nameof(PhotoDetailViewModel.CurrentImagePath):
-                _preloadCts.Cancel();
-                _preloadCts = new CancellationTokenSource();
                 _ = LoadCurrentImageAsync();
                 UpdateCounterText();
                 TitleText.Text = ViewModel.CurrentPhoto?.FileName ?? string.Empty;
-                PreloadAdjacent(ViewModel.CurrentIndex);
+                // Debounce: restart the 1s timer so preloads only fire after the user settles.
+                _pendingPreloadIndex = ViewModel.CurrentIndex;
+                _preloadDebounce.Stop();
+                _preloadDebounce.Start();
                 break;
 
             case nameof(PhotoDetailViewModel.InfoFileName):

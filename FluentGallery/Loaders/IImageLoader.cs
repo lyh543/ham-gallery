@@ -42,7 +42,12 @@ public interface IImageLoader
     /// The caller owns the returned <see cref="LoadedImage.Source"/> and must dispose it
     /// when done if it implements <see cref="IDisposable"/>.
     /// </summary>
-    Task<LoadedImage?> LoadAsync(string filePath, CancellationToken ct);
+    /// <param name="priority">
+    /// Priority for acquiring the WIC gate. Use <see cref="WicPriority.High"/> for the
+    /// currently-viewed photo and <see cref="WicPriority.Normal"/> for thumbnails.
+    /// </param>
+    Task<LoadedImage?> LoadAsync(string filePath, CancellationToken ct,
+        WicPriority priority = WicPriority.High);
 
     /// <summary>Clears and disposes the internal preload cache.</summary>
     void ClearCache();

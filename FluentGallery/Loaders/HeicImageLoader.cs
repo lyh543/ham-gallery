@@ -77,11 +77,11 @@ public sealed class HeicImageLoader : IImageLoader
                 .ConfigureAwait(false);
             if (decoded is null) return;
 
-            // WicGate serialises all WIC BitmapEncoder calls across threads.
-            await WicGate.Semaphore.WaitAsync(ct).ConfigureAwait(false);
+            // WicGate serialises all WIC BitmapEncoder calls across threads (Low = preload).
+            await WicGate.WaitAsync(WicPriority.Low, ct).ConfigureAwait(false);
             byte[] bytes;
             try { bytes = await EncodeToPngBytesAsync(decoded, ct).ConfigureAwait(false); }
-            finally { WicGate.Semaphore.Release(); }
+            finally { WicGate.Release(); }
             AddToCache(filePath, bytes);
         }
         catch (OperationCanceledException) { }
@@ -90,7 +90,8 @@ public sealed class HeicImageLoader : IImageLoader
 
     /// <inheritdoc/>
     /// Must be called from the UI thread (because of SetBitmapAsync).
-    public async Task<LoadedImage?> LoadAsync(string filePath, CancellationToken ct)
+    public async Task<LoadedImage?> LoadAsync(string filePath, CancellationToken ct,
+        WicPriority priority = WicPriority.High)
     {
         // All WIC work (BitmapEncoder + BitmapDecoder) runs on MTA thread-pool threads,
         // avoiding ASTA/MTA apartment-crossing COMExceptions.
@@ -112,16 +113,16 @@ public sealed class HeicImageLoader : IImageLoader
                     .ConfigureAwait(false);
                 if (decoded is null) return ((SoftwareBitmap?)null, 0, 0);
 
-                await WicGate.Semaphore.WaitAsync(ct).ConfigureAwait(false);
+                await WicGate.WaitAsync(priority, ct).ConfigureAwait(false);
                 try { pngBytes = await EncodeToPngBytesAsync(decoded, ct).ConfigureAwait(false); }
-                finally { WicGate.Semaphore.Release(); }
+                finally { WicGate.Release(); }
                 AddToCache(filePath, pngBytes);
                 w = (int)decoded.Width;
                 h = (int)decoded.Height;
             }
 
             // ── Step 2: PNG bytes → SoftwareBitmap (MTA, WIC-gated) ──────────
-            await WicGate.Semaphore.WaitAsync(ct).ConfigureAwait(false);
+            await WicGate.WaitAsync(priority, ct).ConfigureAwait(false);
             SoftwareBitmap sb;
             try
             {
@@ -134,7 +135,7 @@ public sealed class HeicImageLoader : IImageLoader
                     .AsTask(ct)
                     .ConfigureAwait(false);
             }
-            finally { WicGate.Semaphore.Release(); }
+            finally { WicGate.Release(); }
 
             return (sb, w, h);
         }, ct);

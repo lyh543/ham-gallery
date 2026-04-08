@@ -62,7 +62,7 @@ public sealed partial class PhotoItemViewModel : ObservableObject
 
             if (displayPath is null || !File.Exists(displayPath)) return;
 
-            var loaded = await wicLoader.LoadAsync(displayPath, ct);
+            var loaded = await wicLoader.LoadAsync(displayPath, ct, FluentGallery.Loaders.WicPriority.Normal);
             ThumbnailSource = loaded?.Source;
         }
         catch (OperationCanceledException)
