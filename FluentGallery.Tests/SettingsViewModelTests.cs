@@ -205,7 +205,7 @@ public sealed class SettingsViewModelTests : IAsyncLifetime
             ExcludeDirectories = [@"C:\Skip"],
             RecursiveScan      = false,
             Theme              = 2,
-            PreloadCount       = 4,
+            PreloadCountForward = 4,
             ConfirmBeforeDelete = false,
         });
 
@@ -220,7 +220,7 @@ public sealed class SettingsViewModelTests : IAsyncLifetime
         Assert.Single(vm.ExcludeDirectories);
         Assert.Equal(@"C:\Skip", vm.ExcludeDirectories[0]);
         Assert.Equal(2, vm.Theme);
-        Assert.Equal(4, vm.PreloadCount);
+        Assert.Equal(4, vm.PreloadCountForward);
         Assert.False(vm.ConfirmBeforeDelete);
     }
 
@@ -232,7 +232,7 @@ public sealed class SettingsViewModelTests : IAsyncLifetime
         Assert.Empty(Sut.ScanDirectories);
         Assert.Empty(Sut.ExcludeDirectories);
         Assert.Equal(0, Sut.Theme);           // default = system
-        Assert.Equal(5, Sut.PreloadCount);    // default = 2
+        Assert.Equal(5, Sut.PreloadCountForward);    // default = 5
         Assert.True(Sut.ConfirmBeforeDelete); // default = true
     }
 
@@ -261,7 +261,7 @@ public sealed class SettingsViewModelTests : IAsyncLifetime
         Sut.AddScanDirectory(@"C:\Photos");
         Sut.AddExcludeDirectory(@"C:\Windows");
         Sut.Theme               = 1;
-        Sut.PreloadCount        = 3;
+        Sut.PreloadCountForward = 3;
         Sut.ConfirmBeforeDelete = false;
         Sut.SelectedLanguageIndex = 2; // zh-CN
 
@@ -272,7 +272,7 @@ public sealed class SettingsViewModelTests : IAsyncLifetime
         Assert.Contains(@"C:\Windows", loaded.ExcludeDirectories);
         Assert.True(loaded.RecursiveScan);   // always true
         Assert.Equal(1,      loaded.Theme);
-        Assert.Equal(3,      loaded.PreloadCount);
+        Assert.Equal(3,      loaded.PreloadCountForward);
         Assert.False(loaded.ConfirmBeforeDelete);
         Assert.Equal("zh-CN", loaded.Language);
     }

@@ -299,7 +299,7 @@ public sealed class DatabaseServiceTests : IAsyncLifetime
         {
             Language       = "zh-CN",
             Theme          = 2,
-            PreloadCount   = 4,
+            PreloadCountForward = 4,
             RecursiveScan  = false,
             ScanDirectories = ["C:/Pictures", "D:/Photos"],
         };
@@ -309,7 +309,7 @@ public sealed class DatabaseServiceTests : IAsyncLifetime
 
         Assert.Equal("zh-CN",       loaded.Language);
         Assert.Equal(2,             loaded.Theme);
-        Assert.Equal(4,             loaded.PreloadCount);
+        Assert.Equal(4,             loaded.PreloadCountForward);
         Assert.False(loaded.RecursiveScan);
         Assert.Equal(2,             loaded.ScanDirectories.Count);
         Assert.Contains("C:/Pictures", loaded.ScanDirectories);
@@ -322,7 +322,7 @@ public sealed class DatabaseServiceTests : IAsyncLifetime
 
         Assert.Equal(string.Empty, settings.Language);
         Assert.Equal(0,            settings.Theme);
-        Assert.Equal(5,            settings.PreloadCount);
+        Assert.Equal(5,            settings.PreloadCountForward);
         Assert.True(settings.RecursiveScan);
     }
 
