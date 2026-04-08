@@ -87,6 +87,9 @@ public sealed partial class PhotoItemViewModel : ObservableObject
     {
         var old = ThumbnailSource;
         ThumbnailSource = null;
-        (old as IDisposable)?.Dispose();
+        if (old is IDisposable d)
+            Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread()
+                ?.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                    () => { try { d.Dispose(); } catch { } });
     }
 }

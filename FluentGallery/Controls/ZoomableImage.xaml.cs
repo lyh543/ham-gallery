@@ -103,12 +103,38 @@ public sealed partial class ZoomableImage : UserControl
             new PointerEventHandler(OnScrollPointerCanceled), handledEventsToo: true);
     }
 
+    // ── Deferred disposal ─────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Defers <see cref="IDisposable.Dispose"/> of a <see cref="SoftwareBitmapSource"/>
+    /// to the next message-loop iteration.
+    /// <para>
+    /// Setting <c>MainImage.Source = null</c> batches the property change — the compositor
+    /// may still be rendering with the old surface during the current frame.  Disposing
+    /// immediately frees the GPU texture while the compositor still references it, causing
+    /// a native access-violation crash.  Enqueueing the dispose to the next iteration
+    /// guarantees a layout/render pass has run and the compositor has released the surface.
+    /// </para>
+    /// </summary>
+    private void DeferDispose(IDisposable? disposable)
+    {
+        if (disposable is null) return;
+        // Double-enqueue: two Low-priority iterations give the compositor time to
+        // process Source=null and stop referencing the GPU surface before we release it.
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            {
+                try { disposable.Dispose(); }
+                catch { /* SoftwareBitmapSource.Dispose can stow native exceptions */ }
+            }));
+    }
+
     // ── Public API ───────────────────────────────────────────────────────────
 
     /// <summary>
     /// Clears the current image and shows the loading indicator immediately.
-    /// Disposes the previous <see cref="SoftwareBitmapSource"/> (if any) so GPU memory
-    /// is released promptly.
+    /// Releases GPU memory of the previous <see cref="SoftwareBitmapSource"/> after the
+    /// compositor has stopped using it (deferred to next message-loop iteration).
     /// </summary>
     public void SetLoading()
     {
@@ -116,7 +142,7 @@ public sealed partial class ZoomableImage : UserControl
         MainImage.Width   = 0;
         MainImage.Height  = 0;
         MainImage.Opacity = 0;
-        _currentDisposable?.Dispose();
+        DeferDispose(_currentDisposable);
         _currentDisposable = null;
         ShowLoading();
     }
@@ -136,10 +162,10 @@ public sealed partial class ZoomableImage : UserControl
     {
         ct.ThrowIfCancellationRequested();
 
-        // Clear Source first so the compositor drops its reference before we dispose.
+        // Clear Source so the compositor stops using the old surface.
         MainImage.Opacity = 0;
         MainImage.Source  = null;
-        _currentDisposable?.Dispose();
+        DeferDispose(_currentDisposable);
         _currentDisposable = image.Source as IDisposable;
         ShowLoading();
 

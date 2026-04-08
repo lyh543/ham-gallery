@@ -69,7 +69,9 @@ public sealed class WicImageLoader : IImageLoader
     {
         try
         {
+#pragma warning disable CAC002
             var loaded = await DecodeToLoadedImageAsync(filePath, ct).ConfigureAwait(true);
+#pragma warning restore CAC002
             if (loaded is null) return;
 
             if (_preloadCache.ContainsKey(filePath))
@@ -102,16 +104,21 @@ public sealed class WicImageLoader : IImageLoader
             return cached;
         }
 
+#pragma warning disable CAC002
         return await DecodeToLoadedImageAsync(filePath, ct).ConfigureAwait(true);
+#pragma warning restore CAC002
     }
 
     /// <inheritdoc/>
     public void ClearCache()
     {
-        // Safe to dispose: these are preloaded-but-not-yet-consumed entries.
-        // No consumer holds a reference to them.
+        var dq = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
         foreach (var entry in _preloadCache.Values)
-            (entry.Source as IDisposable)?.Dispose();
+        {
+            if (entry.Source is IDisposable d)
+                dq?.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                    () => { try { d.Dispose(); } catch { } });
+        }
 
         _preloadCache.Clear();
         _insertionOrder.Clear();
@@ -131,16 +138,23 @@ public sealed class WicImageLoader : IImageLoader
 
         // Decode on a background thread; Task.Run without ConfigureAwait(false) resumes
         // on the UI SynchronizationContext, making SetBitmapAsync safe.
+        // WIC BitmapDecoder is serialised via WicGate to prevent native crashes from
+        // concurrent WIC COM access on MTA threads.
         var (softwareBitmap, w, h) = await Task.Run(async () =>
 #pragma warning restore CAC001
         {
-            using var stream  = File.OpenRead(filePath).AsRandomAccessStream();
-            var decoder = await BitmapDecoder.CreateAsync(stream).AsTask(ct).ConfigureAwait(false);
-            var sb = await decoder
-                .GetSoftwareBitmapAsync(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Premultiplied)
-                .AsTask(ct)
-                .ConfigureAwait(false);
-            return (sb, (int)decoder.PixelWidth, (int)decoder.PixelHeight);
+            await WicGate.Semaphore.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                using var stream  = File.OpenRead(filePath).AsRandomAccessStream();
+                var decoder = await BitmapDecoder.CreateAsync(stream).AsTask(ct).ConfigureAwait(false);
+                var sb = await decoder
+                    .GetSoftwareBitmapAsync(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Premultiplied)
+                    .AsTask(ct)
+                    .ConfigureAwait(false);
+                return (sb, (int)decoder.PixelWidth, (int)decoder.PixelHeight);
+            }
+            finally { WicGate.Semaphore.Release(); }
         }, ct);
 
         ct.ThrowIfCancellationRequested();
@@ -161,12 +175,14 @@ public sealed class WicImageLoader : IImageLoader
         _insertionOrder.Remove(path);
         _insertionOrder.Add(path);
 
+        var dq = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
         while (_insertionOrder.Count > MaxCacheSize)
         {
             var oldest = _insertionOrder[0];
             _insertionOrder.RemoveAt(0);
-            if (_preloadCache.Remove(oldest, out var evicted))
-                (evicted.Source as IDisposable)?.Dispose();
+            if (_preloadCache.Remove(oldest, out var evicted) && evicted.Source is IDisposable d)
+                dq?.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                    () => { try { d.Dispose(); } catch { } });
         }
 
         _logger.LogDebug(

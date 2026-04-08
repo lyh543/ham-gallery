@@ -128,6 +128,8 @@ public sealed partial class PhotoDetailPage : Page
         // LoadCurrentImageAsync / UpdateCounterText / PreloadAdjacent are already
         // triggered by ViewModel_PropertyChanged when CurrentImagePath is set inside
         // InitializeAsync → NavigateToIndexAsync.
+        ApplyFilmStripPinState();
+        ApplyShowPreloadStatus();
         ShowChrome();
     }
 
@@ -173,7 +175,10 @@ public sealed partial class PhotoDetailPage : Page
             // Another navigation started while we were loading — discard this result.
             if (gen != _loadGeneration)
             {
-                (loaded.Source as IDisposable)?.Dispose();
+                if (loaded.Source is IDisposable d)
+                    DispatcherQueue.TryEnqueue(
+                        Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                        () => { try { d.Dispose(); } catch { } });
                 return;
             }
 
@@ -187,12 +192,52 @@ public sealed partial class PhotoDetailPage : Page
 
     private void PreloadAdjacent(int currentIndex)
     {
-        foreach (var path in ViewModel.GetPreloadPaths(currentIndex))
-            _ = GetLoader(path).PreloadAsync(path, _preloadCts.Token);
+        var paths = ViewModel.GetPreloadPaths(currentIndex);
+        foreach (var path in paths)
+        {
+            var item = ViewModel.FilmStripItems.FirstOrDefault(
+                i => string.Equals(i.Photo.FilePath, path, StringComparison.OrdinalIgnoreCase));
+            if (item is not null && item.PreloadState == PreloadState.NotLoaded)
+            {
+                item.PreloadState = PreloadState.Loading;
+                var captured = item;
+                var token    = _preloadCts.Token;
+                _ = GetLoader(path).PreloadAsync(path, token).ContinueWith(_ =>
+                {
+                    DispatcherQueue.TryEnqueue(() =>
+                    {
+                        if (!token.IsCancellationRequested)
+                            captured.PreloadState = PreloadState.Loaded;
+                    });
+                }, TaskScheduler.Default);
+            }
+        }
     }
 
     private IImageLoader GetLoader(string path) =>
         _heicLoader.IsSupported(Path.GetExtension(path)) ? _heicLoader : _wicLoader;
+
+    // ── FilmStrip pin toggle ──────────────────────────────────────────────────
+
+    private void FilmStripPin_Click(object sender, RoutedEventArgs e)
+    {
+        _ = ViewModel.ToggleFilmStripPinnedAsync(_cts.Token);
+        ApplyFilmStripPinState();
+    }
+
+    private void ApplyFilmStripPinState()
+    {
+        bool pinned = ViewModel.FilmStripPinned;
+        FilmStripPinButton.IsChecked = pinned;
+        FilmStripRow.Height = pinned ? GridLength.Auto : new GridLength(0);
+    }
+
+    private void ApplyShowPreloadStatus()
+    {
+        bool show = ViewModel.ShowPreloadStatus;
+        foreach (var item in ViewModel.FilmStripItems)
+            item.ShowPreloadBadge = show;
+    }
 
     // ── ViewModel property changes → UI ───────────────────────────────────────
 
@@ -280,6 +325,8 @@ public sealed partial class PhotoDetailPage : Page
 
     // ── Toolbar chrome show / hide ────────────────────────────────────────────
 
+    // ShowChrome/HideChrome only control the Toolbar and nav arrows.
+    // FilmStrip visibility is controlled exclusively by the pin button via ApplyFilmStripPinState.
     private void ShowChrome()
     {
         _hideTimer.Stop();
@@ -290,7 +337,6 @@ public sealed partial class PhotoDetailPage : Page
             AnimateOpacity(Toolbar, 1.0);
             AnimateOpacity(PrevButton, 1.0);
             AnimateOpacity(NextButton, 1.0);
-            FilmStripRow.Height = GridLength.Auto;
         }
 
         _hideTimer.Start();
@@ -304,7 +350,6 @@ public sealed partial class PhotoDetailPage : Page
         AnimateOpacity(Toolbar, 0.0);
         AnimateOpacity(PrevButton, 0.0);
         AnimateOpacity(NextButton, 0.0);
-        FilmStripRow.Height = new GridLength(0);
     }
 
     private static void AnimateOpacity(UIElement element, double target,

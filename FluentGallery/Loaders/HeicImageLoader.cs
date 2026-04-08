@@ -16,19 +16,17 @@ namespace FluentGallery.Loaders;
 /// ~7 MB per 12 MP image vs ~48 MB for raw BGRA8).
 /// </para>
 /// <para>
-/// <b>Display:</b> PNG bytes → <see cref="SoftwareBitmapSource"/> (via
-/// <see cref="BitmapDecoder"/> on the UI thread). The caller owns the returned
-/// <see cref="SoftwareBitmapSource"/> and must <see cref="IDisposable.Dispose"/> it
-/// when switching to the next photo, releasing the GPU texture immediately.
+/// <b>Display:</b> PNG bytes → <see cref="SoftwareBitmap"/> (via <see cref="BitmapDecoder"/>
+/// on a thread-pool MTA thread) → <see cref="SoftwareBitmapSource.SetBitmapAsync"/> on the
+/// UI thread. The caller owns the returned <see cref="SoftwareBitmapSource"/> and must
+/// <see cref="IDisposable.Dispose"/> it when switching photos.
 /// </para>
 /// <para>
-/// <b>Crash prevention:</b> a <see cref="SemaphoreSlim"/>(1,1) shared between
-/// <see cref="PreloadAsync"/> and <see cref="LoadAsync"/> serialises all decode calls.
-/// </para>
-/// <para>
-/// <b>Thread safety:</b> <see cref="LoadAsync"/> must be called from the UI thread
-/// because <see cref="SoftwareBitmapSource.SetBitmapAsync"/> requires it.
-/// <see cref="PreloadAsync"/> can be fire-and-forgotten from any thread.
+/// <b>Thread safety:</b> all WIC operations (BitmapEncoder, BitmapDecoder) run on MTA
+/// thread-pool threads and are serialised via <see cref="WicGate"/> to prevent concurrent
+/// access crashes. Only <see cref="SoftwareBitmapSource.SetBitmapAsync"/> runs on the UI
+/// thread (ASTA), as required by WinUI. <see cref="LoadAsync"/> must be called from the UI
+/// thread. <see cref="PreloadAsync"/> can be fire-and-forgotten from any thread.
 /// </para>
 /// </summary>
 public sealed class HeicImageLoader : IImageLoader
@@ -39,13 +37,12 @@ public sealed class HeicImageLoader : IImageLoader
     private readonly ImageDecoderPipeline   _pipeline;
     private readonly ILogger<HeicImageLoader> _logger;
 
-    // Serialises all decode operations to prevent concurrent WIC HEIC codec crashes.
-    private readonly SemaphoreSlim _semaphore = new(1, 1);
-
-    // PNG bytes preload cache (background-thread-safe, bounded).
+    // PNG bytes preload cache — accessed from Task.Run (thread pool), so all mutations
+    // are protected by _cacheLock. Reads that might race a write also use the lock.
     private readonly Dictionary<string, byte[]> _pngCache =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly List<string> _insertionOrder = [];
+    private readonly object _cacheLock = new();
 
     /// <inheritdoc/>
     public int MaxCacheSize { get; set; } = 11;
@@ -64,7 +61,7 @@ public sealed class HeicImageLoader : IImageLoader
     /// <inheritdoc/>
     public Task PreloadAsync(string filePath, CancellationToken ct)
     {
-        if (_pngCache.ContainsKey(filePath)) return Task.CompletedTask;
+        lock (_cacheLock) { if (_pngCache.ContainsKey(filePath)) return Task.CompletedTask; }
         return PreloadInternalAsync(filePath, ct);
     }
 
@@ -72,71 +69,83 @@ public sealed class HeicImageLoader : IImageLoader
     {
         try
         {
-            await _semaphore.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                if (_pngCache.ContainsKey(filePath)) return;
-                var decoded = await _pipeline
-                    .TryDecodeAsync(filePath, 0, 0, ct, concurrentSafe: true)
-                    .ConfigureAwait(false);
-                if (decoded is null) return;
-                var bytes = await EncodeToPngBytesAsync(decoded, ct).ConfigureAwait(false);
-                AddToCache(filePath, bytes);
-            }
-            finally { _semaphore.Release(); }
+            lock (_cacheLock) { if (_pngCache.ContainsKey(filePath)) return; }
+            ct.ThrowIfCancellationRequested();
+
+            var decoded = await _pipeline
+                .TryDecodeAsync(filePath, 0, 0, ct, concurrentSafe: true)
+                .ConfigureAwait(false);
+            if (decoded is null) return;
+
+            // WicGate serialises all WIC BitmapEncoder calls across threads.
+            await WicGate.Semaphore.WaitAsync(ct).ConfigureAwait(false);
+            byte[] bytes;
+            try { bytes = await EncodeToPngBytesAsync(decoded, ct).ConfigureAwait(false); }
+            finally { WicGate.Semaphore.Release(); }
+            AddToCache(filePath, bytes);
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { _logger.LogWarning(ex, "HeicImageLoader preload failed: {Path}", filePath); }
     }
 
     /// <inheritdoc/>
-    /// Must be called from the UI thread.
+    /// Must be called from the UI thread (because of SetBitmapAsync).
     public async Task<LoadedImage?> LoadAsync(string filePath, CancellationToken ct)
     {
-        // Run decode + encode on a background thread; Task.Run without ConfigureAwait(false)
-        // resumes on the UI SynchronizationContext so SetBitmapAsync is safe.
+        // All WIC work (BitmapEncoder + BitmapDecoder) runs on MTA thread-pool threads,
+        // avoiding ASTA/MTA apartment-crossing COMExceptions.
+        // Task.Run without ConfigureAwait(false) resumes on the UI SynchronizationContext
+        // so SetBitmapAsync is safe.
 #pragma warning disable CAC001
-        var (pngBytes, w, h) = await Task.Run(async () =>
+        var (softwareBitmap, w, h) = await Task.Run(async () =>
 #pragma warning restore CAC001
         {
-            if (_pngCache.TryGetValue(filePath, out var cached))
-                return (cached, 0, 0); // dimensions unknown until we decode the PNG
+            // ── Step 1: get PNG bytes (cache hit or fresh encode) ─────────────
+            byte[]? pngBytes;
+            int w = 0, h = 0;
+            lock (_cacheLock) { _pngCache.TryGetValue(filePath, out pngBytes); }
 
-            await _semaphore.WaitAsync(ct).ConfigureAwait(false);
-            try
+            if (pngBytes is null)
             {
-                if (_pngCache.TryGetValue(filePath, out var cached2))
-                    return (cached2, 0, 0);
-
                 var decoded = await _pipeline
                     .TryDecodeAsync(filePath, 0, 0, ct, concurrentSafe: true)
                     .ConfigureAwait(false);
-                if (decoded is null) return (null, 0, 0);
+                if (decoded is null) return ((SoftwareBitmap?)null, 0, 0);
 
-                var bytes = await EncodeToPngBytesAsync(decoded, ct).ConfigureAwait(false);
-                AddToCache(filePath, bytes);
-                return (bytes, (int)decoded.Width, (int)decoded.Height);
+                await WicGate.Semaphore.WaitAsync(ct).ConfigureAwait(false);
+                try { pngBytes = await EncodeToPngBytesAsync(decoded, ct).ConfigureAwait(false); }
+                finally { WicGate.Semaphore.Release(); }
+                AddToCache(filePath, pngBytes);
+                w = (int)decoded.Width;
+                h = (int)decoded.Height;
             }
-            finally { _semaphore.Release(); }
+
+            // ── Step 2: PNG bytes → SoftwareBitmap (MTA, WIC-gated) ──────────
+            await WicGate.Semaphore.WaitAsync(ct).ConfigureAwait(false);
+            SoftwareBitmap sb;
+            try
+            {
+                using var stream  = new MemoryStream(pngBytes).AsRandomAccessStream();
+                var decoder = await BitmapDecoder.CreateAsync(stream).AsTask(ct).ConfigureAwait(false);
+                if (w == 0) w = (int)decoder.PixelWidth;
+                if (h == 0) h = (int)decoder.PixelHeight;
+                sb = await decoder
+                    .GetSoftwareBitmapAsync(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Premultiplied)
+                    .AsTask(ct)
+                    .ConfigureAwait(false);
+            }
+            finally { WicGate.Semaphore.Release(); }
+
+            return (sb, w, h);
         }, ct);
 
-        if (pngBytes is null) return null;
+        if (softwareBitmap is null) return null;
         ct.ThrowIfCancellationRequested();
 
-        // Now on the UI thread — decode PNG bytes to SoftwareBitmapSource.
-        using var stream  = new MemoryStream(pngBytes).AsRandomAccessStream();
-        var decoder = await BitmapDecoder.CreateAsync(stream).AsTask(ct);
-
-        // Use dimensions from BitmapDecoder when not known from the decode step.
-        if (w == 0) w = (int)decoder.PixelWidth;
-        if (h == 0) h = (int)decoder.PixelHeight;
-
-        using var softwareBitmap = await decoder
-            .GetSoftwareBitmapAsync(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Premultiplied)
-            .AsTask(ct);
-
+        // ── Step 3: upload to GPU — must be on UI thread (ASTA) ──────────────
         var source = new SoftwareBitmapSource();
         await source.SetBitmapAsync(softwareBitmap);
+        softwareBitmap.Dispose();
 
         return new LoadedImage(source, w, h);
     }
@@ -144,9 +153,11 @@ public sealed class HeicImageLoader : IImageLoader
     /// <inheritdoc/>
     public void ClearCache()
     {
-        // PNG bytes are plain managed memory — no dispose needed.
-        _pngCache.Clear();
-        _insertionOrder.Clear();
+        lock (_cacheLock)
+        {
+            _pngCache.Clear();
+            _insertionOrder.Clear();
+        }
         _logger.LogDebug("HeicImageLoader: PNG preload cache cleared");
     }
 
@@ -186,24 +197,30 @@ public sealed class HeicImageLoader : IImageLoader
 
     private void AddToCache(string path, byte[] bytes)
     {
-        _pngCache[path] = bytes;
-        _insertionOrder.Remove(path);
-        _insertionOrder.Add(path);
-
-        while (_insertionOrder.Count > MaxCacheSize)
+        int count; string first, last; long totalBytes;
+        lock (_cacheLock)
         {
-            var oldest = _insertionOrder[0];
-            _insertionOrder.RemoveAt(0);
-            _pngCache.Remove(oldest);
+            _pngCache[path] = bytes;
+            _insertionOrder.Remove(path);
+            _insertionOrder.Add(path);
+
+            while (_insertionOrder.Count > MaxCacheSize)
+            {
+                var oldest = _insertionOrder[0];
+                _insertionOrder.RemoveAt(0);
+                _pngCache.Remove(oldest);
+            }
+
+            count      = _insertionOrder.Count;
+            first      = _insertionOrder[0];
+            last       = _insertionOrder[^1];
+            totalBytes = _pngCache.Values.Sum(b => (long)b.Length);
         }
 
-        long totalBytes = _pngCache.Values.Sum(b => (long)b.Length);
         _logger.LogDebug(
             "HeicCache [{Count}/{Max}] First={First} Last={Last} Added={Added} TotalMB={TotalMB:F1}",
-            _insertionOrder.Count,
-            MaxCacheSize,
-            Path.GetFileName(_insertionOrder[0]),
-            Path.GetFileName(_insertionOrder[^1]),
+            count, MaxCacheSize,
+            Path.GetFileName(first), Path.GetFileName(last),
             Path.GetFileName(path),
             totalBytes / (1024.0 * 1024.0));
     }
