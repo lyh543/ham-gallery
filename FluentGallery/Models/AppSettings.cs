@@ -98,8 +98,19 @@ public sealed class AppSettings
     /// <summary>Width in pixels of photo cards in the photo list. Default 165 (index 7 of photo steps).</summary>
     public int PhotoCardWidth { get; set; } = 165;
 
+    // ── Photo detail ──────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Whether the filmstrip is pinned (always visible) in the photo detail view.
+    /// When false the filmstrip auto-hides after 3 s of inactivity (legacy behaviour).
+    /// </summary>
+    public bool FilmStripPinned { get; set; } = false;
+
     // ── Debug ─────────────────────────────────────────────────────────────────
 
     /// <summary>Show a size toast when the album/photo card width changes.</summary>
     public bool ShowCardSizeToast { get; set; } = false;
+
+    /// <summary>Show preload state badges on filmstrip thumbnails in the photo detail view.</summary>
+    public bool ShowPreloadStatus { get; set; } = false;
 }

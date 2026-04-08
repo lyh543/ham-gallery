@@ -57,7 +57,8 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] public partial int  ThumbnailSizeIndex         { get; set; }
 
     // ── Debug ────────────────────────────────────────────────────────────────
-    [ObservableProperty] public partial bool ShowCardSizeToast { get; set; }
+    [ObservableProperty] public partial bool ShowCardSizeToast  { get; set; }
+    [ObservableProperty] public partial bool ShowPreloadStatus  { get; set; }
 
     // ── System integration ───────────────────────────────────────────────
     [ObservableProperty] public partial bool   RegisterFileAssociations      { get; set; }
@@ -203,6 +204,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             PreloadCountBack         = _settings.PreloadCountBack;
             PreloadCountForward      = _settings.PreloadCountForward;
             ShowCardSizeToast        = _settings.ShowCardSizeToast;
+            ShowPreloadStatus        = _settings.ShowPreloadStatus;
             RegisterFileAssociations = FileAssociationHelper.AreAssociationsRegistered();
 
             var sizeIdx = Array.IndexOf(ThumbnailSizeOptions, _settings.ThumbnailSize);
@@ -235,6 +237,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         _settings.PreloadCountForward      = PreloadCountForward;
         _settings.ThumbnailSize            = ThumbnailSizePixels;
         _settings.ShowCardSizeToast        = ShowCardSizeToast;
+        _settings.ShowPreloadStatus        = ShowPreloadStatus;
         _settings.RegisterFileAssociations = RegisterFileAssociations;
 
         var langIdx = SelectedLanguageIndex;
@@ -329,6 +332,12 @@ public sealed partial class SettingsViewModel : ObservableObject
     // ────────────────────────────────────────────────────────────────────
 
     partial void OnShowCardSizeToastChanged(bool value)
+    {
+        if (!_isInitialized) return;
+        _ = SaveAsync();
+    }
+
+    partial void OnShowPreloadStatusChanged(bool value)
     {
         if (!_isInitialized) return;
         _ = SaveAsync();

@@ -18,6 +18,18 @@ namespace FluentGallery.ViewModels;
 /// </summary>
 public sealed record PhotoDetailArgs(IReadOnlyList<Photo> Photos, int InitialIndex);
 
+// ── Preload state ────────────────────────────────────────────────────────────
+
+public enum PreloadState
+{
+    /// <summary>Not yet queued for preloading.</summary>
+    NotLoaded,
+    /// <summary>Preload task has been dispatched but not completed.</summary>
+    Loading,
+    /// <summary>Image is ready in the preload cache.</summary>
+    Loaded,
+}
+
 // ── Filmstrip item ──────────────────────────────────────────────────────────
 
 /// <summary>Represents a single entry in the bottom filmstrip strip.</summary>
@@ -25,8 +37,28 @@ public sealed partial class PhotoThumbItem : ObservableObject
 {
     public Photo Photo { get; }
 
-    [ObservableProperty] public partial string? ThumbPath  { get; set; }
-    [ObservableProperty] public partial bool    IsSelected { get; set; }
+    [ObservableProperty] public partial string?      ThumbPath         { get; set; }
+    [ObservableProperty] public partial bool         IsSelected        { get; set; }
+    [ObservableProperty] public partial PreloadState PreloadState      { get; set; } = PreloadState.NotLoaded;
+    [ObservableProperty] public partial bool         ShowPreloadBadge  { get; set; }
+
+    /// <summary>True when the loading spinner badge should be visible.</summary>
+    public bool LoadingBadgeVisible => ShowPreloadBadge && PreloadState == PreloadState.Loading;
+
+    /// <summary>True when the loaded checkmark badge should be visible.</summary>
+    public bool LoadedBadgeVisible  => ShowPreloadBadge && PreloadState == PreloadState.Loaded;
+
+    partial void OnPreloadStateChanged(PreloadState value)
+    {
+        OnPropertyChanged(nameof(LoadingBadgeVisible));
+        OnPropertyChanged(nameof(LoadedBadgeVisible));
+    }
+
+    partial void OnShowPreloadBadgeChanged(bool value)
+    {
+        OnPropertyChanged(nameof(LoadingBadgeVisible));
+        OnPropertyChanged(nameof(LoadedBadgeVisible));
+    }
 
     public PhotoThumbItem(Photo photo, string? thumbPath)
     {
@@ -119,6 +151,12 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
     /// <summary>Number of photos after the current one to preload (from settings, default 5).</summary>
     public int PreloadCountForward => _settings.PreloadCountForward;
 
+    /// <summary>Whether the filmstrip is pinned (always visible). Persisted to DB.</summary>
+    [ObservableProperty] public partial bool FilmStripPinned { get; set; }
+
+    /// <summary>Whether to show preload-state badges on filmstrip thumbnails. Persisted to DB.</summary>
+    [ObservableProperty] public partial bool ShowPreloadStatus { get; set; }
+
     // ── Filmstrip ───────────────────────────────────────────────────────────
 
     public ObservableCollection<PhotoThumbItem> FilmStripItems { get; } = new();
@@ -152,6 +190,9 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
         _photos = photos;
 
         _settings = await _db.LoadSettingsAsync(ct);
+
+        FilmStripPinned   = _settings.FilmStripPinned;
+        ShowPreloadStatus = _settings.ShowPreloadStatus;
 
         // Reset so that PropertyChanged fires unconditionally when NavigateToIndexAsync
         // sets the real path — guards against re-entering with the same photo path.
@@ -209,6 +250,16 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
     public async Task DisableDeleteConfirmAsync(CancellationToken ct = default)
     {
         _settings.ConfirmBeforeDelete = false;
+        await _db.SaveSettingsAsync(_settings, ct);
+    }
+
+    /// <summary>
+    /// Toggles the filmstrip pinned state and persists it to the database.
+    /// </summary>
+    public async Task ToggleFilmStripPinnedAsync(CancellationToken ct = default)
+    {
+        FilmStripPinned           = !FilmStripPinned;
+        _settings.FilmStripPinned = FilmStripPinned;
         await _db.SaveSettingsAsync(_settings, ct);
     }
 

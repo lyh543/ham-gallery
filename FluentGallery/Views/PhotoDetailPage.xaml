@@ -33,6 +33,35 @@
                         Visibility="{x:Bind IsSelected, Mode=OneWay,
                                      Converter={StaticResource BoolToVisibilityConverter},
                                      ConverterParameter=True}" />
+                <!-- Preload loading badge (spinning ring, top-right corner) -->
+                <Border Width="18" Height="18"
+                        CornerRadius="9"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        Margin="0,3,3,0"
+                        Background="#CC000000"
+                        Visibility="{x:Bind LoadingBadgeVisible, Mode=OneWay,
+                                     Converter={StaticResource BoolToVisibilityConverter}}">
+                    <ProgressRing Width="12" Height="12"
+                                  IsActive="True"
+                                  Foreground="White" />
+                </Border>
+                <!-- Preload done badge (checkmark) -->
+                <Border Width="18" Height="18"
+                        CornerRadius="9"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        Margin="0,3,3,0"
+                        Background="{ThemeResource SystemFillColorSuccessBrush}"
+                        Visibility="{x:Bind LoadedBadgeVisible, Mode=OneWay,
+                                     Converter={StaticResource BoolToVisibilityConverter}}">
+                    <FontIcon Glyph="&#xE73E;"
+                              FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                              FontSize="10"
+                              Foreground="White"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center" />
+                </Border>
             </Grid>
         </DataTemplate>
 
@@ -125,14 +154,14 @@
                             Width="40" Height="40"
                             ToolTipService.ToolTip="逆时针旋转 90°">
                         <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                                  Glyph="&#xE7AD;" FontSize="16" />
+                                  Glyph="&#xE80C;" FontSize="16" />
                     </Button>
 
                     <Button Click="RotateCw_Click"
                             Width="40" Height="40"
                             ToolTipService.ToolTip="顺时针旋转 90°">
                         <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                                  Glyph="&#xE7AE;" FontSize="16" />
+                                  Glyph="&#xE80D;" FontSize="16" />
                     </Button>
 
                     <Button Click="OpenExternal_Click"
@@ -164,6 +193,14 @@
                                   ToolTipService.ToolTip="照片信息">
                         <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
                                   Glyph="&#xE946;" FontSize="16" />
+                    </ToggleButton>
+
+                    <ToggleButton x:Name="FilmStripPinButton"
+                                  Click="FilmStripPin_Click"
+                                  Width="40" Height="40"
+                                  ToolTipService.ToolTip="固定胶片栏">
+                        <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                                  Glyph="&#xE8FD;" FontSize="16" />
                     </ToggleButton>
 
                 </StackPanel>

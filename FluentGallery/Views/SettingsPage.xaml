@@ -96,7 +96,7 @@
                 ItemsSource="{x:Bind ViewModel.ExcludeDirectories, Mode=OneWay}">
 
                 <ctk:SettingsExpander.HeaderIcon>
-                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xEDA0;" />
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE711;" />
                 </ctk:SettingsExpander.HeaderIcon>
 
                 <Button Content="＋ 添加排除目录" Click="AddExcludeDir_Click" />
@@ -420,7 +420,7 @@
             <ctk:SettingsExpander
                 Header="预加载张数"
                 Description="预加载更多张数，快速翻看时更流畅，但会占用更多内存"
-                IsExpanded="True">
+                IsExpanded="False">
                 <ctk:SettingsExpander.HeaderIcon>
                     <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8C8;" />
                 </ctk:SettingsExpander.HeaderIcon>
@@ -518,10 +518,23 @@
             <ctk:SettingsCard
                 Header="相册缩放时显示尺寸">
                 <ctk:SettingsCard.HeaderIcon>
-                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8C8;" />
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8A3;" />
                 </ctk:SettingsCard.HeaderIcon>
                 <ToggleSwitch
                     IsOn="{x:Bind ViewModel.ShowCardSizeToast, Mode=TwoWay}"
+                    OnContent=""
+                    OffContent="" />
+            </ctk:SettingsCard>
+
+            <!-- Show preload status badges on filmstrip -->
+            <ctk:SettingsCard
+                Header="显示预加载状态"
+                Description="在照片详情页胶片栏缩略图右上角显示预加载进度角标">
+                <ctk:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xF16C;" />
+                </ctk:SettingsCard.HeaderIcon>
+                <ToggleSwitch
+                    IsOn="{x:Bind ViewModel.ShowPreloadStatus, Mode=TwoWay}"
                     OnContent=""
                     OffContent="" />
             </ctk:SettingsCard>
