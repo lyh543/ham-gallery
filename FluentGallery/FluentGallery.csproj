@@ -1,13 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Pass -p:DevBuild=true at build time to enable the development environment.
-       This defines the DEV_BUILD compile constant, which switches folder names,
-       window title, etc. to use a "-Dev" suffix so prod and dev data are isolated. -->
-  <PropertyGroup Condition="'$(DevBuild)' == 'true'">
-    <DefineConstants>$(DefineConstants);DEV_BUILD</DefineConstants>
-  </PropertyGroup>
 
   <PropertyGroup>
+    <DevBuild Condition="'$(DevBuild)' == '' And '$(Configuration)' == 'Debug'">true</DevBuild>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
@@ -22,6 +17,13 @@
     <WindowsAppSDKSelfContained Condition="'$(RuntimeIdentifier)' != ''">true</WindowsAppSDKSelfContained>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>14</LangVersion>
+  </PropertyGroup>
+
+  <!-- Pass -p:DevBuild=true at build time to enable the development environment.
+       This defines the DEV_BUILD compile constant, which switches folder names,
+       window title, etc. to use a "-Dev" suffix so prod and dev data are isolated. -->
+  <PropertyGroup Condition="'$(DevBuild)' == 'true'">
+    <DefineConstants>$(DefineConstants);DEV_BUILD</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
