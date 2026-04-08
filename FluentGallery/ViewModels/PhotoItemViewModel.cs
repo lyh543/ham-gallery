@@ -1,8 +1,8 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using FluentGallery.Data;
-using FluentGallery.Loaders;
 using FluentGallery.Models;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
 using Serilog;
 
 namespace FluentGallery.ViewModels;
@@ -45,7 +45,7 @@ public sealed partial class PhotoItemViewModel : ObservableObject
     /// Must be called on the UI thread so that <see cref="BitmapImage"/> is created
     /// on the correct dispatcher.
     /// </summary>
-    public async Task LoadThumbnailAsync(ThumbnailService thumbService, WicImageLoader wicLoader, CancellationToken ct = default)
+    public async Task LoadThumbnailAsync(ThumbnailService thumbService, CancellationToken ct = default)
     {
         if (ThumbnailSource is not null || IsLoading) return;
         IsLoading = true;
@@ -62,8 +62,7 @@ public sealed partial class PhotoItemViewModel : ObservableObject
 
             if (displayPath is null || !File.Exists(displayPath)) return;
 
-            var loaded = await wicLoader.LoadAsync(displayPath, ct, FluentGallery.Loaders.WicPriority.Normal);
-            ThumbnailSource = loaded?.Source;
+            ThumbnailSource = CreateThumbnailSource(displayPath);
         }
         catch (OperationCanceledException)
         {
@@ -81,6 +80,10 @@ public sealed partial class PhotoItemViewModel : ObservableObject
                 IsLoading = false;
         }
     }
+
+    /// <summary>Creates an <see cref="ImageSource"/> for a thumbnail at the given path.</summary>
+    private static ImageSource CreateThumbnailSource(string path) =>
+        new BitmapImage(new Uri(path));
 
     /// <summary>Clears the loaded thumbnail (called when an item is recycled by the GridView).</summary>
     public void ClearThumbnail()

@@ -2,7 +2,6 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FluentGallery.Data;
 using FluentGallery.Helpers;
-using FluentGallery.Loaders;
 using FluentGallery.Models;
 using Microsoft.Extensions.Logging;
 using System.Collections.ObjectModel;
@@ -17,7 +16,6 @@ public sealed partial class PhotoListViewModel : ObservableObject
 {
     private readonly DatabaseService  _db;
     private readonly ThumbnailService _thumbs;
-    private readonly WicImageLoader   _wicLoader;
     private readonly ExifService      _exif;
     private readonly ILogger<PhotoListViewModel> _logger;
 
@@ -55,15 +53,13 @@ public sealed partial class PhotoListViewModel : ObservableObject
     public PhotoListViewModel(
         DatabaseService              db,
         ThumbnailService             thumbs,
-        WicImageLoader               wicLoader,
         ExifService                  exif,
         ILogger<PhotoListViewModel>  logger)
     {
-        _db        = db;
-        _thumbs    = thumbs;
-        _wicLoader = wicLoader;
-        _exif      = exif;
-        _logger    = logger;
+        _db     = db;
+        _thumbs = thumbs;
+        _exif   = exif;
+        _logger = logger;
     }
 
     // ── Load ─────────────────────────────────────────────────────────────────
@@ -215,7 +211,7 @@ public sealed partial class PhotoListViewModel : ObservableObject
                 Photos.Add(vm);
 
                 // Kick off thumbnail generation without blocking the import loop
-                _ = vm.LoadThumbnailAsync(_thumbs, _wicLoader, CancellationToken.None);
+                _ = vm.LoadThumbnailAsync(_thumbs, CancellationToken.None);
             }
             catch (OperationCanceledException) { throw; }
             catch (Exception ex)
