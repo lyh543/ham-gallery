@@ -23,7 +23,10 @@ namespace FluentGallery.Views;
 public sealed partial class PhotoDetailPage : Page
 {
     // ── Windows API P/Invoke 声明 ────────────────────────────────────────
-    
+
+    [DllImport("user32.dll")]
+    private static extern uint GetDpiForWindow(IntPtr hwnd);
+
     [DllImport("shell32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
     private static extern int SHOpenWithDialog(IntPtr hwndParent, ref OPENASINFO oainfo);
 
@@ -205,7 +208,26 @@ public sealed partial class PhotoDetailPage : Page
         // doesn't underlay the system min/max/close buttons.
         var appWindow = GetAppWindow();
         if (appWindow != null)
-            CaptionButtonsColumn.Width = new GridLength(appWindow.TitleBar.RightInset);
+        {
+            // Set system buttons to Tall (75 physical pixels)
+            try
+            {
+                appWindow.TitleBar.PreferredHeightOption = Microsoft.UI.Windowing.TitleBarHeightOption.Tall;
+            }
+            catch { }
+
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.Current.MainWindow);
+            var dpi = GetDpiForWindow(hwnd);
+            double scale = dpi / 96.0;
+
+            // Set toolbar height to 75 physical pixels (converted to logical pixels)
+            double logicalToolbarHeight = 75.0 / scale;
+            Toolbar.Height = logicalToolbarHeight;
+
+            // RightInset is in physical pixels; convert to logical pixels using DPI scale
+            double logicalRightInset = appWindow.TitleBar.RightInset / scale;
+            CaptionButtonsColumn.Width = new GridLength(logicalRightInset);
+        }
 
         ElasticScrollHelper.Attach(FilmStrip, ElasticScrollHelper.ScrollAxis.Horizontal);
         ElasticScrollHelper.Attach(InfoScrollViewer);
