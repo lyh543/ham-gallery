@@ -221,10 +221,22 @@ public sealed partial class MainWindow : Window
         // Clear nav selection so the back-stack syncs correctly.
         NavView.SelectedItem = null;
 
-        ContentFrame.Navigate(
+        // Use the OverlayFrame (same as ShowPhotoDetail) so the NavigationView is hidden.
+        OverlayFrame.Navigate(
             typeof(PhotoDetailPage),
             new PhotoDetailFileArgs(filePath),
             new DrillInNavigationTransitionInfo());
+        OverlayFrame.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>
+    /// Navigates <see cref="ContentFrame"/> to the given album's <see cref="PhotoListPage"/>.
+    /// Called by <see cref="Views.PhotoDetailPage"/> after opening a file via file association
+    /// so that closing the photo detail overlay reveals the correct album.
+    /// </summary>
+    public void NavigateContentToAlbum(long albumId)
+    {
+        ContentFrame.Navigate(typeof(PhotoListPage), albumId);
     }
 
     // ── Navigation ────────────────────────────────────────────────────────────

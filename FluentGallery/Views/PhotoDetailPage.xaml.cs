@@ -216,6 +216,10 @@ public sealed partial class PhotoDetailPage : Page
                 _pendingFileArgs.FilePath,
                 DispatcherQueue,
                 _cts.Token);
+
+            // Set up ContentFrame so pressing Back reveals the album's photo list.
+            if (ViewModel.AlbumId is long albumId && App.Current.MainWindow is MainWindow mw)
+                mw.NavigateContentToAlbum(albumId);
         }
         else
         {

@@ -164,6 +164,12 @@ public partial class App : Application
 
         _window.Activate();
 
+        // For unpackaged apps, file associations pass the target path as a
+        // command-line argument (args[0] is the executable, args[1] is the file).
+        var cmdArgs = Environment.GetCommandLineArgs();
+        if (cmdArgs.Length > 1 && File.Exists(cmdArgs[1]))
+            mainWindow.NavigateToFile(cmdArgs[1]);
+
         // Background work that doesn't need to block the first paint.
         _ = db.CleanupOldDeletedPhotosAsync();
         _ = ScanAsync(db, settings);

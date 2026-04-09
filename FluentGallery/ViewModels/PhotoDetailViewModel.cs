@@ -156,6 +156,12 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
     /// </summary>
     [ObservableProperty] public partial bool IsFilmStripAvailable { get; set; } = true;
 
+    /// <summary>
+    /// The album ID of the directory from which a file was opened via file association.
+    /// Null if the directory is not indexed or the page was opened normally.
+    /// </summary>
+    public long? AlbumId { get; private set; }
+
     // ── Settings ─────────────────────────────────────────────────────────────
 
     /// <summary>Whether to show a confirmation dialog before deleting.</summary>
@@ -256,6 +262,7 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
         {
             // Directory is known — filmstrip is available.
             IsFilmStripAvailable = true;
+            AlbumId = siblingPhotos[0].AlbumId;
 
             // Try to find the current file in the existing list.
             int existingIndex = -1;
