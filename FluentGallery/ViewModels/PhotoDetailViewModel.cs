@@ -11,12 +11,19 @@ using Windows.Storage;
 
 namespace FluentGallery.ViewModels;
 
-// ── Navigation parameter ────────────────────────────────────────────────────
+// ── Navigation parameters ────────────────────────────────────────────────────
 
 /// <summary>
 /// Passed from PhotoListPage / AllPhotosPage when navigating to PhotoDetailPage.
 /// </summary>
 public sealed record PhotoDetailArgs(IReadOnlyList<Photo> Photos, int InitialIndex);
+
+/// <summary>
+/// Passed when the user opens a single image file directly (e.g. file association,
+/// drag-and-drop, or "Open with"). The detail page will search the database for
+/// sibling photos in the same directory to populate the filmstrip.
+/// </summary>
+public sealed record PhotoDetailFileArgs(string FilePath);
 
 // ── Preload state ────────────────────────────────────────────────────────────
 
@@ -140,6 +147,15 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
     [ObservableProperty] public partial string? InfoGifFrames    { get; set; }
     [ObservableProperty] public partial string? InfoGifFrameRate { get; set; }
 
+    // ── Filmstrip availability ───────────────────────────────────────────────
+
+    /// <summary>
+    /// Whether the filmstrip is available for the current session.
+    /// False when the user opens a single file from a directory that has not been
+    /// indexed in the database — in that case the filmstrip pin button is disabled.
+    /// </summary>
+    [ObservableProperty] public partial bool IsFilmStripAvailable { get; set; } = true;
+
     // ── Settings ─────────────────────────────────────────────────────────────
 
     /// <summary>Whether to show a confirmation dialog before deleting.</summary>
@@ -209,6 +225,107 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
         _preloadCts?.Cancel();
         _preloadCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         _ = LoadFilmStripThumbsAsync(dispatcher, _preloadCts.Token);
+    }
+
+    // ── Initialise from single file ──────────────────────────────────────────
+
+    /// <summary>
+    /// Initialises the ViewModel when a single image file is opened directly.
+    /// Queries the database for sibling photos in the same directory:
+    /// <list type="bullet">
+    ///   <item>Directory found → filmstrip available; current file is located in the
+    ///         list or a synthetic <see cref="Photo"/> is inserted at the sorted position.</item>
+    ///   <item>Directory not found → single-file mode; <see cref="IsFilmStripAvailable"/>
+    ///         is set to <c>false</c> and the filmstrip pin button is disabled.</item>
+    /// </list>
+    /// </summary>
+    public async Task InitializeFromFileAsync(
+        string            filePath,
+        DispatcherQueue   dispatcher,
+        CancellationToken ct = default)
+    {
+        var dirPath = Path.GetDirectoryName(filePath) ?? string.Empty;
+
+        // Query sibling photos from the database (returns empty when dir not indexed).
+        var siblingPhotos = await _db.GetPhotosByDirectoryAsync(dirPath, ct);
+
+        List<Photo> photos;
+        int         initialIndex;
+
+        if (siblingPhotos.Count > 0)
+        {
+            // Directory is known — filmstrip is available.
+            IsFilmStripAvailable = true;
+
+            // Try to find the current file in the existing list.
+            int existingIndex = -1;
+            for (int i = 0; i < siblingPhotos.Count; i++)
+            {
+                if (string.Equals(siblingPhotos[i].FilePath, filePath, StringComparison.OrdinalIgnoreCase))
+                {
+                    existingIndex = i;
+                    break;
+                }
+            }
+
+            photos = siblingPhotos.ToList();
+
+            if (existingIndex >= 0)
+            {
+                initialIndex = existingIndex;
+            }
+            else
+            {
+                // File is not yet indexed — create a synthetic Photo and insert it
+                // at the correct sort position (by FileName, matching the list order).
+                var synthetic = BuildPhotoFromFile(filePath);
+                initialIndex  = FindSortedInsertPosition(photos, synthetic);
+                photos.Insert(initialIndex, synthetic);
+            }
+        }
+        else
+        {
+            // Directory is not indexed — single-file mode, filmstrip unavailable.
+            IsFilmStripAvailable = false;
+            photos               = new List<Photo> { BuildPhotoFromFile(filePath) };
+            initialIndex         = 0;
+        }
+
+        await InitializeAsync(photos, initialIndex, dispatcher, ct);
+    }
+
+    /// <summary>
+    /// Builds a lightweight <see cref="Photo"/> object from a file path without
+    /// touching the database. The returned instance has <c>Id = 0</c> (synthetic).
+    /// </summary>
+    private static Photo BuildPhotoFromFile(string filePath)
+    {
+        var fi = new FileInfo(filePath);
+        return new Photo
+        {
+            Id         = 0,
+            FilePath   = filePath,
+            FileName   = Path.GetFileName(filePath),
+            FileSize   = fi.Exists ? fi.Length : 0,
+            CreatedAt  = fi.Exists ? fi.CreationTimeUtc.ToString("O") : DateTime.UtcNow.ToString("O"),
+            ModifiedAt = fi.Exists ? fi.LastWriteTimeUtc.ToString("O") : DateTime.UtcNow.ToString("O"),
+        };
+    }
+
+    /// <summary>
+    /// Returns the index at which <paramref name="photo"/> should be inserted into
+    /// <paramref name="sortedPhotos"/> to maintain FileName-ascending order
+    /// (matching the TakenAt → FileName ordering used by the DB query).
+    /// </summary>
+    private static int FindSortedInsertPosition(List<Photo> sortedPhotos, Photo photo)
+    {
+        for (int i = 0; i < sortedPhotos.Count; i++)
+        {
+            if (string.Compare(sortedPhotos[i].FileName, photo.FileName,
+                    StringComparison.OrdinalIgnoreCase) > 0)
+                return i;
+        }
+        return sortedPhotos.Count;
     }
 
     /// <summary>
@@ -453,9 +570,6 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
         int indexWas  = CurrentIndex;
         int nextIndex = CurrentIndex < _photos.Count - 1 ? CurrentIndex : CurrentIndex - 1;
 
-        // Capture thumbnail info before deletion (cascade will drop the Thumbnails row)
-        var thumb = await _db.GetThumbnailAsync(photo.Id, ct);
-
         // Move file to the Windows Recycle Bin
         bool moved = await RecycleBinHelper.MoveToRecycleBinAsync(photo.FilePath);
         if (!moved)
@@ -464,25 +578,33 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
             return null;
         }
 
-        // Save restoration snapshot (photo JSON + thumbnail path) in DB
-        long deletedId = await _db.InsertDeletedPhotoAsync(
-            photo,
-            thumb?.ThumbPath,
-            thumb?.SourceModifiedAt,
-            ct);
-
-        // Delete from Photos table (cascade removes Thumbnails row)
-        await _db.DeletePhotoAsync(photo.Id, ct);
-
-        // Push undo entry — trim oldest when at capacity
-        if (_undoStack.Count >= MaxUndoHistory)
+        // Only persist undo data and remove from DB for photos that are actually indexed.
+        // Synthetic photos (Id == 0) were never in the database, so skip those steps.
+        if (photo.Id != 0)
         {
-            var items = _undoStack.ToArray();
-            _undoStack.Clear();
-            foreach (var item in items.Take(MaxUndoHistory - 1).Reverse())
-                _undoStack.Push(item);
+            // Capture thumbnail info before deletion (cascade will drop the Thumbnails row)
+            var thumb = await _db.GetThumbnailAsync(photo.Id, ct);
+
+            // Save restoration snapshot (photo JSON + thumbnail path) in DB
+            long deletedId = await _db.InsertDeletedPhotoAsync(
+                photo,
+                thumb?.ThumbPath,
+                thumb?.SourceModifiedAt,
+                ct);
+
+            // Delete from Photos table (cascade removes Thumbnails row)
+            await _db.DeletePhotoAsync(photo.Id, ct);
+
+            // Push undo entry — trim oldest when at capacity
+            if (_undoStack.Count >= MaxUndoHistory)
+            {
+                var items = _undoStack.ToArray();
+                _undoStack.Clear();
+                foreach (var item in items.Take(MaxUndoHistory - 1).Reverse())
+                    _undoStack.Push(item);
+            }
+            _undoStack.Push(new UndoEntry(deletedId, photo.FilePath, indexWas));
         }
-        _undoStack.Push(new UndoEntry(deletedId, photo.FilePath, indexWas));
 
         // Rebuild photo list
         var newList = _photos.Where(p => p.Id != photo.Id).ToList();

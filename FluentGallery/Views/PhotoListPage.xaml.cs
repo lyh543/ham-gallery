@@ -120,11 +120,10 @@ public sealed partial class PhotoListPage : Page
         if (ViewModel.IsMultiSelectMode) return; // clicks = selection in multi-select mode
         if (e.ClickedItem is PhotoItemViewModel photo)
         {
-            // Pass album photos + clicked index to PhotoDetailPage
+            // Pass album photos + clicked index to PhotoDetailPage (shown as full-window overlay)
             var index = ViewModel.Photos.IndexOf(photo);
-            Frame.Navigate(
-                typeof(PhotoDetailPage),
-                new PhotoDetailArgs(ViewModel.Photos.Select(p => p.GetPhoto()).ToList(), index));
+            if (App.Current.MainWindow is MainWindow mw)
+                mw.ShowPhotoDetail(new PhotoDetailArgs(ViewModel.Photos.Select(p => p.GetPhoto()).ToList(), index));
         }
     }
 

@@ -113,7 +113,13 @@ public sealed partial class PhotoDetailPage : Page
 
     // ── Pending navigation args (set in OnNavigatedTo, consumed in Loaded) ───
 
-    private PhotoDetailArgs? _pendingArgs;
+    private PhotoDetailArgs?     _pendingArgs;
+    private PhotoDetailFileArgs? _pendingFileArgs;
+
+    // ── Computed properties for XAML bindings ─────────────────────────────────
+
+    public string FilmStripPinTooltip =>
+        ViewModel.IsFilmStripAvailable ? "固定胶片栏" : "当前目录未被索引，胶片栏不可用";
 
     // ── Image loaders ─────────────────────────────────────────────────────────
 
@@ -169,10 +175,22 @@ public sealed partial class PhotoDetailPage : Page
     {
         base.OnNavigatedTo(e);
 
-        if (e.Parameter is not PhotoDetailArgs args) return;
+        _cts = new CancellationTokenSource();
 
-        _cts         = new CancellationTokenSource();
-        _pendingArgs = args;
+        if (e.Parameter is PhotoDetailArgs args)
+        {
+            _pendingArgs     = args;
+            _pendingFileArgs = null;
+        }
+        else if (e.Parameter is PhotoDetailFileArgs fileArgs)
+        {
+            _pendingFileArgs = fileArgs;
+            _pendingArgs     = null;
+        }
+        else
+        {
+            return;
+        }
 
         // Defer all heavy work (DB query, filmstrip build, image decode) until
         // after the first layout pass so the page skeleton renders immediately.
@@ -182,6 +200,12 @@ public sealed partial class PhotoDetailPage : Page
     private async void OnPageLoaded(object sender, RoutedEventArgs e)
     {
         Loaded -= OnPageLoaded;
+
+        // Set right-column width to exactly the caption buttons area so our content
+        // doesn't underlay the system min/max/close buttons.
+        var appWindow = GetAppWindow();
+        if (appWindow != null)
+            CaptionButtonsColumn.Width = new GridLength(appWindow.TitleBar.RightInset);
 
         ElasticScrollHelper.Attach(FilmStrip, ElasticScrollHelper.ScrollAxis.Horizontal);
         ElasticScrollHelper.Attach(InfoScrollViewer);
@@ -196,14 +220,25 @@ public sealed partial class PhotoDetailPage : Page
         FilmStrip.AddHandler(UIElement.PointerCanceledEvent,
             new PointerEventHandler(FilmStrip_PointerReleased), handledEventsToo: true);
 
-        var args = _pendingArgs;
-        if (args is null) return;
-
-        await ViewModel.InitializeAsync(
-            args.Photos,
-            args.InitialIndex,
-            DispatcherQueue,
-            _cts.Token);
+        if (_pendingArgs is not null)
+        {
+            await ViewModel.InitializeAsync(
+                _pendingArgs.Photos,
+                _pendingArgs.InitialIndex,
+                DispatcherQueue,
+                _cts.Token);
+        }
+        else if (_pendingFileArgs is not null)
+        {
+            await ViewModel.InitializeFromFileAsync(
+                _pendingFileArgs.FilePath,
+                DispatcherQueue,
+                _cts.Token);
+        }
+        else
+        {
+            return;
+        }
 
         // LoadCurrentImageAsync / UpdateCounterText / PreloadAdjacent are already
         // triggered by ViewModel_PropertyChanged when CurrentImagePath is set inside
@@ -363,7 +398,8 @@ public sealed partial class PhotoDetailPage : Page
 
     private void ApplyFilmStripPinState()
     {
-        bool pinned = ViewModel.FilmStripPinned;
+        bool available = ViewModel.IsFilmStripAvailable;
+        bool pinned    = available && ViewModel.FilmStripPinned;
         FilmStripPinButton.IsChecked = pinned;
         FilmStripRow.Height = pinned ? GridLength.Auto : new GridLength(0);
     }
@@ -451,6 +487,12 @@ public sealed partial class PhotoDetailPage : Page
             case nameof(PhotoDetailViewModel.InfoGifFrameRate):
                 InfoGifFrameRate.Text = ViewModel.InfoGifFrameRate ?? "—"; break;
 
+            case nameof(PhotoDetailViewModel.IsFilmStripAvailable):
+                ApplyFilmStripPinState();
+                // Notify XAML that the computed tooltip text has changed.
+                Bindings.Update();
+                break;
+
             case nameof(PhotoDetailViewModel.CurrentIndex):
                 SyncFilmStripSelection();
                 break;
@@ -481,6 +523,7 @@ public sealed partial class PhotoDetailPage : Page
         {
             _toolbarVisible = true;
             AnimateOpacity(Toolbar, 1.0);
+            AnimateOpacity(BottomToolbar, 1.0);
             AnimateOpacity(PrevButton, 1.0);
             AnimateOpacity(NextButton, 1.0);
         }
@@ -494,6 +537,7 @@ public sealed partial class PhotoDetailPage : Page
         _toolbarVisible = false;
 
         AnimateOpacity(Toolbar, 0.0);
+        AnimateOpacity(BottomToolbar, 0.0);
         AnimateOpacity(PrevButton, 0.0);
         AnimateOpacity(NextButton, 0.0);
     }
@@ -585,7 +629,10 @@ public sealed partial class PhotoDetailPage : Page
 
     private void BackButton_Click(object sender, RoutedEventArgs e)
     {
-        if (Frame.CanGoBack) Frame.GoBack();
+        if (App.Current.MainWindow is MainWindow mw)
+            mw.ClosePhotoDetail();
+        else if (Frame.CanGoBack)
+            Frame.GoBack();
     }
 
     private async void RotateCw_Click(object sender, RoutedEventArgs e)
@@ -767,6 +814,12 @@ public sealed partial class PhotoDetailPage : Page
                 return;
 
             if (!File.Exists(photo.FilePath))
+                return;
+
+            // Synthetic photos (opened directly, not yet indexed) have Id == 0.
+            // Skip the thumbnail service for them to avoid foreign-key confusion;
+            // their filmstrip slot will remain blank.
+            if (photo.Id == 0)
                 return;
 
             var thumbnail = App.Current.Services.GetRequiredService<ThumbnailService>();
@@ -951,7 +1004,10 @@ public sealed partial class PhotoDetailPage : Page
 
         if (ViewModel.CurrentImagePath is null)
         {
-            if (Frame.CanGoBack) Frame.GoBack();
+            if (App.Current.MainWindow is MainWindow mw)
+                mw.ClosePhotoDetail();
+            else if (Frame.CanGoBack)
+                Frame.GoBack();
         }
     }
 

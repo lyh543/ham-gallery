@@ -299,6 +299,33 @@ public sealed class DatabaseService
             .ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Returns all photos whose album's <see cref="Album.DirectoryPath"/> matches
+    /// <paramref name="dirPath"/>, ordered by TakenAt then FileName.
+    /// Returns an empty list when the directory has no corresponding album in the database
+    /// (i.e. the folder has not been scanned / indexed).
+    /// </summary>
+    public async Task<IReadOnlyList<Photo>> GetPhotosByDirectoryAsync(
+        string dirPath, CancellationToken ct = default)
+    {
+        dirPath = dirPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+        using var db = _factory.CreateDbContext();
+
+        var albumId = await db.Albums
+            .Where(a => a.DirectoryPath == dirPath)
+            .Select(a => (long?)a.Id)
+            .FirstOrDefaultAsync(ct).ConfigureAwait(false);
+
+        if (!albumId.HasValue) return Array.Empty<Photo>();
+
+        return await db.Photos
+            .AsNoTracking()
+            .Where(p => p.AlbumId == albumId.Value)
+            .OrderBy(p => p.TakenAt).ThenBy(p => p.FileName)
+            .ToListAsync(ct).ConfigureAwait(false);
+    }
+
     public async Task<Photo?> GetPhotoByIdAsync(long id, CancellationToken ct = default)
     {
         using var db = _factory.CreateDbContext();

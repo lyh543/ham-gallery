@@ -186,9 +186,8 @@ public sealed partial class SearchPage : Page
         if (e.ClickedItem is PhotoItemViewModel photo)
         {
             var index = ViewModel.Results.IndexOf(photo);
-            Frame.Navigate(
-                typeof(PhotoDetailPage),
-                new PhotoDetailArgs(ViewModel.Results.Select(p => p.GetPhoto()).ToList(), index));
+            if (App.Current.MainWindow is MainWindow mw)
+                mw.ShowPhotoDetail(new PhotoDetailArgs(ViewModel.Results.Select(p => p.GetPhoto()).ToList(), index));
         }
     }
 

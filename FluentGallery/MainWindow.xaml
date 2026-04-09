@@ -83,6 +83,15 @@
         </NavigationView>
 
         <!--
+            Full-window overlay frame for PhotoDetailPage.
+            Covers the entire window (including NavigationView) when Visible.
+        -->
+        <Frame
+            x:Name="OverlayFrame"
+            Visibility="Collapsed"
+            Canvas.ZIndex="50" />
+
+        <!--
             Dev-mode Warning Toast（仅 DEBUG 构建时由代码控制显示）
             悬浮在窗口右上角，橙色告警风格，带"本次启动不再提示"按钮。
         -->

@@ -104,7 +104,8 @@
             Grid.Row="0" />
 
         <!-- ─────────────────────────────────────────────────────────────────
-             Top toolbar  (overlaid, auto-hides after 3 s)
+             Top bar  (minimal nav: back + title + counter)
+             Auto-hides after 3 s of inactivity.
         ───────────────────────────────────────────────────────────────────── -->
         <Border
             x:Name="Toolbar"
@@ -115,103 +116,136 @@
             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
             BorderThickness="0,0,0,1"
             Opacity="0"
-            Padding="8,4"
+            Padding="4,4,0,4"
             Canvas.ZIndex="10">
 
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
+                    <!--
+                        Right spacer for system caption buttons (min/max/close).
+                        Width is set dynamically from AppWindow.TitleBar.RightInset.
+                    -->
+                    <ColumnDefinition x:Name="CaptionButtonsColumn" Width="150" />
                 </Grid.ColumnDefinitions>
 
-                <!-- Left: Back + file name -->
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4">
-                    <Button x:Name="BackButton"
-                            Style="{ThemeResource NavigationBackButtonNormalStyle}"
-                            Click="BackButton_Click"
-                            ToolTipService.ToolTip="返回"
-                            Width="40" Height="40" />
+                <!-- Back button -->
+                <Button x:Name="BackButton"
+                        Grid.Column="0"
+                        Style="{ThemeResource NavigationBackButtonNormalStyle}"
+                        Click="BackButton_Click"
+                        ToolTipService.ToolTip="返回"
+                        Width="40" Height="40" />
+
+                <!-- File name + X/N counter -->
+                <StackPanel Grid.Column="1"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center"
+                            Spacing="10"
+                            Margin="8,0,0,0">
                     <TextBlock x:Name="TitleText"
                                VerticalAlignment="Center"
-                               MaxWidth="360"
+                               MaxWidth="480"
+                               LineHeight="20"
                                TextTrimming="CharacterEllipsis"
                                Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                    <TextBlock x:Name="CounterText"
+                               VerticalAlignment="Center"
+                               Style="{ThemeResource CaptionTextBlockStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                 </StackPanel>
 
-                <!-- Center: X / N counter -->
-                <TextBlock Grid.Column="1"
-                           x:Name="CounterText"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center"
-                           Style="{ThemeResource CaptionTextBlockStyle}"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-
-                <!-- Right: action buttons -->
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2">
-
-                    <Button Click="RotateCcw_Click"
-                            Width="40" Height="40"
-                            ToolTipService.ToolTip="逆时针旋转 90°">
-                        <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                                  Glyph="&#xE80C;" FontSize="14" />
-                    </Button>
-
-                    <Button Click="RotateCw_Click"
-                            Width="40" Height="40"
-                            ToolTipService.ToolTip="顺时针旋转 90°">
-                        <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                                  Glyph="&#xE80D;" FontSize="14" />
-                    </Button>
-
-                    <Button Click="OpenExternal_Click"
-                            Width="40" Height="40"
-                            ToolTipService.ToolTip="使用其他应用打开">
-                        <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                                  Glyph="&#xE8A7;" FontSize="14" />
-                    </Button>
-
-                    <Button Click="ShowInExplorer_Click"
-                            Width="40" Height="40"
-                            ToolTipService.ToolTip="在文件管理器中展示">
-                        <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                                  Glyph="&#xEC50;" FontSize="14" />
-                    </Button>
-
-                    <Button Click="Delete_Click"
-                            Width="40" Height="40"
-                            ToolTipService.ToolTip="删除（移入回收站）">
-                        <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                                  Glyph="&#xE74D;" FontSize="14" />
-                    </Button>
-
-                    <Button x:Name="FullscreenButton"
-                            Click="Fullscreen_Click"
-                            Width="40" Height="40"
-                            ToolTipService.ToolTip="全屏">
-                        <FontIcon x:Name="FullscreenIcon"
-                                  FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                                  Glyph="&#xE740;" FontSize="14" />
-                    </Button>
-
-                    <ToggleButton x:Name="InfoToggleButton"
-                                  Click="InfoToggle_Click"
-                                  Width="40" Height="40"
-                                  ToolTipService.ToolTip="照片信息">
-                        <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                                  Glyph="&#xE946;" FontSize="14" />
-                    </ToggleButton>
-
-                    <ToggleButton x:Name="FilmStripPinButton"
-                                  Click="FilmStripPin_Click"
-                                  Width="40" Height="40"
-                                  ToolTipService.ToolTip="固定胶片栏">
-                        <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                                  Glyph="&#xE8FD;" FontSize="14" />
-                    </ToggleButton>
-
-                </StackPanel>
+                <!-- Column 2: empty – reserved for system caption buttons -->
             </Grid>
+        </Border>
+
+        <!-- ─────────────────────────────────────────────────────────────────
+             Bottom floating action toolbar  (centered, above filmstrip)
+             Placed in Row 0 so it naturally floats above Row 1 (filmstrip).
+             Auto-hides together with the top bar.
+        ───────────────────────────────────────────────────────────────────── -->
+        <Border
+            x:Name="BottomToolbar"
+            Grid.Column="0"
+            Grid.Row="0"
+            VerticalAlignment="Bottom"
+            HorizontalAlignment="Center"
+            Margin="0,0,0,20"
+            CornerRadius="12"
+            Padding="8,6"
+            Opacity="0"
+            Canvas.ZIndex="10"
+            RequestedTheme="Dark">
+
+            <Border.Background>
+                <AcrylicBrush TintColor="#1E1E1E" TintOpacity="0.85" />
+            </Border.Background>
+
+            <StackPanel Orientation="Horizontal" Spacing="2">
+
+                <Button Click="RotateCcw_Click"
+                        Width="40" Height="40"
+                        ToolTipService.ToolTip="逆时针旋转 90°">
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                              Glyph="&#xE80C;" FontSize="14" />
+                </Button>
+
+                <Button Click="RotateCw_Click"
+                        Width="40" Height="40"
+                        ToolTipService.ToolTip="顺时针旋转 90°">
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                              Glyph="&#xE80D;" FontSize="14" />
+                </Button>
+
+                <Button Click="OpenExternal_Click"
+                        Width="40" Height="40"
+                        ToolTipService.ToolTip="使用其他应用打开">
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                              Glyph="&#xE8A7;" FontSize="14" />
+                </Button>
+
+                <Button Click="ShowInExplorer_Click"
+                        Width="40" Height="40"
+                        ToolTipService.ToolTip="在文件管理器中展示">
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                              Glyph="&#xEC50;" FontSize="14" />
+                </Button>
+
+                <Button Click="Delete_Click"
+                        Width="40" Height="40"
+                        ToolTipService.ToolTip="删除（移入回收站）">
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                              Glyph="&#xE74D;" FontSize="14" />
+                </Button>
+
+                <Button x:Name="FullscreenButton"
+                        Click="Fullscreen_Click"
+                        Width="40" Height="40"
+                        ToolTipService.ToolTip="全屏">
+                    <FontIcon x:Name="FullscreenIcon"
+                              FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                              Glyph="&#xE740;" FontSize="14" />
+                </Button>
+
+                <ToggleButton x:Name="InfoToggleButton"
+                              Click="InfoToggle_Click"
+                              Width="40" Height="40"
+                              ToolTipService.ToolTip="照片信息">
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                              Glyph="&#xE946;" FontSize="14" />
+                </ToggleButton>
+
+                <ToggleButton x:Name="FilmStripPinButton"
+                              Click="FilmStripPin_Click"
+                              Width="40" Height="40"
+                              IsEnabled="{x:Bind ViewModel.IsFilmStripAvailable, Mode=OneWay}"
+                              ToolTipService.ToolTip="{x:Bind FilmStripPinTooltip, Mode=OneWay}">
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                              Glyph="&#xE8FD;" FontSize="14" />
+                </ToggleButton>
+
+            </StackPanel>
         </Border>
 
         <!-- ─────────────────────────────────────────────────────────────────

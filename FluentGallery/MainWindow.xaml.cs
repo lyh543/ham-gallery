@@ -4,6 +4,7 @@ using FluentGallery.Models;
 using FluentGallery.ViewModels;
 using FluentGallery.Views;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -39,6 +40,11 @@ public sealed partial class MainWindow : Window
 
         _vm = App.Current.Services.GetRequiredService<MainWindowViewModel>();
         _vm.PinnedAlbums.CollectionChanged += OnPinnedAlbumsChanged;
+
+        // Extend content into the title bar (Windows Photos-style: no visible title bar strip)
+        AppWindow.TitleBar.ExtendsContentIntoTitleBar = true;
+        AppWindow.TitleBar.ButtonBackgroundColor         = Colors.Transparent;
+        AppWindow.TitleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
 
         // Initial size and min-size enforcement (scale logical pixels to physical pixels)
         var hwndForDpi = WinRT.Interop.WindowNative.GetWindowHandle(this);
@@ -203,6 +209,28 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    // ── File-open navigation ──────────────────────────────────────────────────
+
+    /// <summary>
+    /// Navigates directly to <see cref="PhotoDetailPage"/> to display the given image file.
+    /// Called from App.OnActivated (file associations) or any other open-file trigger.
+    /// The page will query the database to discover sibling photos in the same directory
+    /// and populate the filmstrip if the folder has been indexed.
+    /// </summary>
+    public void NavigateToFile(string filePath)
+    {
+        // Bring the window to the front if it was in the background.
+        Activate();
+
+        // Clear nav selection so the back-stack syncs correctly.
+        NavView.SelectedItem = null;
+
+        ContentFrame.Navigate(
+            typeof(PhotoDetailPage),
+            new PhotoDetailFileArgs(filePath),
+            new DrillInNavigationTransitionInfo());
+    }
+
     // ── Navigation ────────────────────────────────────────────────────────────
 
     private void NavView_BackRequested(NavigationView sender, NavigationViewBackRequestedEventArgs args)
@@ -276,6 +304,35 @@ public sealed partial class MainWindow : Window
         NavView.SelectedItem = found;
         if (found is not null)
             NavView.Header = found.Content?.ToString();
+    }
+
+    // ── Photo detail overlay ──────────────────────────────────────────────────
+
+    /// <summary>
+    /// Opens PhotoDetailPage as a full-window overlay (hides the NavigationView).
+    /// </summary>
+    public void ShowPhotoDetail(PhotoDetailArgs args)
+    {
+        OverlayFrame.Navigate(typeof(PhotoDetailPage), args);
+        OverlayFrame.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>
+    /// Closes the full-window PhotoDetail overlay and restores the NavigationView.
+    /// </summary>
+    public void ClosePhotoDetail()
+    {
+        // Exit fullscreen presenter if active before hiding the overlay
+        if (AppWindow.Presenter.Kind == AppWindowPresenterKind.FullScreen)
+            AppWindow.SetPresenter(AppWindowPresenterKind.Default);
+
+        OverlayFrame.Visibility = Visibility.Collapsed;
+
+        // Navigate to a blank Page so the Frame fires OnNavigatedFrom on PhotoDetailPage,
+        // triggering its resource/cache cleanup.
+        OverlayFrame.Navigate(typeof(Page));
+        OverlayFrame.BackStack.Clear();
+        OverlayFrame.ForwardStack.Clear();
     }
 
     // ── Dev Warning Toast ─────────────────────────────────────────────────────
