@@ -11,7 +11,6 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 using System.Collections.Specialized;
-using System.Runtime.InteropServices;
 using Windows.Graphics;
 
 namespace FluentGallery;
@@ -21,9 +20,6 @@ public sealed partial class MainWindow : Window
     // ── Constants ─────────────────────────────────────────────────────────────
     private const int MinLogicalWidth  = 800;
     private const int MinLogicalHeight = 600;
-
-    [DllImport("user32.dll")]
-    private static extern uint GetDpiForWindow(IntPtr hwnd);
 
     // ── State ─────────────────────────────────────────────────────────────────
     private readonly MainWindowViewModel _vm;
@@ -48,7 +44,7 @@ public sealed partial class MainWindow : Window
 
         // Initial size and min-size enforcement (scale logical pixels to physical pixels)
         var hwndForDpi = WinRT.Interop.WindowNative.GetWindowHandle(this);
-        var dpiForInit = GetDpiForWindow(hwndForDpi);
+        var dpiForInit = WindowsApiHelper.GetDpiForWindow(hwndForDpi);
         double scaleForInit = dpiForInit / 96.0;
         AppWindow.Resize(new SizeInt32(
             (int)Math.Ceiling(1200 * scaleForInit),
@@ -152,7 +148,7 @@ public sealed partial class MainWindow : Window
 
         var s    = AppWindow.Size;
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-        var dpi  = GetDpiForWindow(hwnd);
+        var dpi  = WindowsApiHelper.GetDpiForWindow(hwnd);
 
         int minW = (int)Math.Ceiling(MinLogicalWidth  * dpi / 96.0);
         int minH = (int)Math.Ceiling(MinLogicalHeight * dpi / 96.0);

@@ -12,12 +12,12 @@ public static class FileAssociationHelper
     // ProgID used in HKCU\Software\Classes
     private const string ProgId = "FluentGallery.AssocFile";
 
-    private static readonly string[] SupportedExtensions =
-    [
+    private static readonly string[] SupportedExtensions = new[]
+    {
         ".jpg", ".jpeg", ".png", ".bmp",
         ".gif", ".webp", ".heic", ".heif",
         ".tif", ".tiff",
-    ];
+    };
 
     // ── Public API ────────────────────────────────────────────────────────
 
@@ -100,10 +100,16 @@ public static class FileAssociationHelper
 
     // ── Private helpers ───────────────────────────────────────────────────
 
+#if TEST_BUILD
     [System.Runtime.InteropServices.DllImport("shell32.dll")]
     private static extern void SHChangeNotify(int wEventId, uint uFlags, nint dwItem1, nint dwItem2);
 
     private static void NotifyShell()
         // SHCNE_ASSOCCHANGED = 0x08000000, SHCNF_IDLIST = 0x0000
         => SHChangeNotify(0x08000000, 0x0000, nint.Zero, nint.Zero);
+#else
+    private static void NotifyShell()
+        // SHCNE_ASSOCCHANGED = 0x08000000, SHCNF_IDLIST = 0x0000
+        => WindowsApiHelper.NotifyShellAssociationChanged();
+#endif
 }

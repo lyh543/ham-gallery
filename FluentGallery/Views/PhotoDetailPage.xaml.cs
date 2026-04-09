@@ -16,51 +16,11 @@ using System.IO;
 using Windows.Foundation;
 using Windows.System;
 using Windows.UI;
-using System.Runtime.InteropServices;
 
 namespace FluentGallery.Views;
 
 public sealed partial class PhotoDetailPage : Page
 {
-    // ── Windows API P/Invoke 声明 ────────────────────────────────────────
-
-    [DllImport("user32.dll")]
-    private static extern uint GetDpiForWindow(IntPtr hwnd);
-
-    [DllImport("shell32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-    private static extern int SHOpenWithDialog(IntPtr hwndParent, ref OPENASINFO oainfo);
-
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    private struct OPENASINFO
-    {
-        public string pcszFile;
-        public string? pcszClass;
-        public uint oaifInFlags;
-    }
-
-    private const uint OAIF_ALLOW_REGISTRATION = 0x00000001;
-    private const uint OAIF_REGISTER_EXT = 0x00000002;
-    private const uint OAIF_EXEC = 0x00000004;
-    private const uint OAIF_DEFAULT_ONLY = 0x00000020;
-
-    [DllImport("shell32.dll", SetLastError = true)]
-    private static extern void SHParseDisplayName(
-        [MarshalAs(UnmanagedType.LPWStr)] string pszName,
-        IntPtr pbc,
-        out IntPtr ppidl,
-        uint sfgaoIn,
-        out uint psfgaoOut);
-
-    [DllImport("shell32.dll", SetLastError = true)]
-    private static extern int SHOpenFolderAndSelectItems(
-        IntPtr pidlFolder,
-        uint cidl,
-        [In, MarshalAs(UnmanagedType.LPArray)] IntPtr[] apidl,
-        int grfFlags);
-
-    [DllImport("ole32.dll")]
-    private static extern void CoTaskMemFree(IntPtr pv);
-
     // ── ViewModel ─────────────────────────────────────────────────────────────
 
     public PhotoDetailViewModel ViewModel { get; }
@@ -217,7 +177,7 @@ public sealed partial class PhotoDetailPage : Page
             catch { }
 
             var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.Current.MainWindow);
-            var dpi = GetDpiForWindow(hwnd);
+            var dpi = WindowsApiHelper.GetDpiForWindow(hwnd);
             double scale = dpi / 96.0;
 
             // Set toolbar height to 75 physical pixels (converted to logical pixels)
@@ -679,15 +639,15 @@ public sealed partial class PhotoDetailPage : Page
         try
         {
             IntPtr hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.Current.MainWindow);
-            
-            OPENASINFO oainfo = new()
+
+            var oainfo = new WindowsApiHelper.OPENASINFO
             {
                 pcszFile = path,
                 pcszClass = null,
-                oaifInFlags = OAIF_ALLOW_REGISTRATION | OAIF_EXEC
+                oaifInFlags = WindowsApiHelper.OAIF_ALLOW_REGISTRATION | WindowsApiHelper.OAIF_EXEC
             };
 
-            int hResult = SHOpenWithDialog(hwnd, ref oainfo);
+            int hResult = WindowsApiHelper.SHOpenWithDialog(hwnd, ref oainfo);
             if (hResult != 0)
             {
                 _logger.LogWarning("SHOpenWithDialog failed with HRESULT: {HResult:X8}", hResult);
@@ -706,7 +666,7 @@ public sealed partial class PhotoDetailPage : Page
 
         try
         {
-            SHParseDisplayName(
+            WindowsApiHelper.SHParseDisplayName(
                 Path.GetDirectoryName(path) ?? string.Empty,
                 IntPtr.Zero,
                 out IntPtr pidlFolder,
@@ -717,7 +677,7 @@ public sealed partial class PhotoDetailPage : Page
             {
                 try
                 {
-                    SHParseDisplayName(
+                    WindowsApiHelper.SHParseDisplayName(
                         path,
                         IntPtr.Zero,
                         out IntPtr pidlFile,
@@ -728,7 +688,7 @@ public sealed partial class PhotoDetailPage : Page
                     {
                         try
                         {
-                            int hResult = SHOpenFolderAndSelectItems(
+                            int hResult = WindowsApiHelper.SHOpenFolderAndSelectItems(
                                 pidlFolder,
                                 1,
                                 new[] { pidlFile },
@@ -741,13 +701,13 @@ public sealed partial class PhotoDetailPage : Page
                         }
                         finally
                         {
-                            CoTaskMemFree(pidlFile);
+                            WindowsApiHelper.CoTaskMemFree(pidlFile);
                         }
                     }
                 }
                 finally
                 {
-                    CoTaskMemFree(pidlFolder);
+                    WindowsApiHelper.CoTaskMemFree(pidlFolder);
                 }
             }
         }
