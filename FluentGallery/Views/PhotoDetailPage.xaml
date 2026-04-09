@@ -334,6 +334,7 @@
         <!-- ─────────────────────────────────────────────────────────────────
              Toast / Snackbar overlay  (Col 0, Row 0+1, bottom-center)
              Shown by code-behind; auto-dismissed after 3 s.
+             Margin is dynamically set in code-behind based on BottomToolbar height.
              Two visual modes:
                Normal  — dark semi-transparent, optional Undo button
                Error   — red, warning icon
@@ -345,7 +346,6 @@
             Grid.RowSpan="2"
             VerticalAlignment="Bottom"
             HorizontalAlignment="Center"
-            Margin="0,0,0,28"
             Canvas.ZIndex="30"
             Opacity="0"
             IsHitTestVisible="False">

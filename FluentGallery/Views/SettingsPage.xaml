@@ -373,6 +373,18 @@
                 <Button Content="清除索引" Click="ClearDbCache_Click" />
             </ctk:SettingsCard>
 
+            <!-- View logs -->
+            <ctk:SettingsCard
+                Header="应用日志"
+                Description="在文件管理器中打开日志目录（每天一个文件，保留最近 7 天）">
+                <ctk:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE9F9;" />
+                </ctk:SettingsCard.HeaderIcon>
+                <Button
+                    Content="打开日志目录"
+                    Command="{x:Bind ViewModel.OpenLogsFolderCommand}" />
+            </ctk:SettingsCard>
+
             <!-- Clear all data -->
             <ctk:SettingsCard
                 Header="清除全部数据"
@@ -394,18 +406,6 @@
                         <SolidColorBrush x:Key="ButtonForegroundPressed"     Color="White" />
                     </Button.Resources>
                 </Button>
-            </ctk:SettingsCard>
-
-            <!-- View logs -->
-            <ctk:SettingsCard
-                Header="应用日志"
-                Description="在文件管理器中打开日志目录（每天一个文件，保留最近 7 天）">
-                <ctk:SettingsCard.HeaderIcon>
-                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE9F9;" />
-                </ctk:SettingsCard.HeaderIcon>
-                <Button
-                    Content="打开日志目录"
-                    Command="{x:Bind ViewModel.OpenLogsFolderCommand}" />
             </ctk:SettingsCard>
 
             <!-- ══════════════════════════════════════════════════════════

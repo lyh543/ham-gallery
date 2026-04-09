@@ -13,6 +13,7 @@ using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Navigation;
 using System;
 using System.IO;
+using System.Threading.Tasks;
 using Windows.Foundation;
 using Windows.System;
 using Windows.UI;
@@ -29,6 +30,7 @@ public sealed partial class PhotoDetailPage : Page
 
     private readonly DispatcherTimer _hideTimer;
     private bool _toolbarVisible = false;
+    private bool _hideChromeInProgress = false;
 
     // ── Rotation ──────────────────────────────────────────────────────────────
 
@@ -92,6 +94,8 @@ public sealed partial class PhotoDetailPage : Page
     // ── Toast ─────────────────────────────────────────────────────────────────
 
     private readonly DispatcherTimer _toastTimer;
+    private readonly DispatcherTimer _edgeBoundaryThrottle;
+    private bool _edgeBoundaryThrottleActive = false;
     private enum ToastKind { Normal, Error }
 
     private readonly ILogger<PhotoDetailPage> _logger =
@@ -110,7 +114,7 @@ public sealed partial class PhotoDetailPage : Page
         ApplyPreloadCount(ViewModel.PreloadCountBack, ViewModel.PreloadCountForward);
 
         // Auto-hide timer
-        _hideTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+        _hideTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _hideTimer.Tick += (_, _) => HideChrome();
 
         // Preload debounce: 1 s after last navigation, compute diff and launch tasks.
@@ -125,6 +129,14 @@ public sealed partial class PhotoDetailPage : Page
         // Toast auto-dismiss timer (3 s)
         _toastTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
         _toastTimer.Tick += (_, _) => HideToast();
+
+        // Edge boundary throttle timer (500 ms) - prevents too frequent toast notifications
+        _edgeBoundaryThrottle = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+        _edgeBoundaryThrottle.Tick += (_, _) =>
+        {
+            _edgeBoundaryThrottleActive = false;
+            _edgeBoundaryThrottle.Stop();
+        };
 
         ZoomImage.SwipeLeft  += () => _ = ViewModel.NavigateToIndexAsync(ViewModel.CurrentIndex + 1, _cts.Token);
         ZoomImage.SwipeRight += () => _ = ViewModel.NavigateToIndexAsync(ViewModel.CurrentIndex - 1, _cts.Token);
@@ -246,6 +258,7 @@ public sealed partial class PhotoDetailPage : Page
         _hideTimer.Stop();
         _preloadDebounce.Stop();
         _toastTimer.Stop();
+        _edgeBoundaryThrottle.Stop();
         _cts.Cancel();
         ViewModel.PropertyChanged -= ViewModel_PropertyChanged;
         ViewModel.Dispose();
@@ -503,6 +516,9 @@ public sealed partial class PhotoDetailPage : Page
     // FilmStrip visibility is controlled exclusively by the pin button via ApplyFilmStripPinState.
     private void ShowChrome()
     {
+        // Ignore if we're in the middle of hiding chrome animation
+        if (_hideChromeInProgress) return;
+
         _hideTimer.Stop();
 
         if (!_toolbarVisible)
@@ -521,11 +537,18 @@ public sealed partial class PhotoDetailPage : Page
     {
         _hideTimer.Stop();
         _toolbarVisible = false;
+        _hideChromeInProgress = true;
 
         AnimateOpacity(Toolbar, 0.0);
         AnimateOpacity(BottomToolbar, 0.0);
         AnimateOpacity(PrevButton, 0.0);
         AnimateOpacity(NextButton, 0.0);
+
+        // Re-enable ShowChrome after animation duration + small buffer
+        _ = Task.Delay(250).ContinueWith(_ =>
+        {
+            DispatcherQueue.TryEnqueue(() => _hideChromeInProgress = false);
+        });
     }
 
     private static void AnimateOpacity(UIElement element, double target,
@@ -566,7 +589,20 @@ public sealed partial class PhotoDetailPage : Page
                 if (!isCtrl)
                 {
                     e.Handled = true;
-                    await ViewModel.NavigateToIndexAsync(ViewModel.CurrentIndex - 1, _cts.Token);
+                    // Check if already at first photo
+                    if (ViewModel.CurrentIndex == 0)
+                    {
+                        if (!_edgeBoundaryThrottleActive)
+                        {
+                            ShowToast("已经是第一张照片了", ToastKind.Normal, showUndo: false);
+                            _edgeBoundaryThrottleActive = true;
+                            _edgeBoundaryThrottle.Start();
+                        }
+                    }
+                    else
+                    {
+                        await ViewModel.NavigateToIndexAsync(ViewModel.CurrentIndex - 1, _cts.Token);
+                    }
                 }
                 break;
 
@@ -574,7 +610,20 @@ public sealed partial class PhotoDetailPage : Page
                 if (!isCtrl)
                 {
                     e.Handled = true;
-                    await ViewModel.NavigateToIndexAsync(ViewModel.CurrentIndex + 1, _cts.Token);
+                    // Check if already at last photo
+                    if (ViewModel.CurrentIndex >= ViewModel.FilmStripItems.Count - 1)
+                    {
+                        if (!_edgeBoundaryThrottleActive)
+                        {
+                            ShowToast("已经是最后一张照片了", ToastKind.Normal, showUndo: false);
+                            _edgeBoundaryThrottleActive = true;
+                            _edgeBoundaryThrottle.Start();
+                        }
+                    }
+                    else
+                    {
+                        await ViewModel.NavigateToIndexAsync(ViewModel.CurrentIndex + 1, _cts.Token);
+                    }
                 }
                 break;
 
@@ -820,7 +869,7 @@ public sealed partial class PhotoDetailPage : Page
                     if (index < ViewModel.FilmStripItems.Count)
                     {
                         ViewModel.FilmStripItems[index].ThumbPath = thumbPath;
-                        _logger.LogInformation("Filmstrip lazy-loading completed for index {Index}", index);
+                        _logger.LogDebug("Filmstrip lazy-loading completed for index {Index}", index);
                     }
                 });
             }
@@ -1039,6 +1088,15 @@ public sealed partial class PhotoDetailPage : Page
 
         ToastUndoButton.Visibility = showUndo ? Visibility.Visible : Visibility.Collapsed;
         ToastHost.IsHitTestVisible = showUndo;
+
+        // Dynamically calculate toast margin based on BottomToolbar height + FilmStripRow height
+        double toolbarHeight = BottomToolbar.ActualHeight > 0 ? BottomToolbar.ActualHeight : 52;
+        double toolbarBottomMargin = 20; // from BottomToolbar Margin="0,0,0,20"
+        double filmstripHeight = FilmStripRow.ActualHeight;
+        double spacing = 10; // additional spacing above toolbar
+        double bottomMargin = filmstripHeight + toolbarHeight + toolbarBottomMargin + spacing;
+        
+        ToastHost.Margin = new Thickness(0, 0, 0, bottomMargin);
 
         AnimateOpacity(ToastHost, 1.0, durationMs: 180);
         _toastTimer.Start();
