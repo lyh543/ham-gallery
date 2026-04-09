@@ -248,13 +248,19 @@ public sealed class ThumbnailService
 
     /// <summary>
     /// Decodes <paramref name="sourcePath"/> via <see cref="ImageDecoderPipeline"/>
-    /// (WIC for standard formats; built-in Magick.NET fallback for HEIC/HEIF),
+    /// (WIC for standard formats; Magick.NET for HEIC/HEIF),
     /// then encodes the scaled pixels as JPEG to <paramref name="destPath"/>.
+    /// <para>
+    /// <c>concurrentSafe: true</c> is passed so the pipeline skips the WIC HEIC codec
+    /// (which is not concurrent-safe) and always falls back to MagickImageDecoder for HEIC.
+    /// Standard-format WIC codecs (JPEG, PNG, etc.) are concurrent-safe and are used as-is.
+    /// </para>
     /// </summary>
     private async Task GenerateViaDecoderAsync(
         string sourcePath, string destPath, uint thumbSize, CancellationToken ct)
     {
-        var decoded = await _pipeline.TryDecodeAsync(sourcePath, thumbSize, thumbSize, ct).ConfigureAwait(false)
+        var decoded = await _pipeline.TryDecodeAsync(sourcePath, thumbSize, thumbSize, ct,
+                concurrentSafe: true).ConfigureAwait(false)
             ?? throw new NotSupportedException(
                 $"No decoder available for '{Path.GetExtension(sourcePath)}'");
 

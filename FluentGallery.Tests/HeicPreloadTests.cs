@@ -131,7 +131,7 @@ public sealed class HeicPreloadTests
     /// <summary>
     /// After decoding, the pixel buffer must survive SoftwareBitmap.CreateCopyFromBuffer
     /// and SoftwareBitmap.Convert without throwing.  This covers the display path in
-    /// <c>HeicImageLoader.LoadAsync</c> up to (but not including) SetBitmapAsync.
+    /// <c>MagickImageLoader.LoadAsync</c> up to (but not including) SetBitmapAsync.
     ///
     /// SetBitmapAsync is excluded because it requires a WinUI DispatcherQueue.
     /// </summary>

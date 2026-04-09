@@ -80,8 +80,8 @@ public sealed partial class PhotoDetailPage : Page
 
     // ── Image loaders ─────────────────────────────────────────────────────────
 
-    private readonly WicImageLoader  _wicLoader;
-    private readonly HeicImageLoader _heicLoader;
+    private readonly WicImageLoader    _wicLoader;
+    private readonly MagickImageLoader _magickLoader;
 
     // ── Toast ─────────────────────────────────────────────────────────────────
 
@@ -99,8 +99,8 @@ public sealed partial class PhotoDetailPage : Page
 
         ViewModel = App.Current.Services.GetRequiredService<PhotoDetailViewModel>();
 
-        _wicLoader  = App.Current.Services.GetRequiredService<WicImageLoader>();
-        _heicLoader = App.Current.Services.GetRequiredService<HeicImageLoader>();
+        _wicLoader    = App.Current.Services.GetRequiredService<WicImageLoader>();
+        _magickLoader = App.Current.Services.GetRequiredService<MagickImageLoader>();
         ApplyPreloadCount(ViewModel.PreloadCountBack, ViewModel.PreloadCountForward);
 
         // Auto-hide timer
@@ -206,7 +206,7 @@ public sealed partial class PhotoDetailPage : Page
         // Loaders are singletons; clear their caches when leaving the page so
         // BitmapImage objects (and their GPU/WIC memory) are released promptly.
         _wicLoader.ClearCache();
-        _heicLoader.ClearCache();
+        _magickLoader.ClearCache();
 
         _logger.LogDebug("OnNavigatedFrom: image caches cleared");
     }
@@ -314,7 +314,7 @@ public sealed partial class PhotoDetailPage : Page
             i => string.Equals(i.Photo.FilePath, path, StringComparison.OrdinalIgnoreCase));
 
     private IImageLoader GetLoader(string path) =>
-        _heicLoader.IsSupported(Path.GetExtension(path)) ? _heicLoader : _wicLoader;
+        _wicLoader.IsSupported(Path.GetExtension(path)) ? _wicLoader : _magickLoader;
 
     // ── FilmStrip pin toggle ──────────────────────────────────────────────────
 
@@ -428,8 +428,8 @@ public sealed partial class PhotoDetailPage : Page
     private void ApplyPreloadCount(int back, int forward)
     {
         int cacheSize = back + forward + 1;
-        _wicLoader.MaxCacheSize  = cacheSize;
-        _heicLoader.MaxCacheSize = cacheSize;
+        _wicLoader.MaxCacheSize    = cacheSize;
+        _magickLoader.MaxCacheSize = cacheSize;
     }
 
     // ── Toolbar chrome show / hide ────────────────────────────────────────────

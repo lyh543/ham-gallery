@@ -124,7 +124,7 @@ public partial class App : Application
 
         // Image loaders (singleton — share their preload cache across pages)
         services.AddSingleton<WicImageLoader>();
-        services.AddSingleton<HeicImageLoader>();
+        services.AddSingleton<MagickImageLoader>();
 
         // Data services
         services.AddSingleton<ExifService>();

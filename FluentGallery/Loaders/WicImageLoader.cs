@@ -1,26 +1,26 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml.Media.Imaging;
-using Windows.Graphics.Imaging;
-using Windows.Storage.Streams;
 
 namespace FluentGallery.Loaders;
 
 /// <summary>
 /// Image loader for WIC-natively supported formats (JPEG, PNG, WebP, BMP, TIFF, GIF).
 /// <para>
-/// <b>Full-size images (non-GIF):</b> decoded to <see cref="SoftwareBitmapSource"/> so the
-/// caller can call <see cref="IDisposable.Dispose"/> to release GPU memory immediately.
-/// Neighbouring photos are preloaded into <see cref="_preloadCache"/>; <see cref="LoadAsync"/>
-/// transfers ownership out of the cache to the caller.
+/// Uses <see cref="BitmapImage"/> with <see cref="BitmapImage.UriSource"/> for all
+/// standard formats. The XAML framework handles decoding on an internal background
+/// thread — no user-code WIC access, no serialisation gate required, no
+/// <see cref="System.IDisposable"/> lifecycle management.
+/// </para>
+/// <para>
+/// <b>Preloading:</b> <see cref="PreloadAsync"/> creates a <see cref="BitmapImage"/>
+/// immediately (synchronous), which triggers background decoding. When the same path
+/// is later requested via <see cref="LoadAsync"/>, the cached (possibly already-decoded)
+/// <see cref="BitmapImage"/> is returned.  If <see cref="BitmapImage.PixelWidth"/> &gt; 0
+/// the image is ready and <see cref="ZoomableImage"/> shows it without a loading spinner.
 /// </para>
 /// <para>
 /// <b>GIF:</b> returned as <see cref="BitmapImage"/> (URI-based, lazy) so animated GIFs
-/// continue to work. <see cref="LoadedImage.PixelWidth"/> is 0 until <c>ImageOpened</c> fires.
-/// </para>
-/// <para>
-/// <b>Thumbnails:</b> loaded on demand via <see cref="LoadAsync"/>; not preloaded.
-/// The caller (<see cref="FluentGallery.ViewModels.PhotoItemViewModel"/>) owns and disposes
-/// the returned <see cref="SoftwareBitmapSource"/> when the item is recycled.
+/// continue to work.
 /// </para>
 /// <para>
 /// <b>Thread safety:</b> must be called from the UI thread.
@@ -28,19 +28,17 @@ namespace FluentGallery.Loaders;
 /// </summary>
 public sealed class WicImageLoader : IImageLoader
 {
-    private static readonly HashSet<string> _heicExts =
-        new(StringComparer.OrdinalIgnoreCase) { ".heic", ".heif" };
-
-    private static readonly HashSet<string> _gifExts =
-        new(StringComparer.OrdinalIgnoreCase) { ".gif" };
+    // Explicit whitelist of formats that BitmapImage.UriSource handles reliably.
+    // Unknown or exotic formats fall through to MagickImageLoader.
+    private static readonly HashSet<string> _supportedExts =
+        new(StringComparer.OrdinalIgnoreCase)
+        { ".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff", ".gif" };
 
     private readonly ILogger<WicImageLoader> _logger;
 
-    // Preload cache: stores SoftwareBitmapSources for neighbouring photos.
+    // Preload cache: stores BitmapImage objects (not IDisposable — GC handles lifetime).
     // Ownership is transferred to the caller when LoadAsync pulls an entry out.
-    // Any entry that remains here when ClearCache() is called is safely disposed
-    // (it has never been handed to a consumer).
-    private readonly Dictionary<string, LoadedImage> _preloadCache =
+    private readonly Dictionary<string, BitmapImage> _preloadCache =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly List<string> _insertionOrder = [];
 
@@ -55,136 +53,69 @@ public sealed class WicImageLoader : IImageLoader
     // ── IImageLoader ──────────────────────────────────────────────────────────
 
     /// <inheritdoc/>
-    public bool IsSupported(string extension) => !_heicExts.Contains(extension);
+    public bool IsSupported(string extension) => _supportedExts.Contains(extension);
 
     /// <inheritdoc/>
+    /// Creates a <see cref="BitmapImage"/> with <see cref="BitmapImage.UriSource"/>,
+    /// which triggers XAML-framework background decoding immediately.
+    /// Must be called from the UI thread.
     public Task PreloadAsync(string filePath, CancellationToken ct)
     {
-        if (_gifExts.Contains(Path.GetExtension(filePath))) return Task.CompletedTask;
-        if (_preloadCache.ContainsKey(filePath))            return Task.CompletedTask;
-        return PreloadInternalAsync(filePath, ct);
-    }
+        ct.ThrowIfCancellationRequested();
+        if (_preloadCache.ContainsKey(filePath)) return Task.CompletedTask;
 
-    private async Task PreloadInternalAsync(string filePath, CancellationToken ct)
-    {
-        try
-        {
-#pragma warning disable CAC002
-            var loaded = await DecodeToLoadedImageAsync(filePath, ct, WicPriority.Low).ConfigureAwait(true);
-#pragma warning restore CAC002
-            if (loaded is null) return;
-
-            if (_preloadCache.ContainsKey(filePath))
-            {
-                // A concurrent LoadAsync already decoded it — discard our copy.
-                (loaded.Source as IDisposable)?.Dispose();
-                return;
-            }
-
-            AddToPreloadCache(filePath, loaded);
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception ex) { _logger.LogWarning(ex, "WicImageLoader preload failed: {Path}", filePath); }
+        var bmp = new BitmapImage(new Uri(filePath));
+        AddToPreloadCache(filePath, bmp);
+        return Task.CompletedTask;
     }
 
     /// <inheritdoc/>
-    public async Task<LoadedImage?> LoadAsync(string filePath, CancellationToken ct,
-        WicPriority priority = WicPriority.High)
+    public Task<LoadedImage?> LoadAsync(string filePath, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
 
-        // GIF: return BitmapImage so animations work (SoftwareBitmapSource doesn't animate).
-        if (_gifExts.Contains(Path.GetExtension(filePath)))
-            return new LoadedImage(new BitmapImage(new Uri(filePath)), 0, 0);
-
-        // Transfer ownership from preload cache to caller.
+        BitmapImage bmp;
         if (_preloadCache.TryGetValue(filePath, out var cached))
         {
             _preloadCache.Remove(filePath);
             _insertionOrder.Remove(filePath);
-            return cached;
+            bmp = cached;
+        }
+        else
+        {
+            bmp = new BitmapImage(new Uri(filePath));
         }
 
-#pragma warning disable CAC002
-        return await DecodeToLoadedImageAsync(filePath, ct, priority).ConfigureAwait(true);
-#pragma warning restore CAC002
+        // Return current pixel dimensions: > 0 means already decoded (show immediately),
+        // 0 means still decoding (ZoomableImage will wait for ImageOpened).
+        return Task.FromResult<LoadedImage?>(
+            new LoadedImage(bmp, bmp.PixelWidth, bmp.PixelHeight));
     }
 
     /// <inheritdoc/>
     public void ClearCache()
     {
-        var dq = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
-        foreach (var entry in _preloadCache.Values)
-        {
-            if (entry.Source is IDisposable d)
-                dq?.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
-                    () => { try { d.Dispose(); } catch { } });
-        }
-
+        // BitmapImage is not IDisposable — just drop the references and let GC handle it.
         _preloadCache.Clear();
         _insertionOrder.Clear();
-        _logger.LogDebug("WicImageLoader: preload cache cleared and disposed");
-    }
-
-    // ── Decode helpers ────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Decodes a WIC-supported image file to a <see cref="SoftwareBitmapSource"/>.
-    /// Must resume on the UI thread so <see cref="SoftwareBitmapSource.SetBitmapAsync"/> is safe.
-    /// </summary>
-#pragma warning disable CAC001
-    private async Task<LoadedImage?> DecodeToLoadedImageAsync(string filePath, CancellationToken ct,
-        WicPriority priority)
-    {
-        ct.ThrowIfCancellationRequested();
-
-        // Decode on a background thread; Task.Run without ConfigureAwait(false) resumes
-        // on the UI SynchronizationContext, making SetBitmapAsync safe.
-        // WIC BitmapDecoder is serialised via WicGate to prevent native crashes from
-        // concurrent WIC COM access on MTA threads.
-        var (softwareBitmap, w, h) = await Task.Run(async () =>
-#pragma warning restore CAC001
-        {
-            await WicGate.WaitAsync(priority, ct).ConfigureAwait(false);
-            try
-            {
-                using var stream  = File.OpenRead(filePath).AsRandomAccessStream();
-                var decoder = await BitmapDecoder.CreateAsync(stream).AsTask(ct).ConfigureAwait(false);
-                var sb = await decoder
-                    .GetSoftwareBitmapAsync(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Premultiplied)
-                    .AsTask(ct)
-                    .ConfigureAwait(false);
-                return (sb, (int)decoder.PixelWidth, (int)decoder.PixelHeight);
-            }
-            finally { WicGate.Release(); }
-        }, ct);
-
-        ct.ThrowIfCancellationRequested();
-
-        // Now on the UI thread.
-        var source = new SoftwareBitmapSource();
-        await source.SetBitmapAsync(softwareBitmap);
-        softwareBitmap.Dispose();
-
-        return new LoadedImage(source, w, h);
+        _logger.LogDebug("WicImageLoader: preload cache cleared");
     }
 
     // ── Cache helpers ─────────────────────────────────────────────────────────
 
-    private void AddToPreloadCache(string path, LoadedImage loaded)
+    private void AddToPreloadCache(string path, BitmapImage bmp)
     {
-        _preloadCache[path] = loaded;
+        _preloadCache[path] = bmp;
         _insertionOrder.Remove(path);
         _insertionOrder.Add(path);
 
-        var dq = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+        // Evict oldest entries over the cache size limit.
+        // No Dispose needed — BitmapImage is not IDisposable.
         while (_insertionOrder.Count > MaxCacheSize)
         {
             var oldest = _insertionOrder[0];
             _insertionOrder.RemoveAt(0);
-            if (_preloadCache.Remove(oldest, out var evicted) && evicted.Source is IDisposable d)
-                dq?.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
-                    () => { try { d.Dispose(); } catch { } });
+            _preloadCache.Remove(oldest);
         }
 
         _logger.LogDebug(
