@@ -36,7 +36,7 @@ public sealed class AppSettings
     /// <summary>Show a confirmation dialog before deleting a photo.</summary>
     public bool ConfirmBeforeDelete { get; set; } = true;
 
-    /// <summary>Number of photos before the current one to pre-load in the detail view (0–5).</summary>
+    /// <summary>Number of photos before the current one to pre-load in the detail view (0–10).</summary>
     public int PreloadCountBack { get; set; } = 2;
 
     /// <summary>Number of photos after the current one to pre-load in the detail view (0–10).</summary>

@@ -430,7 +430,7 @@
                             <Slider
                                 Value="{x:Bind ViewModel.PreloadCountBack, Mode=TwoWay}"
                                 Minimum="0"
-                                Maximum="5"
+                                Maximum="10"
                                 StepFrequency="1"
                                 Width="200" />
                             <TextBlock

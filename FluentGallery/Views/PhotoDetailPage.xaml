@@ -154,28 +154,35 @@
                             Width="40" Height="40"
                             ToolTipService.ToolTip="逆时针旋转 90°">
                         <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                                  Glyph="&#xE80C;" FontSize="16" />
+                                  Glyph="&#xE80C;" FontSize="14" />
                     </Button>
 
                     <Button Click="RotateCw_Click"
                             Width="40" Height="40"
                             ToolTipService.ToolTip="顺时针旋转 90°">
                         <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                                  Glyph="&#xE80D;" FontSize="16" />
+                                  Glyph="&#xE80D;" FontSize="14" />
                     </Button>
 
                     <Button Click="OpenExternal_Click"
                             Width="40" Height="40"
-                            ToolTipService.ToolTip="在外部应用中编辑">
+                            ToolTipService.ToolTip="使用其他应用打开">
                         <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                                  Glyph="&#xE749;" FontSize="16" />
+                                  Glyph="&#xE8A7;" FontSize="14" />
+                    </Button>
+
+                    <Button Click="ShowInExplorer_Click"
+                            Width="40" Height="40"
+                            ToolTipService.ToolTip="在文件管理器中展示">
+                        <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                                  Glyph="&#xEC50;" FontSize="14" />
                     </Button>
 
                     <Button Click="Delete_Click"
                             Width="40" Height="40"
                             ToolTipService.ToolTip="删除（移入回收站）">
                         <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                                  Glyph="&#xE74D;" FontSize="16" />
+                                  Glyph="&#xE74D;" FontSize="14" />
                     </Button>
 
                     <Button x:Name="FullscreenButton"
@@ -184,7 +191,7 @@
                             ToolTipService.ToolTip="全屏">
                         <FontIcon x:Name="FullscreenIcon"
                                   FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                                  Glyph="&#xE740;" FontSize="16" />
+                                  Glyph="&#xE740;" FontSize="14" />
                     </Button>
 
                     <ToggleButton x:Name="InfoToggleButton"
@@ -192,7 +199,7 @@
                                   Width="40" Height="40"
                                   ToolTipService.ToolTip="照片信息">
                         <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                                  Glyph="&#xE946;" FontSize="16" />
+                                  Glyph="&#xE946;" FontSize="14" />
                     </ToggleButton>
 
                     <ToggleButton x:Name="FilmStripPinButton"
@@ -200,7 +207,7 @@
                                   Width="40" Height="40"
                                   ToolTipService.ToolTip="固定胶片栏">
                         <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                                  Glyph="&#xE8FD;" FontSize="16" />
+                                  Glyph="&#xE8FD;" FontSize="14" />
                     </ToggleButton>
 
                 </StackPanel>

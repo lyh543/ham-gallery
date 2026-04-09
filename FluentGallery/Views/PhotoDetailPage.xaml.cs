@@ -16,11 +16,48 @@ using System.IO;
 using Windows.Foundation;
 using Windows.System;
 using Windows.UI;
+using System.Runtime.InteropServices;
 
 namespace FluentGallery.Views;
 
 public sealed partial class PhotoDetailPage : Page
 {
+    // ── Windows API P/Invoke 声明 ────────────────────────────────────────
+    
+    [DllImport("shell32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern int SHOpenWithDialog(IntPtr hwndParent, ref OPENASINFO oainfo);
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct OPENASINFO
+    {
+        public string pcszFile;
+        public string? pcszClass;
+        public uint oaifInFlags;
+    }
+
+    private const uint OAIF_ALLOW_REGISTRATION = 0x00000001;
+    private const uint OAIF_REGISTER_EXT = 0x00000002;
+    private const uint OAIF_EXEC = 0x00000004;
+    private const uint OAIF_DEFAULT_ONLY = 0x00000020;
+
+    [DllImport("shell32.dll", SetLastError = true)]
+    private static extern void SHParseDisplayName(
+        [MarshalAs(UnmanagedType.LPWStr)] string pszName,
+        IntPtr pbc,
+        out IntPtr ppidl,
+        uint sfgaoIn,
+        out uint psfgaoOut);
+
+    [DllImport("shell32.dll", SetLastError = true)]
+    private static extern int SHOpenFolderAndSelectItems(
+        IntPtr pidlFolder,
+        uint cidl,
+        [In, MarshalAs(UnmanagedType.LPArray)] IntPtr[] apidl,
+        int grfFlags);
+
+    [DllImport("ole32.dll")]
+    private static extern void CoTaskMemFree(IntPtr pv);
+
     // ── ViewModel ─────────────────────────────────────────────────────────────
 
     public PhotoDetailViewModel ViewModel { get; }
@@ -570,8 +607,85 @@ public sealed partial class PhotoDetailPage : Page
         var path = ViewModel.CurrentImagePath;
         if (string.IsNullOrEmpty(path)) return;
 
-        var file = await Windows.Storage.StorageFile.GetFileFromPathAsync(path);
-        await Windows.System.Launcher.LaunchFileAsync(file);
+        try
+        {
+            IntPtr hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.Current.MainWindow);
+            
+            OPENASINFO oainfo = new()
+            {
+                pcszFile = path,
+                pcszClass = null,
+                oaifInFlags = OAIF_ALLOW_REGISTRATION | OAIF_EXEC
+            };
+
+            int hResult = SHOpenWithDialog(hwnd, ref oainfo);
+            if (hResult != 0)
+            {
+                _logger.LogWarning("SHOpenWithDialog failed with HRESULT: {HResult:X8}", hResult);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to open file with dialog");
+        }
+    }
+
+    private void ShowInExplorer_Click(object sender, RoutedEventArgs e)
+    {
+        var path = ViewModel.CurrentImagePath;
+        if (string.IsNullOrEmpty(path)) return;
+
+        try
+        {
+            SHParseDisplayName(
+                Path.GetDirectoryName(path) ?? string.Empty,
+                IntPtr.Zero,
+                out IntPtr pidlFolder,
+                0,
+                out _);
+
+            if (pidlFolder != IntPtr.Zero)
+            {
+                try
+                {
+                    SHParseDisplayName(
+                        path,
+                        IntPtr.Zero,
+                        out IntPtr pidlFile,
+                        0,
+                        out _);
+
+                    if (pidlFile != IntPtr.Zero)
+                    {
+                        try
+                        {
+                            int hResult = SHOpenFolderAndSelectItems(
+                                pidlFolder,
+                                1,
+                                new[] { pidlFile },
+                                0);
+
+                            if (hResult != 0)
+                            {
+                                _logger.LogWarning("SHOpenFolderAndSelectItems failed with HRESULT: {HResult:X8}", hResult);
+                            }
+                        }
+                        finally
+                        {
+                            CoTaskMemFree(pidlFile);
+                        }
+                    }
+                }
+                finally
+                {
+                    CoTaskMemFree(pidlFolder);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to show file in explorer");
+        }
     }
 
     private async void Delete_Click(object sender, RoutedEventArgs e)
