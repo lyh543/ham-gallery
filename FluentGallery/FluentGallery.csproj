@@ -17,6 +17,7 @@
     <WindowsAppSDKSelfContained Condition="'$(RuntimeIdentifier)' != ''">true</WindowsAppSDKSelfContained>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>14</LangVersion>
+    <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <!-- Pass -p:DevBuild=true at build time to enable the development environment.
@@ -25,6 +26,11 @@
   <PropertyGroup Condition="'$(DevBuild)' == 'true'">
     <DefineConstants>$(DefineConstants);DEV_BUILD</DefineConstants>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Copy Assets folder to output directory -->
+    <Content Include="Assets\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 
   <ItemGroup>
     <!-- Windows App SDK (WinUI 3) -->

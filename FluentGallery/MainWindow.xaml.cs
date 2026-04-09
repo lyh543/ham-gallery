@@ -53,6 +53,13 @@ public sealed partial class MainWindow : Window
 
         Title = AppDataPaths.DisplayName;
 
+        // Set window icon (affects taskbar, Alt+Tab, title bar).
+        // Use the ICO bundled next to the exe; it contains sizes up to 256×256
+        // so Windows can pick the sharpest frame for every DPI/context.
+        var icoPath = Path.Combine(AppContext.BaseDirectory, "Assets", "icon.ico");
+        if (File.Exists(icoPath))
+            AppWindow.SetIcon(icoPath);
+
         // Navigate to default page
         NavView.SelectedItem = AlbumsNavItem;
 
