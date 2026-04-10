@@ -4,29 +4,322 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="using:FluentGallery.ViewModels"
+    xmlns:conv="using:FluentGallery.Converters"
     mc:Ignorable="d"
     Background="Transparent">
 
+    <Page.Resources>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVisibility"/>
+
+        <!-- Photo thumbnail card -->
+        <DataTemplate x:Key="PhotoCardTemplate" x:DataType="vm:PhotoItemViewModel">
+            <Grid>
+                <!-- Background placeholder -->
+                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                    <FontIcon
+                        FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                        Glyph="&#xEB9F;"
+                        FontSize="28"
+                        Opacity="0.2"/>
+                </Border>
+
+                <!-- Thumbnail image -->
+                <Image
+                    Source="{x:Bind ThumbnailSource, Mode=OneWay}"
+                    Stretch="UniformToFill"
+                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                <!-- Loading overlay -->
+                <Border
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    Opacity="0.7"
+                    Visibility="{x:Bind IsLoading, Mode=OneWay,
+                                         Converter={StaticResource BoolToVisibility}}">
+                    <ProgressRing
+                        IsActive="{x:Bind IsLoading, Mode=OneWay}"
+                        Width="28" Height="28"/>
+                </Border>
+            </Grid>
+        </DataTemplate>
+    </Page.Resources>
+
     <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>  <!-- CommandBar toolbar -->
+            <RowDefinition Height="Auto"/>  <!-- Search panel (collapsible) -->
+            <RowDefinition Height="*"/>     <!-- Photo grid -->
+        </Grid.RowDefinitions>
+
+        <!-- ── CommandBar toolbar ── -->
+        <CommandBar
+            Grid.Row="0"
+            DefaultLabelPosition="Right"
+            Background="Transparent"
+            OverflowButtonVisibility="Collapsed">
+
+            <!-- Multi-select toggle -->
+            <AppBarToggleButton
+                x:Name="MultiSelectToggle"
+                Label="多选"
+                IsChecked="{x:Bind ViewModel.IsMultiSelectMode, Mode=OneWay}"
+                Click="MultiSelectToggle_Click">
+                <AppBarToggleButton.Icon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE762;"/>
+                </AppBarToggleButton.Icon>
+            </AppBarToggleButton>
+
+            <!-- Delete (enabled only in multi-select mode with ≥1 selection) -->
+            <AppBarButton
+                x:Name="DeleteButton"
+                Icon="Delete"
+                Label="删除"
+                Click="Delete_Click"
+                IsEnabled="{x:Bind ViewModel.IsMultiSelectMode, Mode=OneWay}"/>
+
+            <!-- Move to album -->
+            <AppBarButton
+                x:Name="MoveToAlbumButton"
+                Icon="MoveToFolder"
+                Label="移到相册"
+                IsEnabled="{x:Bind ViewModel.IsMultiSelectMode, Mode=OneWay}"
+                Click="MoveToAlbum_Click"/>
+
+            <AppBarSeparator/>
+
+            <!-- Sort -->
+            <AppBarButton Icon="Sort" Label="排序">
+                <AppBarButton.Flyout>
+                    <MenuFlyout x:Name="SortFlyout" Opening="SortFlyout_Opening">
+                        <RadioMenuFlyoutItem x:Name="SortByName"       Text="文件名"   GroupName="PhotoSort" Tag="Name"       Click="SortMenuItem_Click">
+                            <RadioMenuFlyoutItem.Icon>
+                                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8A5;"/>
+                            </RadioMenuFlyoutItem.Icon>
+                        </RadioMenuFlyoutItem>
+                        <RadioMenuFlyoutItem x:Name="SortBySize"       Text="文件大小" GroupName="PhotoSort" Tag="Size"       Click="SortMenuItem_Click">
+                            <RadioMenuFlyoutItem.Icon>
+                                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8C8;"/>
+                            </RadioMenuFlyoutItem.Icon>
+                        </RadioMenuFlyoutItem>
+                        <RadioMenuFlyoutItem x:Name="SortByCreated"    Text="创建时间" GroupName="PhotoSort" Tag="CreatedAt"  Click="SortMenuItem_Click">
+                            <RadioMenuFlyoutItem.Icon>
+                                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE74E;"/>
+                            </RadioMenuFlyoutItem.Icon>
+                        </RadioMenuFlyoutItem>
+                        <RadioMenuFlyoutItem x:Name="SortByModified"   Text="修改时间" GroupName="PhotoSort" Tag="ModifiedAt" Click="SortMenuItem_Click">
+                            <RadioMenuFlyoutItem.Icon>
+                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE70F;"/>
+                            </RadioMenuFlyoutItem.Icon>
+                        </RadioMenuFlyoutItem>
+                        <RadioMenuFlyoutItem x:Name="SortByTakenAt"    Text="拍摄时间" GroupName="PhotoSort" Tag="TakenAt"    Click="SortMenuItem_Click">
+                            <RadioMenuFlyoutItem.Icon>
+                                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE722;"/>
+                            </RadioMenuFlyoutItem.Icon>
+                        </RadioMenuFlyoutItem>
+                        <MenuFlyoutSeparator/>
+                        <ToggleMenuFlyoutItem
+                            x:Name="SortDescToggle"
+                            Text="升序"
+                            Click="SortDescToggle_Click">
+                            <ToggleMenuFlyoutItem.Icon>
+                                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE74A;"/>
+                            </ToggleMenuFlyoutItem.Icon>
+                        </ToggleMenuFlyoutItem>
+                    </MenuFlyout>
+                </AppBarButton.Flyout>
+            </AppBarButton>
+
+            <AppBarSeparator/>
+
+            <!-- Zoom in / out -->
+            <AppBarButton
+                x:Name="ZoomInButton"
+                Label="放大"
+                IsEnabled="{x:Bind ViewModel.CanZoomIn, Mode=OneWay}"
+                Click="ZoomInButton_Click">
+                <AppBarButton.Icon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8A3;"/>
+                </AppBarButton.Icon>
+            </AppBarButton>
+            <AppBarButton
+                x:Name="ZoomOutButton"
+                Label="缩小"
+                IsEnabled="{x:Bind ViewModel.CanZoomOut, Mode=OneWay}"
+                Click="ZoomOutButton_Click">
+                <AppBarButton.Icon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE71F;"/>
+                </AppBarButton.Icon>
+            </AppBarButton>
+
+            <AppBarSeparator/>
+
+            <!-- Search toggle -->
+            <AppBarToggleButton
+                x:Name="SearchToggle"
+                Label="搜索"
+                Click="SearchToggle_Click">
+                <AppBarToggleButton.Icon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE721;"/>
+                </AppBarToggleButton.Icon>
+            </AppBarToggleButton>
+        </CommandBar>
+
+        <!-- ── Search/Filter panel ── -->
+        <Border
+            Grid.Row="1"
+            x:Name="SearchPanel"
+            Padding="16 12 16 12"
+            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="0 0 0 1"
+            Visibility="Collapsed">
+
+            <StackPanel Spacing="10">
+                <!-- Row 1: Keyword -->
+                <Grid ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock
+                        Grid.Column="0"
+                        Text="文件名"
+                        VerticalAlignment="Center"
+                        Style="{ThemeResource BodyTextBlockStyle}"/>
+                    <TextBox
+                        x:Name="KeywordBox"
+                        Grid.Column="1"
+                        Text="{x:Bind ViewModel.SearchKeyword, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                        PlaceholderText="输入文件名关键词..."
+                        KeyDown="KeywordBox_KeyDown"/>
+                </Grid>
+
+                <!-- Row 2: Date range -->
+                <Grid ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock
+                        Grid.Column="0"
+                        Text="起始日期"
+                        VerticalAlignment="Center"
+                        Style="{ThemeResource BodyTextBlockStyle}"/>
+                    <CalendarDatePicker
+                        x:Name="DateFromPicker"
+                        Grid.Column="1"
+                        DateChanged="DateFromPicker_DateChanged"/>
+
+                    <TextBlock
+                        Grid.Column="2"
+                        Text="截止日期"
+                        VerticalAlignment="Center"
+                        Margin="12 0 0 0"
+                        Style="{ThemeResource BodyTextBlockStyle}"/>
+                    <CalendarDatePicker
+                        x:Name="DateToPicker"
+                        Grid.Column="3"
+                        DateChanged="DateToPicker_DateChanged"/>
+                </Grid>
+
+                <!-- Row 3: Buttons -->
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button
+                        Content="搜索"
+                        Click="SearchButton_Click"/>
+                    <Button
+                        Content="清除"
+                        Click="ClearSearch_Click"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- ── All photos grid (flat view, not grouped) ── -->
+        <GridView
+            x:Name="PhotoGridView"
+            Grid.Row="2"
+            ItemsSource="{x:Bind ViewModel.AllPhotoItems, Mode=OneWay}"
+            SelectionMode="None"
+            IsItemClickEnabled="True"
+            ItemClick="PhotoGridView_ItemClick"
+            ContainerContentChanging="PhotoGridView_ContainerContentChanging"
+            SizeChanged="PhotoGridView_SizeChanged"
+            ManipulationMode="Scale,System"
+            ManipulationDelta="PhotoGridView_ManipulationDelta"
+            PointerWheelChanged="PhotoGridView_PointerWheelChanged"
+            Padding="4 0 4 24">
+
+            <GridView.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <ItemsWrapGrid
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Left"
+                        ItemWidth="180"
+                        ItemHeight="180"/>
+                </ItemsPanelTemplate>
+            </GridView.ItemsPanel>
+
+            <GridView.ItemContainerStyle>
+                <Style TargetType="GridViewItem" BasedOn="{StaticResource DefaultGridViewItemStyle}">
+                    <Setter Property="Padding"       Value="0"/>
+                    <Setter Property="Margin"        Value="2"/>
+                    <Setter Property="CornerRadius"  Value="6"/>
+                    <Setter Property="MinWidth"      Value="0"/>
+                    <Setter Property="MinHeight"     Value="0"/>
+                </Style>
+            </GridView.ItemContainerStyle>
+
+            <GridView.ItemTemplate>
+                <StaticResource ResourceKey="PhotoCardTemplate"/>
+            </GridView.ItemTemplate>
+        </GridView>
+
+        <!-- Loading overlay -->
+        <ProgressRing
+            Grid.Row="2"
+            IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}"
+            Width="48" Height="48"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"/>
+
+        <!-- Empty state -->
         <StackPanel
+            x:Name="EmptyStatePanel"
+            Grid.Row="2"
             HorizontalAlignment="Center"
             VerticalAlignment="Center"
-            Spacing="12">
+            Spacing="12"
+            Visibility="Collapsed">
             <FontIcon
                 FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
                 Glyph="&#xEB9F;"
                 FontSize="64"
-                Opacity="0.4" />
+                Opacity="0.3"/>
             <TextBlock
-                Text="所有照片"
+                Text="没有照片"
                 HorizontalAlignment="Center"
-                Style="{ThemeResource TitleLargeTextBlockStyle}" />
+                Style="{ThemeResource SubtitleTextBlockStyle}"/>
             <TextBlock
-                Text="（即将实现 · Coming soon）"
+                Text="当前没有找到匹配的照片"
                 HorizontalAlignment="Center"
                 Style="{ThemeResource BodyTextBlockStyle}"
-                Opacity="0.6" />
+                Opacity="0.6"/>
         </StackPanel>
-    </Grid>
 
+        <!-- Card size toast overlay -->
+        <Border x:Name="CardSizeToast"
+                Grid.Row="0" Grid.RowSpan="3"
+                HorizontalAlignment="Center" VerticalAlignment="Center"
+                Padding="20,10" CornerRadius="8"
+                Background="{ThemeResource SystemControlBackgroundChromeMediumLowBrush}"
+                Opacity="0"
+                IsHitTestVisible="False">
+            <TextBlock x:Name="CardSizeToastText"
+                       Style="{ThemeResource BodyStrongTextBlockStyle}"
+                       Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+        </Border>
+    </Grid>
 </Page>

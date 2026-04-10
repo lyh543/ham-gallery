@@ -98,6 +98,9 @@ public sealed class AppSettings
     /// <summary>Width in pixels of photo cards in the photo list. Default 165 (index 7 of photo steps).</summary>
     public int PhotoCardWidth { get; set; } = 165;
 
+    /// <summary>Width in pixels of photo cards in the all-photos list. Default 165 (index 7 of photo steps).</summary>
+    public int AllPhotosCardWidth { get; set; } = 165;
+
     // ── Photo detail ──────────────────────────────────────────────────────────
 
     /// <summary>

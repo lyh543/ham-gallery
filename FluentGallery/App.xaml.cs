@@ -144,6 +144,8 @@ public partial class App : Application
         services.AddTransient<PhotoDetailViewModel>();
         // SearchViewModel is Transient: each navigation creates a fresh instance
         services.AddTransient<SearchViewModel>();
+        // AllPhotosViewModel is Transient: each navigation creates a fresh instance
+        services.AddTransient<AllPhotosViewModel>();
 
         return services.BuildServiceProvider();
     }
