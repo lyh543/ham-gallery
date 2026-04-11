@@ -8,7 +8,6 @@ RELEASE_DIR ?= publish
 # Pass ENV=prod to build the production variant (no suffix).
 #   make build             → development build  (default)
 #   make build ENV=prod    → production build
-#   make build-run ENV=prod → build + run (prod)
 ENV ?= dev
 ifeq ($(ENV),prod)
   ENV_FLAG =
@@ -19,7 +18,7 @@ endif
 INSTALL_DIR ?= C:\Tools\FluentGallery
 
 .DEFAULT_GOAL := release-prod
-.PHONY: build run watch build-run test-all test help kill release release-prod install clean
+.PHONY: build run watch test-all test help kill release release-prod install clean
 
 PID_FILE = .run.pid
 RUN_PS   = powershell -NoProfile -ExecutionPolicy Bypass -File tools/run.ps1 -ExePath $(EXE) -PidFile $(PID_FILE)
@@ -36,9 +35,6 @@ build: kill
 	dotnet build $(PROJ) -p:Platform=x64 $(ENV_FLAG) --runtime win-x64 --no-self-contained -c Debug
 
 run:
-	$(RUN_PS)
-
-build-run: build
 	$(RUN_PS)
 
 watch:
@@ -77,8 +73,6 @@ help:
 	@echo   make build                              Build development (default, DEV_BUILD constant, -Dev data folder)
 	@echo   make build ENV=prod                     Build production (no suffix)
 	@echo   make run                                Run the built executable
-	@echo   make build-run                          Build then run
-	@echo   make build-run ENV=prod                 Build (prod) then run
 	@echo   make watch                              Watch mode (rebuild+restart on file change)
 	@echo   make watch ENV=prod                     Watch mode (prod)
 	@echo   make                                    Release build (prod, same as make release ENV=prod)

@@ -52,7 +52,7 @@ make run
 ### Build & run in one step
 
 ```powershell
-make build-run
+make build run
 # or
 dotnet build FluentGallery\FluentGallery.csproj -p:Platform=x64 --runtime win-x64 --no-self-contained -c Debug ; .\FluentGallery\bin\x64\Debug\net10.0-windows10.0.19041.0\win-x64\FluentGallery.exe
 ```
@@ -130,8 +130,6 @@ make install INSTALL_DIR="C:\Apps\FluentGallery"
 [] 照片详情页，改为全窗口，在左上角添加一个返回，类似于 Windows 的相册 app。 
 [] 图片详情页，图片默认应该放大到撑满窗口的宽或高。双击图片时，可以放大图片，如果图片已经是放大状态则还原到刚才那个大小。
    - 右下角添加一个缩放比的 slider，放大到撑满窗口的宽或高定义为 100%。如果缩放比不变且鼠标3s没动静则消失，缩放或鼠标移动时重新出现。类似于 Windows 的相册 app。
-   - 添加一个按钮，在文件管理器中查看这张图片。
-   - 在其它应用中打开时，应该调用 Windows API，弹出一个弹窗，让用户选择一个应用来打开这张图片。
    - 支持触屏左右滑动、滚轮滑动切到下一张图片
 [] 支持多种格式 mp4 mov heic heif gif bmp 透明底
    - 支持 mvimg 格式（Live Photo）
