@@ -31,6 +31,10 @@ public sealed partial class PhotoDetailPage : Page
     private readonly DispatcherTimer _hideTimer;
     private bool _toolbarVisible = false;
     private bool _hideChromeInProgress = false;
+    private bool _hideTimerRunning = false;  // Track if timer is actively running
+
+    // Track pointer count over Chrome elements; pause hide timer when > 0
+    private int _chromePointerCount = 0;
 
     // ── Rotation ──────────────────────────────────────────────────────────────
 
@@ -214,6 +218,9 @@ public sealed partial class PhotoDetailPage : Page
         FilmStrip.AddHandler(UIElement.PointerCanceledEvent,
             new PointerEventHandler(FilmStrip_PointerReleased), handledEventsToo: true);
 
+        // Attach pointer events to ZoomSlider container (for pause/resume hide timer)
+        AttachZoomSliderPointerEvents();
+
         if (_pendingArgs is not null)
         {
             await ViewModel.InitializeAsync(
@@ -280,6 +287,43 @@ public sealed partial class PhotoDetailPage : Page
         _magickLoader.ClearCache();
 
         _logger.LogDebug("OnNavigatedFrom: image caches cleared");
+    }
+
+    // ── Attach pointer events to ZoomSlider ───────────────────────────────────
+
+    private void AttachZoomSliderPointerEvents()
+    {
+        // Find ZoomSliderContainer in ZoomImage's visual tree and attach pointer events
+        var zoomSliderContainer = FindVisualChild<Border>(ZoomImage, "ZoomSliderContainer");
+        if (zoomSliderContainer is not null)
+        {
+            zoomSliderContainer.AddHandler(UIElement.PointerEnteredEvent,
+                new PointerEventHandler(ChromeElement_PointerEntered), handledEventsToo: true);
+            zoomSliderContainer.AddHandler(UIElement.PointerExitedEvent,
+                new PointerEventHandler(ChromeElement_PointerExited), handledEventsToo: true);
+        }
+    }
+
+    /// <summary>
+    /// Recursively search for a named element of type T in the visual tree.
+    /// </summary>
+    private T? FindVisualChild<T>(DependencyObject parent, string elementName) where T : DependencyObject
+    {
+        int count = VisualTreeHelper.GetChildrenCount(parent);
+        for (int i = 0; i < count; i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            
+            // Check if this element matches the name
+            if (child is FrameworkElement fe && fe.Name == elementName && child is T foundElement)
+                return foundElement;
+
+            // Recursively search in children
+            var result = FindVisualChild<T>(child, elementName);
+            if (result is not null)
+                return result;
+        }
+        return null;
     }
 
     // ── Image loading ─────────────────────────────────────────────────────────
@@ -519,8 +563,6 @@ public sealed partial class PhotoDetailPage : Page
         // Ignore if we're in the middle of hiding chrome animation
         if (_hideChromeInProgress) return;
 
-        _hideTimer.Stop();
-
         if (!_toolbarVisible)
         {
             _toolbarVisible = true;
@@ -530,12 +572,19 @@ public sealed partial class PhotoDetailPage : Page
             AnimateOpacity(NextButton, 1.0);
         }
 
-        _hideTimer.Start();
+        // Only start timer if pointer is not over Chrome elements AND timer is not already running
+        if (_chromePointerCount == 0 && !_hideTimerRunning)
+        {
+            _hideTimer.Start();
+            _hideTimerRunning = true;
+            _logger.LogDebug("Chrome: Hide timer started (1s interval)");
+        }
     }
 
     private void HideChrome()
     {
         _hideTimer.Stop();
+        _hideTimerRunning = false;
         _toolbarVisible = false;
         _hideChromeInProgress = true;
 
@@ -543,6 +592,8 @@ public sealed partial class PhotoDetailPage : Page
         AnimateOpacity(BottomToolbar, 0.0);
         AnimateOpacity(PrevButton, 0.0);
         AnimateOpacity(NextButton, 0.0);
+
+        _logger.LogDebug("Chrome: Hiding chrome");
 
         // Re-enable ShowChrome after animation duration + small buffer
         _ = Task.Delay(250).ContinueWith(_ =>
@@ -574,6 +625,33 @@ public sealed partial class PhotoDetailPage : Page
 
     private void Page_GotFocus(object sender, RoutedEventArgs e)
         => ShowChrome();
+
+    // ── Chrome element pointer events (pause/resume hide timer) ────────────────
+
+    private void ChromeElement_PointerEntered(object sender, PointerRoutedEventArgs e)
+    {
+        _chromePointerCount++;
+        _hideTimer.Stop();
+        _hideTimerRunning = false;
+        _logger.LogDebug("Chrome PointerEntered: count={Count}, timer stopped", _chromePointerCount);
+    }
+
+    private void ChromeElement_PointerExited(object sender, PointerRoutedEventArgs e)
+    {
+        _chromePointerCount--;
+        _logger.LogDebug("Chrome PointerExited: count={Count}", _chromePointerCount);
+        // When pointer leaves Chrome and count reaches 0, restart the hide timer
+        if (_chromePointerCount <= 0)
+        {
+            _chromePointerCount = 0;
+            if (_toolbarVisible && !_hideTimerRunning)
+            {
+                _hideTimer.Start();
+                _hideTimerRunning = true;
+                _logger.LogDebug("Chrome: Hide timer restarted (1s interval)");
+            }
+        }
+    }
 
     // ── Keyboard navigation ───────────────────────────────────────────────────
 

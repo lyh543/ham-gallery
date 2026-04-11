@@ -106,6 +106,7 @@
         <!-- ─────────────────────────────────────────────────────────────────
              Top bar  (minimal nav: back + title + counter)
              Auto-hides after 3 s of inactivity.
+             Pauses hide timer when pointer is over this toolbar.
         ───────────────────────────────────────────────────────────────────── -->
         <Border
             x:Name="Toolbar"
@@ -117,7 +118,9 @@
             BorderThickness="0,0,0,1"
             Opacity="0"
             Padding="4,4,0,4"
-            Canvas.ZIndex="10">
+            Canvas.ZIndex="10"
+            PointerEntered="ChromeElement_PointerEntered"
+            PointerExited="ChromeElement_PointerExited">
 
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -164,6 +167,7 @@
              Bottom floating action toolbar  (centered, above filmstrip)
              Placed in Row 0 so it naturally floats above Row 1 (filmstrip).
              Auto-hides together with the top bar.
+             Pauses hide timer when pointer is over this toolbar.
         ───────────────────────────────────────────────────────────────────── -->
         <Border
             x:Name="BottomToolbar"
@@ -176,7 +180,9 @@
             Padding="8,6"
             Opacity="0"
             Canvas.ZIndex="10"
-            RequestedTheme="Dark">
+            RequestedTheme="Dark"
+            PointerEntered="ChromeElement_PointerEntered"
+            PointerExited="ChromeElement_PointerExited">
 
             <Border.Background>
                 <AcrylicBrush TintColor="#1E1E1E" TintOpacity="0.85" />
@@ -250,6 +256,7 @@
 
         <!-- ─────────────────────────────────────────────────────────────────
              Left navigation arrow  (overlaid)
+             Pauses hide timer when pointer is over this button.
         ───────────────────────────────────────────────────────────────────── -->
         <Button
             x:Name="PrevButton"
@@ -265,13 +272,16 @@
             BorderBrush="Transparent"
             Command="{x:Bind ViewModel.PreviousPhotoCommand}"
             Canvas.ZIndex="10"
-            Opacity="0">
+            Opacity="0"
+            PointerEntered="ChromeElement_PointerEntered"
+            PointerExited="ChromeElement_PointerExited">
             <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
                       Glyph="&#xE76B;" FontSize="18" />
         </Button>
 
         <!-- ─────────────────────────────────────────────────────────────────
              Right navigation arrow  (overlaid)
+             Pauses hide timer when pointer is over this button.
         ───────────────────────────────────────────────────────────────────── -->
         <Button
             x:Name="NextButton"
@@ -287,7 +297,9 @@
             BorderBrush="Transparent"
             Command="{x:Bind ViewModel.NextPhotoCommand}"
             Canvas.ZIndex="10"
-            Opacity="0">
+            Opacity="0"
+            PointerEntered="ChromeElement_PointerEntered"
+            PointerExited="ChromeElement_PointerExited">
             <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
                       Glyph="&#xE76C;" FontSize="18" />
         </Button>
