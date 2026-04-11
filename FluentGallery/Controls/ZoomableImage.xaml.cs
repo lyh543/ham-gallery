@@ -40,6 +40,21 @@ public sealed partial class ZoomableImage : UserControl
     /// <summary>Raised when the user swipes right (towards previous photo) at fit zoom.</summary>
     public event Action? SwipeRight;
 
+    // ── Zoom slider state ─────────────────────────────────────────────────────
+
+    // Slider value: percentage relative to fit zoom (100 = fit). Always multiple of 5, 25–1000.
+    private int  _sliderValue        = 100;
+    private bool _sliderVisible      = false;
+    private bool _ignoreSliderChange = false;
+
+    // Timestamp of last programmatic FitToWindow call.
+    // ViewChanged within 300 ms of this is considered programmatic and won’t notify ZoomUserChanged.
+    private DateTime _fitToWindowTime = DateTime.MinValue;
+
+    /// <summary>Raised when the user actively changes the zoom (pinch, wheel, button, slider).
+    /// PhotoDetailPage subscribes and calls ShowChrome(), which in turn calls ShowZoomSlider().</summary>
+    public event Action? ZoomUserChanged;
+
     // Swipe tracking (AddHandler on ScrollViewer to receive already-handled events)
     private Point _swipeStart;
     private bool  _swipeTracking = false;
@@ -90,8 +105,15 @@ public sealed partial class ZoomableImage : UserControl
     {
         InitializeComponent();
 
+        // Set Minimum/Maximum/Value here to avoid WinUI 3 XBF parser constraint
+        // (Value=0 < Minimum=25 causes XamlParseException when set in XAML).
+        ZoomSlider.Minimum = 25;
+        ZoomSlider.Maximum = 1000;
+        ZoomSlider.Value   = 100;
+
         Scroll.PointerWheelChanged += OnPointerWheelChanged;
         Scroll.SizeChanged         += OnScrollSizeChanged;
+        Scroll.ViewChanged         += OnScrollViewChanged;
 
         // Use AddHandler(handledEventsToo: true) so we receive pointer events
         // even when the inner ScrollViewer marks them as handled.
@@ -227,6 +249,9 @@ public sealed partial class ZoomableImage : UserControl
         _fitZoom        = Math.Clamp((float)Math.Min(vpW / imgW, vpH / imgH), 0.1f, 10f);
         _isAt100Percent = false;
 
+        // Record time so ViewChanged events shortly after are treated as programmatic.
+        _fitToWindowTime = DateTime.UtcNow;
+
         Scroll.ChangeView(null, null, _fitZoom, disableAnimation: true);
         CentreViewport(imgW * _fitZoom, imgH * _fitZoom);
     }
@@ -250,20 +275,33 @@ public sealed partial class ZoomableImage : UserControl
         }
     }
 
-    // ── Mouse-wheel zoom ─────────────────────────────────────────────────────
+    // ── Mouse-wheel zoom / navigation ────────────────────────────────────────
 
     private void OnPointerWheelChanged(object sender, PointerRoutedEventArgs e)
     {
-        // Only intercept when Ctrl is held; otherwise let the ScrollViewer scroll normally.
         var ctrlState = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control);
-        if (!ctrlState.HasFlag(CoreVirtualKeyStates.Down))
-            return;
+        bool isCtrl   = ctrlState.HasFlag(CoreVirtualKeyStates.Down);
 
+        if (!isCtrl)
+        {
+            // Without Ctrl at fit zoom: navigate to next/previous photo.
+            // When zoomed in the ScrollViewer handles scrolling normally.
+            if (IsAtFitZoom)
+            {
+                e.Handled = true;
+                var props = e.GetCurrentPoint(Scroll).Properties;
+                if (props.MouseWheelDelta < 0) SwipeLeft?.Invoke();   // scroll down → next
+                else                           SwipeRight?.Invoke();  // scroll up  → prev
+            }
+            return;
+        }
+
+        // Ctrl + wheel → zoom
         e.Handled = true;
 
-        var props     = e.GetCurrentPoint(Scroll).Properties;
-        float factor  = props.MouseWheelDelta > 0 ? 1.15f : 1f / 1.15f;
-        float newZoom = Math.Clamp(Scroll.ZoomFactor * factor, 0.1f, 10f);
+        var wheelProps = e.GetCurrentPoint(Scroll).Properties;
+        float factor   = wheelProps.MouseWheelDelta > 0 ? 1.15f : 1f / 1.15f;
+        float newZoom  = Math.Clamp(Scroll.ZoomFactor * factor, 0.1f, 10f);
 
         // Zoom around the pointer position so the point under the cursor stays fixed.
         var pos = e.GetCurrentPoint(Scroll).Position;
@@ -304,6 +342,22 @@ public sealed partial class ZoomableImage : UserControl
 
     private void OnScrollPointerCanceled(object sender, PointerRoutedEventArgs e)
         => _swipeTracking = false;
+
+    // ── ScrollViewer ViewChanged → update slider ──────────────────────────────
+
+    private void OnScrollViewChanged(object? sender, ScrollViewerViewChangedEventArgs e)
+    {
+        // Always keep slider display in sync.
+        UpdateSliderValue();
+
+        // Skip the final "settled" event for programmatic FitToWindow calls
+        // (suppress window is 300 ms after FitToWindow was invoked).
+        if (e.IsIntermediate) return;
+
+        bool isProgrammatic = (DateTime.UtcNow - _fitToWindowTime).TotalMilliseconds < 300;
+        if (!isProgrammatic)
+            ZoomUserChanged?.Invoke();
+    }
 
     // ── Viewport size change ──────────────────────────────────────────────────
 
@@ -352,5 +406,124 @@ public sealed partial class ZoomableImage : UserControl
         var sb = new Storyboard();
         sb.Children.Add(anim);
         sb.Begin();
+    }
+
+    // ── Zoom slider helpers ───────────────────────────────────────────────────
+
+    private int ComputeZoomPercent()
+    {
+        if (_fitZoom <= 0) return 100;
+        double raw = (double)Scroll.ZoomFactor / _fitZoom * 100.0;
+        return ClampZoomPercent((int)Math.Round(raw / 5.0) * 5);
+    }
+
+    private static int ClampZoomPercent(int v) => Math.Clamp(v, 25, 1000);
+
+    private static int ZoomOutStep(int current)
+    {
+        double raw = current / 1.25;
+        return ClampZoomPercent((int)Math.Floor(raw / 5.0) * 5);
+    }
+
+    private static int ZoomInStep(int current)
+    {
+        double raw = current * 1.25;
+        return ClampZoomPercent((int)Math.Ceiling(raw / 5.0) * 5);
+    }
+
+    private void ApplyZoomPercent(int pct)
+    {
+        if (_fitZoom <= 0) return;
+        float newZoom = Math.Clamp((float)(_fitZoom * pct / 100.0), 0.1f, 10f);
+
+        double cx  = Scroll.HorizontalOffset + Scroll.ViewportWidth  / 2.0;
+        double cy  = Scroll.VerticalOffset   + Scroll.ViewportHeight / 2.0;
+        double offX = cx / Scroll.ZoomFactor * newZoom - Scroll.ViewportWidth  / 2.0;
+        double offY = cy / Scroll.ZoomFactor * newZoom - Scroll.ViewportHeight / 2.0;
+
+        Scroll.ChangeView(offX, offY, newZoom);
+        _isAt100Percent = false;
+    }
+
+    private void UpdateSliderValue()
+    {
+        int pct = ComputeZoomPercent();
+        _sliderValue = pct;
+        _ignoreSliderChange = true;
+        ZoomSlider.Value = pct;
+        ZoomPercentText.Text = $"{pct}%";
+        _ignoreSliderChange = false;
+    }
+
+    public void ShowZoomSlider()
+    {
+        if (_sliderVisible) return;
+        _sliderVisible = true;
+
+        var anim = new DoubleAnimation
+        {
+            To             = 1.0,
+            Duration       = TimeSpan.FromMilliseconds(200),
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+        };
+        Storyboard.SetTarget(anim, ZoomSliderContainer);
+        Storyboard.SetTargetProperty(anim, "Opacity");
+        var sb = new Storyboard();
+        sb.Children.Add(anim);
+        sb.Begin();
+    }
+
+    public void HideZoomSlider()
+    {
+        _sliderVisible = false;
+
+        var anim = new DoubleAnimation
+        {
+            To             = 0.0,
+            Duration       = TimeSpan.FromMilliseconds(200),
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+        };
+        Storyboard.SetTarget(anim, ZoomSliderContainer);
+        Storyboard.SetTargetProperty(anim, "Opacity");
+        var sb = new Storyboard();
+        sb.Children.Add(anim);
+        sb.Begin();
+    }
+
+    // ── Zoom slider button handlers ───────────────────────────────────────────
+
+    private void ZoomOutButton_Click(object sender, RoutedEventArgs e)
+    {
+        int next = ZoomOutStep(_sliderValue);
+        ApplyZoomPercent(next);
+        ZoomUserChanged?.Invoke();
+    }
+
+    private void ZoomInButton_Click(object sender, RoutedEventArgs e)
+    {
+        int next = ZoomInStep(_sliderValue);
+        ApplyZoomPercent(next);
+        ZoomUserChanged?.Invoke();
+    }
+
+    private void ZoomResetButton_Click(object sender, RoutedEventArgs e)
+    {
+        FitToWindow();
+        // Override the programmatic suppression so the slider shows after reset.
+        _fitToWindowTime = DateTime.MinValue;
+        UpdateSliderValue();
+        ZoomUserChanged?.Invoke();
+    }
+
+    private void ZoomSlider_ValueChanged(object sender,
+        Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
+    {
+        if (_ignoreSliderChange) return;
+
+        // Round to nearest multiple of 5 (in case the slider lands between ticks).
+        int pct = ClampZoomPercent((int)Math.Round(e.NewValue / 5.0) * 5);
+        _sliderValue = pct;
+        ApplyZoomPercent(pct);
+        ZoomUserChanged?.Invoke();
     }
 }

@@ -44,6 +44,77 @@
             IsActive="False"
             Visibility="Collapsed" />
 
+        <!--
+            Zoom slider panel — bottom-right overlay.
+            Auto-hides after 3 s of no zoom change and no pointer movement.
+            100 % = fit to window (ZoomFactor == _fitZoom).
+            Range 25–1000 %, value always a multiple of 5 (stored as int internally).
+        -->
+        <Border
+            x:Name="ZoomSliderContainer"
+            HorizontalAlignment="Right"
+            VerticalAlignment="Bottom"
+            Margin="0,0,12,12"
+            CornerRadius="8"
+            Padding="6,4"
+            Opacity="0"
+            Canvas.ZIndex="20"
+            RequestedTheme="Dark">
+
+            <Border.Background>
+                <AcrylicBrush TintColor="#1E1E1E" TintOpacity="0.85" />
+            </Border.Background>
+
+            <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+
+                <!-- Zoom out: current / 1.25, floor to nearest 5 -->
+                <Button x:Name="ZoomOutButton"
+                        Width="36" Height="36" Padding="0"
+                        ToolTipService.ToolTip="缩小"
+                        Click="ZoomOutButton_Click">
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                              Glyph="&#xE71F;" FontSize="16" />
+                </Button>
+
+                <!-- Slider: 25–1000 %, step 5; Minimum/Maximum/Value are set in code-behind -->
+                <Slider x:Name="ZoomSlider"
+                        SmallChange="5"
+                        LargeChange="25"
+                        Width="120"
+                        Margin="4,0"
+                        VerticalAlignment="Center"
+                        ValueChanged="ZoomSlider_ValueChanged" />
+
+                <!-- Zoom in: current * 1.25, ceil to nearest 5 -->
+                <Button x:Name="ZoomInButton"
+                        Width="36" Height="36" Padding="0"
+                        ToolTipService.ToolTip="放大"
+                        Click="ZoomInButton_Click">
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                              Glyph="&#xE8A3;" FontSize="16" />
+                </Button>
+
+                <!-- Current zoom percentage -->
+                <TextBlock x:Name="ZoomPercentText"
+                           Text="100%"
+                           FontSize="11"
+                           Width="38"
+                           TextAlignment="Center"
+                           VerticalAlignment="Center"
+                           Foreground="White" />
+
+                <!-- Reset to fit-to-window -->
+                <Button x:Name="ZoomResetButton"
+                        Width="36" Height="36" Padding="0"
+                        ToolTipService.ToolTip="还原到 100%（适合窗口）"
+                        Click="ZoomResetButton_Click">
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                              Glyph="&#xE777;" FontSize="16" />
+                </Button>
+
+            </StackPanel>
+        </Border>
+
     </Grid>
 
 </UserControl>

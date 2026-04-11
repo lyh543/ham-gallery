@@ -144,6 +144,7 @@ public sealed partial class PhotoDetailPage : Page
 
         ZoomImage.SwipeLeft  += () => _ = ViewModel.NavigateToIndexAsync(ViewModel.CurrentIndex + 1, _cts.Token);
         ZoomImage.SwipeRight += () => _ = ViewModel.NavigateToIndexAsync(ViewModel.CurrentIndex - 1, _cts.Token);
+        ZoomImage.ZoomUserChanged += ShowChrome;
 
         ViewModel.PropertyChanged += ViewModel_PropertyChanged;
     }
@@ -570,6 +571,7 @@ public sealed partial class PhotoDetailPage : Page
             AnimateOpacity(BottomToolbar, 1.0);
             AnimateOpacity(PrevButton, 1.0);
             AnimateOpacity(NextButton, 1.0);
+            ZoomImage.ShowZoomSlider();
         }
 
         // Only start timer if pointer is not over Chrome elements AND timer is not already running
@@ -592,6 +594,7 @@ public sealed partial class PhotoDetailPage : Page
         AnimateOpacity(BottomToolbar, 0.0);
         AnimateOpacity(PrevButton, 0.0);
         AnimateOpacity(NextButton, 0.0);
+        ZoomImage.HideZoomSlider();
 
         _logger.LogDebug("Chrome: Hiding chrome");
 
