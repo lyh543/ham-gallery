@@ -30,8 +30,7 @@
 
             <Image
                 x:Name="MainImage"
-                Stretch="None"
-                DoubleTapped="MainImage_DoubleTapped" />
+                Stretch="None" />
 
         </ScrollViewer>
 

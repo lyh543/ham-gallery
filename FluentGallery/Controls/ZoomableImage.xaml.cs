@@ -25,8 +25,7 @@ public sealed partial class ZoomableImage : UserControl
 {
     // ── State ────────────────────────────────────────────────────────────────
 
-    private float _fitZoom        = 1f;
-    private bool  _isAt100Percent = false;
+    private float _fitZoom = 1f;
 
     // Tracks the disposable source currently displayed (SoftwareBitmapSource).
     // BitmapImage (GIF) is not IDisposable so _currentDisposable stays null for those.
@@ -59,9 +58,11 @@ public sealed partial class ZoomableImage : UserControl
     private Point _swipeStart;
     private bool  _swipeTracking = false;
 
-    /// <summary>True when the image is at or very close to its fit-to-window zoom level.</summary>
-    public bool IsAtFitZoom =>
-        Math.Abs(Scroll.ZoomFactor - _fitZoom) < 0.05f;
+    // Last known pointer position relative to Scroll, used as zoom anchor.
+    private Point? _lastPointerPos;
+
+    /// <summary>True when the displayed zoom percentage is 100 % (= fit-to-window).</summary>
+    public bool IsAtFitZoom => _sliderValue is >= 80 and <= 125;
 
     // ── RotationAngle dependency property ───────────────────────────────────
 
@@ -114,6 +115,7 @@ public sealed partial class ZoomableImage : UserControl
         Scroll.PointerWheelChanged += OnPointerWheelChanged;
         Scroll.SizeChanged         += OnScrollSizeChanged;
         Scroll.ViewChanged         += OnScrollViewChanged;
+        Scroll.PointerMoved += (_, e) => _lastPointerPos = e.GetCurrentPoint(Scroll).Position;
 
         // Use AddHandler(handledEventsToo: true) so we receive pointer events
         // even when the inner ScrollViewer marks them as handled.
@@ -123,6 +125,8 @@ public sealed partial class ZoomableImage : UserControl
             new PointerEventHandler(OnScrollPointerReleased), handledEventsToo: true);
         Scroll.AddHandler(PointerCanceledEvent,
             new PointerEventHandler(OnScrollPointerCanceled), handledEventsToo: true);
+        Scroll.AddHandler(DoubleTappedEvent,
+            new DoubleTappedEventHandler(MainImage_DoubleTapped), handledEventsToo: true);
     }
 
     // ── Deferred disposal ─────────────────────────────────────────────────────
@@ -197,7 +201,6 @@ public sealed partial class ZoomableImage : UserControl
             MainImage.Source  = image.Source;
             MainImage.Width   = image.PixelWidth;
             MainImage.Height  = image.PixelHeight;
-            _isAt100Percent   = false;
             FitToWindow();
             HideLoading();
             FadeInImage();
@@ -218,7 +221,6 @@ public sealed partial class ZoomableImage : UserControl
             bitmap.ImageFailed -= onFailed;
             MainImage.Width  = bitmap.PixelWidth;
             MainImage.Height = bitmap.PixelHeight;
-            _isAt100Percent  = false;
             FitToWindow();
             HideLoading();
             FadeInImage();
@@ -246,33 +248,54 @@ public sealed partial class ZoomableImage : UserControl
         double vpH = Scroll.ViewportHeight;
         if (vpW <= 0 || vpH <= 0) return;
 
-        _fitZoom        = Math.Clamp((float)Math.Min(vpW / imgW, vpH / imgH), 0.1f, 10f);
-        _isAt100Percent = false;
+        _fitZoom = Math.Clamp((float)Math.Min(vpW / imgW, vpH / imgH), 0.1f, 10f);
 
         // Record time so ViewChanged events shortly after are treated as programmatic.
         _fitToWindowTime = DateTime.UtcNow;
 
-        Scroll.ChangeView(null, null, _fitZoom, disableAnimation: true);
-        CentreViewport(imgW * _fitZoom, imgH * _fitZoom);
+        // Single ChangeView call only — at fitZoom content always fits in the viewport
+        // (fitZoom = min(vpW/imgW, vpH/imgH)), so offset is always (0,0) and WinUI 3
+        // auto-centers the content. A second CentreViewport() call was cancelling the
+        // zoom change in WinUI 3's single-frame ChangeView coalescing.
+        Scroll.ChangeView(0, 0, _fitZoom, disableAnimation: true);
+
+        // Eagerly mark as fit zoom so IsAtFitZoom is correct before ViewChanged fires
+        // (ChangeView is async in WinUI 3; ViewChanged may not fire until next frame).
+        _sliderValue = 100;
     }
 
     // ── Double-tap to toggle zoom ─────────────────────────────────────────────
 
+    /// <summary>
+    /// When content is smaller than the viewport, WinUI 3 ScrollViewer auto-centers it.
+    /// This centering shift must be subtracted before converting viewport ↔ content coords.
+    /// </summary>
+    private Point GetCenterOffset() => new(
+        Math.Max(0.0, (Scroll.ViewportWidth  - MainImage.Width  * Scroll.ZoomFactor) / 2.0),
+        Math.Max(0.0, (Scroll.ViewportHeight - MainImage.Height * Scroll.ZoomFactor) / 2.0));
+
     private void MainImage_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
     {
-        if (_isAt100Percent)
+        Point inScroll = e.GetPosition(Scroll);
+
+        if (IsAtFitZoom)
         {
-            FitToWindow();
+            ApplyZoomPercentAroundPoint(200, inScroll);
         }
         else
         {
-            // Zoom to 100 % and centre on the tapped point
-            var pt = e.GetPosition(Scroll);
-            double offX = pt.X / Scroll.ZoomFactor - Scroll.ViewportWidth  / 2.0;
-            double offY = pt.Y / Scroll.ZoomFactor - Scroll.ViewportHeight / 2.0;
-            Scroll.ChangeView(offX, offY, 1.0f);
-            _isAt100Percent = true;
+            FitToWindow();
         }
+        ZoomUserChanged?.Invoke();
+    }
+
+    private void ApplyZoomPercentAroundPoint(int pct, Point anchor)
+    {
+        if (_fitZoom <= 0) return;
+        float newZoom = Math.Clamp((float)(_fitZoom * pct / 100.0), 0.1f, 10f);
+        ZoomAroundViewportPoint(anchor, newZoom);
+        // Eagerly update so IsAtFitZoom reflects intent before ViewChanged fires.
+        _sliderValue = ClampZoomPercent(pct);
     }
 
     // ── Mouse-wheel zoom / navigation ────────────────────────────────────────
@@ -303,13 +326,7 @@ public sealed partial class ZoomableImage : UserControl
         float factor   = wheelProps.MouseWheelDelta > 0 ? 1.15f : 1f / 1.15f;
         float newZoom  = Math.Clamp(Scroll.ZoomFactor * factor, 0.1f, 10f);
 
-        // Zoom around the pointer position so the point under the cursor stays fixed.
-        var pos = e.GetCurrentPoint(Scroll).Position;
-        double offX = (Scroll.HorizontalOffset + pos.X) / Scroll.ZoomFactor * newZoom - pos.X;
-        double offY = (Scroll.VerticalOffset   + pos.Y) / Scroll.ZoomFactor * newZoom - pos.Y;
-
-        Scroll.ChangeView(offX, offY, newZoom);
-        _isAt100Percent = Math.Abs(newZoom - 1.0f) < 0.01f;
+        ZoomAroundViewportPoint(e.GetCurrentPoint(Scroll).Position, newZoom);
     }
 
     // ── Touch swipe-to-navigate ───────────────────────────────────────────────
@@ -363,17 +380,10 @@ public sealed partial class ZoomableImage : UserControl
 
     private void OnScrollSizeChanged(object sender, SizeChangedEventArgs e)
     {
-        if (!_isAt100Percent)
+        // Only re-fit when the user is currently at (or near) fit-zoom.
+        // If the user has manually zoomed in (e.g. 200%), do NOT reset their zoom on resize.
+        if (IsAtFitZoom)
             FitToWindow();
-    }
-
-    // ── Helpers ───────────────────────────────────────────────────────────────
-
-    private void CentreViewport(double contentW, double contentH)
-    {
-        double offX = Math.Max(0, (contentW  - Scroll.ViewportWidth)  / 2.0);
-        double offY = Math.Max(0, (contentH - Scroll.ViewportHeight) / 2.0);
-        Scroll.ChangeView(offX, offY, null, disableAnimation: true);
     }
 
     // ── Loading indicator ─────────────────────────────────────────────────────
@@ -436,13 +446,31 @@ public sealed partial class ZoomableImage : UserControl
         if (_fitZoom <= 0) return;
         float newZoom = Math.Clamp((float)(_fitZoom * pct / 100.0), 0.1f, 10f);
 
-        double cx  = Scroll.HorizontalOffset + Scroll.ViewportWidth  / 2.0;
-        double cy  = Scroll.VerticalOffset   + Scroll.ViewportHeight / 2.0;
-        double offX = cx / Scroll.ZoomFactor * newZoom - Scroll.ViewportWidth  / 2.0;
-        double offY = cy / Scroll.ZoomFactor * newZoom - Scroll.ViewportHeight / 2.0;
+        Point anchor = _lastPointerPos ?? new(Scroll.ViewportWidth / 2.0, Scroll.ViewportHeight / 2.0);
+        ZoomAroundViewportPoint(anchor, newZoom);
+    }
+
+    /// <summary>
+    /// Core zoom primitive: zooms to <paramref name="newZoom"/> keeping the image content
+    /// that is currently under <paramref name="anchor"/> (viewport-space) visually fixed.
+    /// Accounts for WinUI 3 auto-centering of content smaller than the viewport.
+    /// </summary>
+    private void ZoomAroundViewportPoint(Point anchor, float newZoom)
+    {
+        // Image content under anchor before zoom (centering-corrected)
+        var c = GetCenterOffset();
+        double imgX = (Scroll.HorizontalOffset + anchor.X - c.X) / Scroll.ZoomFactor;
+        double imgY = (Scroll.VerticalOffset   + anchor.Y - c.Y) / Scroll.ZoomFactor;
+
+        // Centering offset that will apply after zoom
+        double cxNew = Math.Max(0.0, (Scroll.ViewportWidth  - MainImage.Width  * newZoom) / 2.0);
+        double cyNew = Math.Max(0.0, (Scroll.ViewportHeight - MainImage.Height * newZoom) / 2.0);
+
+        // Required scroll offsets so anchor stays on the same image content
+        double offX = imgX * newZoom - (anchor.X - cxNew);
+        double offY = imgY * newZoom - (anchor.Y - cyNew);
 
         Scroll.ChangeView(offX, offY, newZoom);
-        _isAt100Percent = false;
     }
 
     private void UpdateSliderValue()
