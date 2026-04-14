@@ -46,6 +46,10 @@ public sealed partial class ZoomableImage : UserControl
     private bool _sliderVisible      = false;
     private bool _ignoreSliderChange = false;
 
+    // Dynamic minimum percentage — depends on image size.
+    // WinUI 3 MinZoomFactor = 0.1; for large images _fitZoom * 25% < 0.1, so 25 is unreachable.
+    private int _minPercentage = 25;
+
     // Timestamp of last programmatic FitToWindow call.
     // ViewChanged within 300 ms of this is considered programmatic and won’t notify ZoomUserChanged.
     private DateTime _fitToWindowTime = DateTime.MinValue;
@@ -250,13 +254,18 @@ public sealed partial class ZoomableImage : UserControl
 
         _fitZoom = Math.Clamp((float)Math.Min(vpW / imgW, vpH / imgH), 0.1f, 10f);
 
+        // Compute the true minimum percentage for this image.
+        // Scroll.MinZoomFactor = 0.1 (set in XAML); for large images _fitZoom * 25% can be < 0.1.
+        int rawMin = (int)Math.Ceiling(0.1 / _fitZoom * 100.0 / 5.0) * 5;
+        _minPercentage = Math.Max(25, rawMin);
+        _ignoreSliderChange = true;
+        ZoomSlider.Minimum = _minPercentage;
+        _ignoreSliderChange = false;
+
         // Record time so ViewChanged events shortly after are treated as programmatic.
         _fitToWindowTime = DateTime.UtcNow;
 
-        // Single ChangeView call only — at fitZoom content always fits in the viewport
-        // (fitZoom = min(vpW/imgW, vpH/imgH)), so offset is always (0,0) and WinUI 3
-        // auto-centers the content. A second CentreViewport() call was cancelling the
-        // zoom change in WinUI 3's single-frame ChangeView coalescing.
+        // Single ChangeView call — zoom + center in one atomic call.
         Scroll.ChangeView(0, 0, _fitZoom, disableAnimation: true);
 
         // Eagerly mark as fit zoom so IsAtFitZoom is correct before ViewChanged fires
@@ -427,9 +436,9 @@ public sealed partial class ZoomableImage : UserControl
         return ClampZoomPercent((int)Math.Round(raw / 5.0) * 5);
     }
 
-    private static int ClampZoomPercent(int v) => Math.Clamp(v, 25, 1000);
+    private int ClampZoomPercent(int v) => Math.Clamp(v, _minPercentage, 1000);
 
-    private static int ZoomOutStep(int current)
+    private int ZoomOutStep(int current)
     {
         double raw = current / 1.25;
         return ClampZoomPercent((int)Math.Floor(raw / 5.0) * 5);
@@ -438,7 +447,7 @@ public sealed partial class ZoomableImage : UserControl
     private static int ZoomInStep(int current)
     {
         double raw = current * 1.25;
-        return ClampZoomPercent((int)Math.Ceiling(raw / 5.0) * 5);
+        return Math.Clamp((int)Math.Ceiling(raw / 5.0) * 5, 25, 1000);
     }
 
     private void ApplyZoomPercent(int pct)
