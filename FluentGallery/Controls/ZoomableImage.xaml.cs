@@ -50,6 +50,9 @@ public sealed partial class ZoomableImage : UserControl
     // WinUI 3 MinZoomFactor = 0.1; for large images _fitZoom * 25% < 0.1, so 25 is unreachable.
     private int _minPercentage = 25;
 
+    // Incremented on every SetSource call so stale FitAfterLayout callbacks can be discarded.
+    private int _sourceGeneration = 0;
+
     // Timestamp of last programmatic FitToWindow call.
     // ViewChanged within 300 ms of this is considered programmatic and won’t notify ZoomUserChanged.
     private DateTime _fitToWindowTime = DateTime.MinValue;
@@ -201,13 +204,14 @@ public sealed partial class ZoomableImage : UserControl
 
         if (image.PixelWidth > 0)
         {
-            // SoftwareBitmapSource is already decoded — show immediately.
+            // SoftwareBitmapSource is already decoded — dimensions are known immediately.
             MainImage.Source  = image.Source;
             MainImage.Width   = image.PixelWidth;
             MainImage.Height  = image.PixelHeight;
-            FitToWindow();
-            HideLoading();
-            FadeInImage();
+            // Step 1: establish _fitZoom↔slider mapping now (no layout needed for math).
+            EstablishFitZoom(image.PixelWidth, image.PixelHeight);
+            // Step 2: apply ChangeView after layout commits the new content size.
+            FitAfterLayout();
             return;
         }
 
@@ -225,9 +229,8 @@ public sealed partial class ZoomableImage : UserControl
             bitmap.ImageFailed -= onFailed;
             MainImage.Width  = bitmap.PixelWidth;
             MainImage.Height = bitmap.PixelHeight;
-            FitToWindow();
-            HideLoading();
-            FadeInImage();
+            EstablishFitZoom(bitmap.PixelWidth, bitmap.PixelHeight);
+            FitAfterLayout();
         };
         onFailed = (_, _) =>
         {
@@ -238,6 +241,55 @@ public sealed partial class ZoomableImage : UserControl
 
         bitmap.ImageOpened += onOpened;
         bitmap.ImageFailed += onFailed;
+    }
+
+    /// <summary>
+    /// Immediately establishes the <see cref="_fitZoom"/>↔slider mapping from image dimensions
+    /// and the current viewport size.  Does NOT call ChangeView — that requires layout to have
+    /// committed the new content size first (see <see cref="FitAfterLayout"/>).
+    /// Updates the slider to 100 % instantly so the UI always reflects the correct fit state.
+    /// </summary>
+    private void EstablishFitZoom(double imgW, double imgH)
+    {
+        double vpW = Scroll.ViewportWidth;
+        double vpH = Scroll.ViewportHeight;
+        if (vpW <= 0 || vpH <= 0 || imgW <= 0 || imgH <= 0) return;
+
+        _fitZoom = Math.Clamp((float)Math.Min(vpW / imgW, vpH / imgH), 0.1f, 10f);
+
+        int rawMin = (int)Math.Ceiling(0.1 / _fitZoom * 100.0 / 5.0) * 5;
+        _minPercentage = Math.Max(25, rawMin);
+
+        _fitToWindowTime = DateTime.UtcNow;
+        _sliderValue     = 100;
+
+        _ignoreSliderChange = true;
+        ZoomSlider.Minimum   = _minPercentage;
+        ZoomSlider.Value     = 100;
+        ZoomPercentText.Text = "100%";
+        _ignoreSliderChange = false;
+
+    }
+
+    private void FitAfterLayout()
+    {
+        int gen = ++_sourceGeneration;
+
+        // ChangeView is silently discarded by WinUI 3 when ScrollViewer.ExtentWidth/Height
+        // is 0 (content not yet laid out). LayoutUpdated fires after every layout pass;
+        // we wait until Extent > 0 before calling FitToWindow/ChangeView. The generation
+        // counter discards stale callbacks when the user navigates quickly.
+        EventHandler<object>? handler = null;
+        handler = (_, _) =>
+        {
+            if (_sourceGeneration != gen) { Scroll.LayoutUpdated -= handler; return; }
+            if (Scroll.ExtentWidth <= 0 || Scroll.ExtentHeight <= 0) return;
+            Scroll.LayoutUpdated -= handler;
+            FitToWindow();
+            HideLoading();
+            FadeInImage();
+        };
+        Scroll.LayoutUpdated += handler;
     }
 
     /// <summary>Scales the image so it fits entirely within the current viewport.</summary>
