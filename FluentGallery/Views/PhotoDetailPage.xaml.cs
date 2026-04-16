@@ -31,10 +31,13 @@ public sealed partial class PhotoDetailPage : Page
     private readonly DispatcherTimer _hideTimer;
     private bool _toolbarVisible = false;
     private bool _hideChromeInProgress = false;
-    private bool _hideTimerRunning = false;  // Track if timer is actively running
 
     // Track pointer count over Chrome elements; pause hide timer when > 0
     private int _chromePointerCount = 0;
+
+    // Last pointer position on the page. Used to ignore synthetic PointerMoved
+    // events that can fire without actual mouse movement when overlays hide/show.
+    private Point? _lastPagePointerPosition;
 
     // ── Rotation ──────────────────────────────────────────────────────────────
 
@@ -574,19 +577,22 @@ public sealed partial class PhotoDetailPage : Page
             ZoomImage.ShowZoomSlider();
         }
 
-        // Only start timer if pointer is not over Chrome elements AND timer is not already running
-        if (_chromePointerCount == 0 && !_hideTimerRunning)
-        {
-            _hideTimer.Start();
-            _hideTimerRunning = true;
-            _logger.LogDebug("Chrome: Hide timer started (1s interval)");
-        }
+        RestartHideTimer();
+    }
+
+    private void RestartHideTimer()
+    {
+        if (_chromePointerCount > 0 || !_toolbarVisible)
+            return;
+
+        _hideTimer.Stop();
+        _hideTimer.Start();
+        _logger.LogDebug("Chrome: Hide timer restarted (1s interval)");
     }
 
     private void HideChrome()
     {
         _hideTimer.Stop();
-        _hideTimerRunning = false;
         _toolbarVisible = false;
         _hideChromeInProgress = true;
 
@@ -624,7 +630,20 @@ public sealed partial class PhotoDetailPage : Page
     // ── Pointer / mouse-move: show chrome ─────────────────────────────────────
 
     private void Page_PointerMoved(object sender, PointerRoutedEventArgs e)
-        => ShowChrome();
+    {
+        Point pos = e.GetCurrentPoint(this).Position;
+
+        // Ignore synthetic / duplicate move events with no actual pointer movement.
+        if (_lastPagePointerPosition is Point last)
+        {
+            const double epsilon = 0.1;
+            if (Math.Abs(pos.X - last.X) < epsilon && Math.Abs(pos.Y - last.Y) < epsilon)
+                return;
+        }
+
+        _lastPagePointerPosition = pos;
+        ShowChrome();
+    }
 
     private void Page_GotFocus(object sender, RoutedEventArgs e)
         => ShowChrome();
@@ -635,7 +654,6 @@ public sealed partial class PhotoDetailPage : Page
     {
         _chromePointerCount++;
         _hideTimer.Stop();
-        _hideTimerRunning = false;
         _logger.LogDebug("Chrome PointerEntered: count={Count}, timer stopped", _chromePointerCount);
     }
 
@@ -647,12 +665,7 @@ public sealed partial class PhotoDetailPage : Page
         if (_chromePointerCount <= 0)
         {
             _chromePointerCount = 0;
-            if (_toolbarVisible && !_hideTimerRunning)
-            {
-                _hideTimer.Start();
-                _hideTimerRunning = true;
-                _logger.LogDebug("Chrome: Hide timer restarted (1s interval)");
-            }
+            RestartHideTimer();
         }
     }
 
