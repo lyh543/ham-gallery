@@ -62,6 +62,7 @@ public sealed partial class PhotoDetailPage : Page
     // ── Fullscreen ────────────────────────────────────────────────────────────
 
     private bool _isFullscreen = false;
+    private bool _wasMaximizedBeforeFullscreen = false;
 
     // ── CancellationTokens ────────────────────────────────────────────────────
 
@@ -91,7 +92,7 @@ public sealed partial class PhotoDetailPage : Page
     // ── Computed properties for XAML bindings ─────────────────────────────────
 
     public string FilmStripPinTooltip =>
-        ViewModel.IsFilmStripAvailable ? "固定胶片栏" : "当前目录未被索引，胶片栏不可用";
+        ViewModel.IsFilmStripAvailable ? "显示胶片栏" : "当前目录未被索引，胶片栏不可用";
 
     private bool DebugKeepChromeVisible => ViewModel.DebugKeepPhotoDetailChromeVisible;
 
@@ -684,6 +685,14 @@ public sealed partial class PhotoDetailPage : Page
     private void Page_GotFocus(object sender, RoutedEventArgs e)
         => ShowChrome();
 
+    private void FullscreenAccelerator_Invoked(
+        KeyboardAccelerator sender,
+        KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        ToggleFullscreen();
+    }
+
     // ── Chrome element pointer events (pause/resume hide timer) ────────────────
 
     private void ChromeElement_PointerEntered(object sender, PointerRoutedEventArgs e)
@@ -1243,6 +1252,15 @@ public sealed partial class PhotoDetailPage : Page
         ToastHost.IsHitTestVisible = false;
     }
 
+    private void Toolbar_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+    {
+        if (!_isFullscreen)
+            return;
+
+        e.Handled = true;
+        ExitFullscreen();
+    }
+
     // ── Fullscreen ────────────────────────────────────────────────────────────
 
     private void ToggleFullscreen()
@@ -1254,17 +1272,31 @@ public sealed partial class PhotoDetailPage : Page
     private void EnterFullscreen()
     {
         var appWindow = GetAppWindow();
-        appWindow?.SetPresenter(AppWindowPresenterKind.FullScreen);
+        if (appWindow is null)
+            return;
+
+        _wasMaximizedBeforeFullscreen =
+            appWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Maximized };
+
+        appWindow.SetPresenter(AppWindowPresenterKind.FullScreen);
         _isFullscreen = true;
-        FullscreenIcon.Glyph = "\uE73F";
+        FullscreenButton.IsChecked = true;
     }
 
     private void ExitFullscreen()
     {
         var appWindow = GetAppWindow();
-        appWindow?.SetPresenter(AppWindowPresenterKind.Default);
+        if (appWindow is null)
+            return;
+
+        appWindow.SetPresenter(AppWindowPresenterKind.Default);
+
+        if (_wasMaximizedBeforeFullscreen && appWindow.Presenter is OverlappedPresenter overlappedPresenter)
+            overlappedPresenter.Restore();
+
         _isFullscreen = false;
-        FullscreenIcon.Glyph = "\uE740";
+        _wasMaximizedBeforeFullscreen = false;
+        FullscreenButton.IsChecked = false;
     }
 
     private AppWindow? GetAppWindow()

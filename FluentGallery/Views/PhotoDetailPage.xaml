@@ -9,9 +9,14 @@
     xmlns:converters="using:FluentGallery.Converters"
     mc:Ignorable="d"
     Background="Black"
+    KeyboardAcceleratorPlacementMode="Hidden"
     KeyDown="Page_KeyDown"
     PointerMoved="Page_PointerMoved"
     GotFocus="Page_GotFocus">
+
+    <Page.KeyboardAccelerators>
+        <KeyboardAccelerator Key="F11" Invoked="FullscreenAccelerator_Invoked" />
+    </Page.KeyboardAccelerators>
 
     <Page.Resources>
         <converters:BoolToVisibilityConverter   x:Key="BoolToVisibilityConverter" />
@@ -120,6 +125,7 @@
             Opacity="0"
             Padding="4,4,0,4"
             Canvas.ZIndex="10"
+            DoubleTapped="Toolbar_DoubleTapped"
             PointerEntered="ChromeElement_PointerEntered"
             PointerExited="ChromeElement_PointerExited">
 
@@ -221,24 +227,23 @@
 
                 <Button Click="Delete_Click"
                         Width="40" Height="40"
-                        ToolTipService.ToolTip="删除（移入回收站）">
+                        ToolTipService.ToolTip="删除（移入回收站） (Delete)">
                     <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
                               Glyph="&#xE74D;" FontSize="14" />
                 </Button>
 
-                <Button x:Name="FullscreenButton"
-                        Click="Fullscreen_Click"
-                        Width="40" Height="40"
-                        ToolTipService.ToolTip="全屏">
-                    <FontIcon x:Name="FullscreenIcon"
-                              FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                <ToggleButton x:Name="FullscreenButton"
+                              Click="Fullscreen_Click"
+                              Width="40" Height="40"
+                              ToolTipService.ToolTip="全屏 (F11)">
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
                               Glyph="&#xE740;" FontSize="14" />
-                </Button>
+                </ToggleButton>
 
                 <ToggleButton x:Name="InfoToggleButton"
                               Click="InfoToggle_Click"
                               Width="40" Height="40"
-                              ToolTipService.ToolTip="照片信息">
+                              ToolTipService.ToolTip="照片信息 (I)">
                     <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
                               Glyph="&#xE946;" FontSize="14" />
                 </ToggleButton>
