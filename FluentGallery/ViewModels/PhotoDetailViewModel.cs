@@ -179,6 +179,9 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
     /// <summary>Whether to show preload-state badges on filmstrip thumbnails. Persisted to DB.</summary>
     [ObservableProperty] public partial bool ShowPreloadStatus { get; set; }
 
+    /// <summary>Whether debug mode keeps photo-detail chrome always visible. Persisted to DB.</summary>
+    [ObservableProperty] public partial bool DebugKeepPhotoDetailChromeVisible { get; set; }
+
     // ── Filmstrip ───────────────────────────────────────────────────────────
 
     public ObservableCollection<PhotoThumbItem> FilmStripItems { get; } = new();
@@ -213,8 +216,9 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
 
         _settings = await _db.LoadSettingsAsync(ct);
 
-        FilmStripPinned   = _settings.FilmStripPinned;
-        ShowPreloadStatus = _settings.ShowPreloadStatus;
+        FilmStripPinned                  = _settings.FilmStripPinned;
+        ShowPreloadStatus                = _settings.ShowPreloadStatus;
+        DebugKeepPhotoDetailChromeVisible = _settings.DebugKeepPhotoDetailChromeVisible;
 
         // Reset so that PropertyChanged fires unconditionally when NavigateToIndexAsync
         // sets the real path — guards against re-entering with the same photo path.

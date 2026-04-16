@@ -93,6 +93,8 @@ public sealed partial class PhotoDetailPage : Page
     public string FilmStripPinTooltip =>
         ViewModel.IsFilmStripAvailable ? "固定胶片栏" : "当前目录未被索引，胶片栏不可用";
 
+    private bool DebugKeepChromeVisible => ViewModel.DebugKeepPhotoDetailChromeVisible;
+
     // ── Image loaders ─────────────────────────────────────────────────────────
 
     private readonly WicImageLoader    _wicLoader;
@@ -254,6 +256,8 @@ public sealed partial class PhotoDetailPage : Page
         // InitializeAsync → NavigateToIndexAsync.
         ApplyFilmStripPinState();
         ApplyShowPreloadStatus();
+        _chromePointerCount = 0;
+        _hideChromeInProgress = false;
         ShowChrome();
 
         // Mark initialization complete; subsequent navigations will use debounce
@@ -564,24 +568,47 @@ public sealed partial class PhotoDetailPage : Page
     // FilmStrip visibility is controlled exclusively by the pin button via ApplyFilmStripPinState.
     private void ShowChrome()
     {
+        if (DebugKeepChromeVisible)
+        {
+            _hideTimer.Stop();
+            _hideChromeInProgress = false;
+            _chromePointerCount = 0;
+            EnsureChromeVisible();
+            ZoomImage.ShowZoomSlider();
+            return;
+        }
+
         // Ignore if we're in the middle of hiding chrome animation
         if (_hideChromeInProgress) return;
 
-        if (!_toolbarVisible)
-        {
-            _toolbarVisible = true;
-            AnimateOpacity(Toolbar, 1.0);
-            AnimateOpacity(BottomToolbar, 1.0);
-            AnimateOpacity(PrevButton, 1.0);
-            AnimateOpacity(NextButton, 1.0);
+        bool wasHidden = !_toolbarVisible;
+        EnsureChromeVisible();
+        if (wasHidden)
             ZoomImage.ShowZoomSlider();
-        }
 
         RestartHideTimer();
     }
 
+    private void EnsureChromeVisible()
+    {
+        if (_toolbarVisible)
+            return;
+
+        _toolbarVisible = true;
+        AnimateOpacity(Toolbar, 1.0);
+        AnimateOpacity(BottomToolbar, 1.0);
+        AnimateOpacity(PrevButton, 1.0);
+        AnimateOpacity(NextButton, 1.0);
+    }
+
     private void RestartHideTimer()
     {
+        if (DebugKeepChromeVisible)
+        {
+            _hideTimer.Stop();
+            return;
+        }
+
         if (_chromePointerCount > 0 || !_toolbarVisible)
             return;
 
@@ -592,6 +619,12 @@ public sealed partial class PhotoDetailPage : Page
 
     private void HideChrome()
     {
+        if (DebugKeepChromeVisible)
+        {
+            _hideTimer.Stop();
+            return;
+        }
+
         _hideTimer.Stop();
         _toolbarVisible = false;
         _hideChromeInProgress = true;
@@ -631,6 +664,9 @@ public sealed partial class PhotoDetailPage : Page
 
     private void Page_PointerMoved(object sender, PointerRoutedEventArgs e)
     {
+        if (DebugKeepChromeVisible)
+            return;
+
         Point pos = e.GetCurrentPoint(this).Position;
 
         // Ignore synthetic / duplicate move events with no actual pointer movement.
@@ -652,6 +688,9 @@ public sealed partial class PhotoDetailPage : Page
 
     private void ChromeElement_PointerEntered(object sender, PointerRoutedEventArgs e)
     {
+        if (DebugKeepChromeVisible)
+            return;
+
         _chromePointerCount++;
         _hideTimer.Stop();
         _logger.LogDebug("Chrome PointerEntered: count={Count}, timer stopped", _chromePointerCount);
@@ -659,14 +698,15 @@ public sealed partial class PhotoDetailPage : Page
 
     private void ChromeElement_PointerExited(object sender, PointerRoutedEventArgs e)
     {
-        _chromePointerCount--;
+        if (DebugKeepChromeVisible)
+            return;
+
+        _chromePointerCount = Math.Max(0, _chromePointerCount - 1);
         _logger.LogDebug("Chrome PointerExited: count={Count}", _chromePointerCount);
+
         // When pointer leaves Chrome and count reaches 0, restart the hide timer
-        if (_chromePointerCount <= 0)
-        {
-            _chromePointerCount = 0;
+        if (_chromePointerCount == 0)
             RestartHideTimer();
-        }
     }
 
     // ── Keyboard navigation ───────────────────────────────────────────────────

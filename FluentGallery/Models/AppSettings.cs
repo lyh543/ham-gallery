@@ -116,4 +116,7 @@ public sealed class AppSettings
 
     /// <summary>Show preload state badges on filmstrip thumbnails in the photo detail view.</summary>
     public bool ShowPreloadStatus { get; set; } = false;
+
+    /// <summary>Debug option: keep photo-detail chrome always visible.</summary>
+    public bool DebugKeepPhotoDetailChromeVisible { get; set; } = false;
 }

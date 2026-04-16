@@ -57,8 +57,9 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] public partial int  ThumbnailSizeIndex         { get; set; }
 
     // ── Debug ────────────────────────────────────────────────────────────────
-    [ObservableProperty] public partial bool ShowCardSizeToast  { get; set; }
-    [ObservableProperty] public partial bool ShowPreloadStatus  { get; set; }
+    [ObservableProperty] public partial bool ShowCardSizeToast             { get; set; }
+    [ObservableProperty] public partial bool ShowPreloadStatus             { get; set; }
+    [ObservableProperty] public partial bool DebugKeepPhotoDetailChromeVisible { get; set; }
 
     // ── System integration ───────────────────────────────────────────────
     [ObservableProperty] public partial bool   RegisterFileAssociations      { get; set; }
@@ -203,9 +204,10 @@ public sealed partial class SettingsViewModel : ObservableObject
             ConfirmBeforeDelete      = _settings.ConfirmBeforeDelete;
             PreloadCountBack         = _settings.PreloadCountBack;
             PreloadCountForward      = _settings.PreloadCountForward;
-            ShowCardSizeToast        = _settings.ShowCardSizeToast;
-            ShowPreloadStatus        = _settings.ShowPreloadStatus;
-            RegisterFileAssociations = FileAssociationHelper.AreAssociationsRegistered();
+            ShowCardSizeToast             = _settings.ShowCardSizeToast;
+            ShowPreloadStatus             = _settings.ShowPreloadStatus;
+            DebugKeepPhotoDetailChromeVisible = _settings.DebugKeepPhotoDetailChromeVisible;
+            RegisterFileAssociations      = FileAssociationHelper.AreAssociationsRegistered();
 
             var sizeIdx = Array.IndexOf(ThumbnailSizeOptions, _settings.ThumbnailSize);
             ThumbnailSizeIndex = sizeIdx >= 0 ? sizeIdx : Array.IndexOf(ThumbnailSizeOptions, 512);
@@ -236,9 +238,10 @@ public sealed partial class SettingsViewModel : ObservableObject
         _settings.PreloadCountBack         = PreloadCountBack;
         _settings.PreloadCountForward      = PreloadCountForward;
         _settings.ThumbnailSize            = ThumbnailSizePixels;
-        _settings.ShowCardSizeToast        = ShowCardSizeToast;
-        _settings.ShowPreloadStatus        = ShowPreloadStatus;
-        _settings.RegisterFileAssociations = RegisterFileAssociations;
+        _settings.ShowCardSizeToast             = ShowCardSizeToast;
+        _settings.ShowPreloadStatus             = ShowPreloadStatus;
+        _settings.DebugKeepPhotoDetailChromeVisible = DebugKeepPhotoDetailChromeVisible;
+        _settings.RegisterFileAssociations      = RegisterFileAssociations;
 
         var langIdx = SelectedLanguageIndex;
         _settings.Language = langIdx >= 0 && langIdx < LanguageTags.Length
@@ -338,6 +341,12 @@ public sealed partial class SettingsViewModel : ObservableObject
     }
 
     partial void OnShowPreloadStatusChanged(bool value)
+    {
+        if (!_isInitialized) return;
+        _ = SaveAsync();
+    }
+
+    partial void OnDebugKeepPhotoDetailChromeVisibleChanged(bool value)
     {
         if (!_isInitialized) return;
         _ = SaveAsync();

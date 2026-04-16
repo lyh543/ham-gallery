@@ -195,7 +195,7 @@
             <!-- File associations -->
             <ctk:SettingsCard
                 Header="添加文件关联"
-                Description="为 JPG、PNG、HEIC 等图片格式注册文件关联（仅对当前用户生效，无需管理员权限）">
+                Description="为 JPG、PNG、HEIC 等图片格式注册文件关联（仅对当前用户生效，无需管理员权限，并尽量保留资源管理器缩略图）">
                 <ctk:SettingsCard.HeaderIcon>
                     <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8A5;" />
                 </ctk:SettingsCard.HeaderIcon>
@@ -535,6 +535,19 @@
                 </ctk:SettingsCard.HeaderIcon>
                 <ToggleSwitch
                     IsOn="{x:Bind ViewModel.ShowPreloadStatus, Mode=TwoWay}"
+                    OnContent=""
+                    OffContent="" />
+            </ctk:SettingsCard>
+
+            <!-- Debug: keep photo-detail chrome visible -->
+            <ctk:SettingsCard
+                Header="图片详情页工具栏常亮"
+                Description="调试选项。开启后，图片详情页顶部工具栏、底部工具栏和缩放条会始终显示，不再响应鼠标移入/移出触发的自动隐藏逻辑。">
+                <ctk:SettingsCard.HeaderIcon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE7B3;" />
+                </ctk:SettingsCard.HeaderIcon>
+                <ToggleSwitch
+                    IsOn="{x:Bind ViewModel.DebugKeepPhotoDetailChromeVisible, Mode=TwoWay}"
                     OnContent=""
                     OffContent="" />
             </ctk:SettingsCard>
