@@ -18,6 +18,9 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>14</LangVersion>
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
+    <Product>Fluent Gallery</Product>
+    <AssemblyTitle>Fluent Gallery</AssemblyTitle>
+    <Description>Fluent Gallery</Description>
   </PropertyGroup>
 
   <!-- Pass -p:DevBuild=true at build time to enable the development environment.
@@ -25,6 +28,9 @@
        window title, etc. to use a "-Dev" suffix so prod and dev data are isolated. -->
   <PropertyGroup Condition="'$(DevBuild)' == 'true'">
     <DefineConstants>$(DefineConstants);DEV_BUILD</DefineConstants>
+    <Product>Fluent Gallery (Dev)</Product>
+    <AssemblyTitle>Fluent Gallery (Dev)</AssemblyTitle>
+    <Description>Fluent Gallery (Dev)</Description>
   </PropertyGroup>
 
   <ItemGroup>

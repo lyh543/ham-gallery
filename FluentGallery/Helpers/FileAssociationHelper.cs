@@ -1,4 +1,5 @@
 using Microsoft.Win32;
+using System.Collections.Generic;
 using System.Diagnostics;
 
 namespace FluentGallery.Helpers;
@@ -17,6 +18,20 @@ public static class FileAssociationHelper
         ".jpg", ".jpeg", ".png", ".bmp",
         ".gif", ".webp", ".heic", ".heif",
         ".tif", ".tiff",
+    };
+
+    private static readonly IReadOnlyDictionary<string, string> ContentTypes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        [".jpg"] = "image/jpeg",
+        [".jpeg"] = "image/jpeg",
+        [".png"] = "image/png",
+        [".bmp"] = "image/bmp",
+        [".gif"] = "image/gif",
+        [".webp"] = "image/webp",
+        [".heic"] = "image/heic",
+        [".heif"] = "image/heif",
+        [".tif"] = "image/tiff",
+        [".tiff"] = "image/tiff",
     };
 
     // ── Public API ────────────────────────────────────────────────────────
@@ -41,6 +56,7 @@ public static class FileAssociationHelper
 
     /// <summary>
     /// Writes the ProgID and all extension entries to HKCU\Software\Classes,
+    /// preserving Explorer image-thumbnail behavior for associated image files,
     /// then notifies the shell so Explorer updates immediately.
     /// </summary>
     public static void Register()
@@ -49,25 +65,31 @@ public static class FileAssociationHelper
 
         using (var classes = Registry.CurrentUser.CreateSubKey(@"Software\Classes"))
         {
-            // ProgID → open command
-            using (var progId  = classes.CreateSubKey(ProgId))
-            using (var shell   = progId.CreateSubKey(@"shell\open\command"))
+            using (var progId = classes.CreateSubKey(ProgId))
             {
-                shell.SetValue(null, $"\"{exePath}\" \"%1\"");
+                progId.SetValue(null, AppDataPaths.DisplayName);
+                progId.SetValue("FriendlyTypeName", AppDataPaths.DisplayName);
+                progId.SetValue("PerceivedType", "image");
+
+                using (var shell = progId.CreateSubKey(@"shell\open\command"))
+                {
+                    shell.SetValue(null, $"\"{exePath}\" \"%1\"");
+                }
+
+                using (var icon = progId.CreateSubKey("DefaultIcon"))
+                {
+                    icon.SetValue(null, $"\"{exePath}\",0");
+                }
             }
 
-            // ProgID → default icon
-            using (var progId  = classes.CreateSubKey(ProgId))
-            using (var icon    = progId.CreateSubKey("DefaultIcon"))
-            {
-                icon.SetValue(null, $"\"{exePath}\",0");
-            }
-
-            // Extension entries
             foreach (var ext in SupportedExtensions)
             {
                 using var extKey = classes.CreateSubKey(ext);
                 extKey.SetValue(null, ProgId);
+                extKey.SetValue("PerceivedType", "image");
+
+                if (ContentTypes.TryGetValue(ext, out var contentType))
+                    extKey.SetValue("Content Type", contentType);
             }
         }
 
