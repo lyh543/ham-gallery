@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Media.Imaging;
+using System.Linq;
 using Windows.Foundation;
 using Windows.System;
 using Windows.UI.Core;
@@ -65,11 +66,17 @@ public sealed partial class ZoomableImage : UserControl
     private Point _swipeStart;
     private bool  _swipeTracking = false;
 
+    // Mouse drag-to-pan when zoomed in.
+    private bool _mouseDragging = false;
+    private Point _mouseDragStart;
+    private double _mouseDragStartHorizontalOffset;
+    private double _mouseDragStartVerticalOffset;
+
     // Last known pointer position relative to Scroll, used as zoom anchor.
     private Point? _lastPointerPos;
 
     /// <summary>True when the displayed zoom percentage is 100 % (= fit-to-window).</summary>
-    public bool IsAtFitZoom => _sliderValue is >= 80 and <= 125;
+    public bool IsAtFitZoom => _sliderValue == 100;
 
     // ── RotationAngle dependency property ───────────────────────────────────
 
@@ -123,11 +130,14 @@ public sealed partial class ZoomableImage : UserControl
         Scroll.SizeChanged         += OnScrollSizeChanged;
         Scroll.ViewChanged         += OnScrollViewChanged;
         Scroll.PointerMoved += (_, e) => _lastPointerPos = e.GetCurrentPoint(Scroll).Position;
+        Scroll.PointerExited += (_, _) => _lastPointerPos = null;
 
         // Use AddHandler(handledEventsToo: true) so we receive pointer events
         // even when the inner ScrollViewer marks them as handled.
         Scroll.AddHandler(PointerPressedEvent,
             new PointerEventHandler(OnScrollPointerPressed), handledEventsToo: true);
+        Scroll.AddHandler(PointerMovedEvent,
+            new PointerEventHandler(OnScrollPointerMoved), handledEventsToo: true);
         Scroll.AddHandler(PointerReleasedEvent,
             new PointerEventHandler(OnScrollPointerReleased), handledEventsToo: true);
         Scroll.AddHandler(PointerCanceledEvent,
@@ -257,18 +267,33 @@ public sealed partial class ZoomableImage : UserControl
 
         _fitZoom = Math.Clamp((float)Math.Min(vpW / imgW, vpH / imgH), 0.1f, 10f);
 
-        int rawMin = (int)Math.Ceiling(0.1 / _fitZoom * 100.0 / 5.0) * 5;
-        _minPercentage = Math.Max(25, rawMin);
-
         _fitToWindowTime = DateTime.UtcNow;
         _sliderValue     = 100;
 
+        UpdateZoomBounds();
+
         _ignoreSliderChange = true;
-        ZoomSlider.Minimum   = _minPercentage;
         ZoomSlider.Value     = 100;
         ZoomPercentText.Text = "100%";
         _ignoreSliderChange = false;
 
+    }
+
+    /// <summary>
+    /// Recomputes slider bounds and native ScrollViewer zoom bounds from the current fit zoom.
+    /// Keeps the 1000 % logical cap and the native pinch/gesture cap in sync.
+    /// </summary>
+    private void UpdateZoomBounds()
+    {
+        int rawMin = (int)Math.Ceiling(0.1 / _fitZoom * 100.0 / 5.0) * 5;
+        _minPercentage = Math.Max(25, rawMin);
+
+        Scroll.MinZoomFactor = 0.1f;
+        Scroll.MaxZoomFactor = GetMaxAllowedZoomFactor();
+
+        _ignoreSliderChange = true;
+        ZoomSlider.Minimum = _minPercentage;
+        _ignoreSliderChange = false;
     }
 
     private void FitAfterLayout()
@@ -308,11 +333,7 @@ public sealed partial class ZoomableImage : UserControl
 
         // Compute the true minimum percentage for this image.
         // Scroll.MinZoomFactor = 0.1 (set in XAML); for large images _fitZoom * 25% can be < 0.1.
-        int rawMin = (int)Math.Ceiling(0.1 / _fitZoom * 100.0 / 5.0) * 5;
-        _minPercentage = Math.Max(25, rawMin);
-        _ignoreSliderChange = true;
-        ZoomSlider.Minimum = _minPercentage;
-        _ignoreSliderChange = false;
+        UpdateZoomBounds();
 
         // Record time so ViewChanged events shortly after are treated as programmatic.
         _fitToWindowTime = DateTime.UtcNow;
@@ -353,10 +374,11 @@ public sealed partial class ZoomableImage : UserControl
     private void ApplyZoomPercentAroundPoint(int pct, Point anchor)
     {
         if (_fitZoom <= 0) return;
-        float newZoom = Math.Clamp((float)(_fitZoom * pct / 100.0), 0.1f, 10f);
+        pct = ClampZoomPercent(pct);
+        float newZoom = Math.Clamp((float)(_fitZoom * pct / 100.0), 0.1f, GetMaxAllowedZoomFactor());
         ZoomAroundViewportPoint(anchor, newZoom);
         // Eagerly update so IsAtFitZoom reflects intent before ViewChanged fires.
-        _sliderValue = ClampZoomPercent(pct);
+        _sliderValue = pct;
     }
 
     // ── Mouse-wheel zoom / navigation ────────────────────────────────────────
@@ -385,7 +407,11 @@ public sealed partial class ZoomableImage : UserControl
 
         var wheelProps = e.GetCurrentPoint(Scroll).Properties;
         float factor   = wheelProps.MouseWheelDelta > 0 ? 1.15f : 1f / 1.15f;
-        float newZoom  = Math.Clamp(Scroll.ZoomFactor * factor, 0.1f, 10f);
+        float maxZoom  = GetMaxAllowedZoomFactor();
+        float newZoom  = Math.Clamp(Scroll.ZoomFactor * factor, 0.1f, maxZoom);
+
+        if (Math.Abs(newZoom - Scroll.ZoomFactor) < 0.0001f)
+            return;
 
         ZoomAroundViewportPoint(e.GetCurrentPoint(Scroll).Position, newZoom);
     }
@@ -394,13 +420,54 @@ public sealed partial class ZoomableImage : UserControl
 
     private void OnScrollPointerPressed(object sender, PointerRoutedEventArgs e)
     {
-        if (e.Pointer.PointerDeviceType != Microsoft.UI.Input.PointerDeviceType.Touch) return;
-        _swipeStart    = e.GetCurrentPoint(Scroll).Position;
-        _swipeTracking = true;
+        var point = e.GetCurrentPoint(Scroll);
+        _lastPointerPos = point.Position;
+
+        if (e.Pointer.PointerDeviceType == PointerDeviceType.Touch)
+        {
+            _swipeStart    = point.Position;
+            _swipeTracking = true;
+            return;
+        }
+
+        if (e.Pointer.PointerDeviceType != PointerDeviceType.Mouse)
+            return;
+
+        if (!point.Properties.IsLeftButtonPressed || Scroll.ZoomFactor <= _fitZoom + 0.01f)
+            return;
+
+        _mouseDragging = true;
+        _mouseDragStart = point.Position;
+        _mouseDragStartHorizontalOffset = Scroll.HorizontalOffset;
+        _mouseDragStartVerticalOffset   = Scroll.VerticalOffset;
+        Scroll.CapturePointer(e.Pointer);
+        e.Handled = true;
+    }
+
+    private void OnScrollPointerMoved(object sender, PointerRoutedEventArgs e)
+    {
+        var point = e.GetCurrentPoint(Scroll);
+        _lastPointerPos = point.Position;
+
+        if (!_mouseDragging)
+            return;
+
+        double dx = point.Position.X - _mouseDragStart.X;
+        double dy = point.Position.Y - _mouseDragStart.Y;
+
+        Scroll.ChangeView(
+            _mouseDragStartHorizontalOffset - dx,
+            _mouseDragStartVerticalOffset - dy,
+            null,
+            disableAnimation: true);
+
+        e.Handled = true;
     }
 
     private void OnScrollPointerReleased(object sender, PointerRoutedEventArgs e)
     {
+        EndMouseDrag(e.Pointer.PointerId);
+
         if (!_swipeTracking) return;
         _swipeTracking = false;
 
@@ -419,7 +486,24 @@ public sealed partial class ZoomableImage : UserControl
     }
 
     private void OnScrollPointerCanceled(object sender, PointerRoutedEventArgs e)
-        => _swipeTracking = false;
+    {
+        _swipeTracking = false;
+        EndMouseDrag(e.Pointer.PointerId);
+    }
+
+    private void EndMouseDrag(uint pointerId)
+    {
+        if (!_mouseDragging)
+            return;
+
+        _mouseDragging = false;
+
+        if (Scroll.PointerCaptures is not null && Scroll.PointerCaptures.Any(c => c.PointerId == pointerId))
+        {
+            var captured = Scroll.PointerCaptures.First(c => c.PointerId == pointerId);
+            Scroll.ReleasePointerCapture(captured);
+        }
+    }
 
     // ── ScrollViewer ViewChanged → update slider ──────────────────────────────
 
@@ -490,6 +574,9 @@ public sealed partial class ZoomableImage : UserControl
 
     private int ClampZoomPercent(int v) => Math.Clamp(v, _minPercentage, 1000);
 
+    private float GetMaxAllowedZoomFactor()
+        => Math.Clamp(_fitZoom * 10f, 0.1f, 10f);
+
     private int ZoomOutStep(int current)
     {
         double raw = current / 1.25;
@@ -505,7 +592,8 @@ public sealed partial class ZoomableImage : UserControl
     private void ApplyZoomPercent(int pct)
     {
         if (_fitZoom <= 0) return;
-        float newZoom = Math.Clamp((float)(_fitZoom * pct / 100.0), 0.1f, 10f);
+        pct = ClampZoomPercent(pct);
+        float newZoom = Math.Clamp((float)(_fitZoom * pct / 100.0), 0.1f, GetMaxAllowedZoomFactor());
 
         Point anchor = _lastPointerPos ?? new(Scroll.ViewportWidth / 2.0, Scroll.ViewportHeight / 2.0);
         ZoomAroundViewportPoint(anchor, newZoom);
@@ -518,6 +606,8 @@ public sealed partial class ZoomableImage : UserControl
     /// </summary>
     private void ZoomAroundViewportPoint(Point anchor, float newZoom)
     {
+        newZoom = Math.Clamp(newZoom, 0.1f, GetMaxAllowedZoomFactor());
+
         // Image content under anchor before zoom (centering-corrected)
         var c = GetCenterOffset();
         double imgX = (Scroll.HorizontalOffset + anchor.X - c.X) / Scroll.ZoomFactor;
