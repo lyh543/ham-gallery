@@ -104,10 +104,37 @@
         <!-- ─────────────────────────────────────────────────────────────────
              ZoomableImage — fills entire Col 0 / Row 0
         ───────────────────────────────────────────────────────────────────── -->
-        <controls:ZoomableImage
-            x:Name="ZoomImage"
+        <Grid
+            x:Name="ImageViewport"
             Grid.Column="0"
-            Grid.Row="0" />
+            Grid.Row="0"
+            Background="Transparent"
+            ManipulationMode="TranslateX,TranslateRailsX"
+            ManipulationStarted="ImageViewport_ManipulationStarted"
+            ManipulationDelta="ImageViewport_ManipulationDelta"
+            ManipulationCompleted="ImageViewport_ManipulationCompleted">
+
+            <Image
+                x:Name="SwipePreviewImage"
+                Stretch="Uniform"
+                Opacity="0"
+                IsHitTestVisible="False"
+                Visibility="Collapsed">
+                <Image.RenderTransform>
+                    <TranslateTransform x:Name="SwipePreviewTransform" />
+                </Image.RenderTransform>
+            </Image>
+
+            <controls:ZoomableImage
+                x:Name="ZoomImage"
+                Grid.Column="0"
+                Grid.Row="0">
+                <controls:ZoomableImage.RenderTransform>
+                    <TranslateTransform x:Name="ZoomImageTransform" />
+                </controls:ZoomableImage.RenderTransform>
+            </controls:ZoomableImage>
+
+        </Grid>
 
         <!-- ─────────────────────────────────────────────────────────────────
              Top bar  (minimal nav: back + title + counter)

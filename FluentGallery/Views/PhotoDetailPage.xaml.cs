@@ -2,6 +2,8 @@ using FluentGallery.Data;
 using FluentGallery.Helpers;
 using FluentGallery.Loaders;
 using FluentGallery.ViewModels;
+using FluentGallery.Controls;
+using FluentGallery.Converters;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.UI.Windowing;
@@ -100,6 +102,13 @@ public sealed partial class PhotoDetailPage : Page
 
     private readonly WicImageLoader    _wicLoader;
     private readonly MagickImageLoader _magickLoader;
+    private readonly StringToImageSourceConverter _imageSourceConverter = new();
+
+    // ── Swipe preview ────────────────────────────────────────────────────────
+
+    private string? _swipePreviewPath;
+    private bool _viewportManipulating = false;
+    private bool _viewportSwipePreviewActive = false;
 
     // ── Toast ─────────────────────────────────────────────────────────────────
 
@@ -148,8 +157,8 @@ public sealed partial class PhotoDetailPage : Page
             _edgeBoundaryThrottle.Stop();
         };
 
-        ZoomImage.SwipeLeft  += () => _ = ViewModel.NavigateToIndexAsync(ViewModel.CurrentIndex + 1, _cts.Token);
-        ZoomImage.SwipeRight += () => _ = ViewModel.NavigateToIndexAsync(ViewModel.CurrentIndex - 1, _cts.Token);
+        ZoomImage.SwipeLeft  += OnZoomImageSwipeLeft;
+        ZoomImage.SwipeRight += OnZoomImageSwipeRight;
         ZoomImage.ZoomUserChanged += ShowChrome;
 
         ViewModel.PropertyChanged += ViewModel_PropertyChanged;
@@ -275,6 +284,9 @@ public sealed partial class PhotoDetailPage : Page
         _preloadDebounce.Stop();
         _toastTimer.Stop();
         _edgeBoundaryThrottle.Stop();
+        _viewportManipulating = false;
+        _viewportSwipePreviewActive = false;
+        ResetSwipePreviewTransforms();
         _cts.Cancel();
         ViewModel.PropertyChanged -= ViewModel_PropertyChanged;
         ViewModel.Dispose();
@@ -313,6 +325,187 @@ public sealed partial class PhotoDetailPage : Page
         }
     }
 
+    private void ImageViewport_ManipulationStarted(object sender, ManipulationStartedRoutedEventArgs e)
+    {
+        _viewportManipulating = ZoomImage.IsAtFitZoom;
+        _viewportSwipePreviewActive = false;
+        _logger.LogDebug(
+            "Viewport manipulation started: fitZoom={IsAtFitZoom}, origin=({X:F1},{Y:F1})",
+            _viewportManipulating,
+            e.Position.X,
+            e.Position.Y);
+    }
+
+    private void ImageViewport_ManipulationDelta(object sender, ManipulationDeltaRoutedEventArgs e)
+    {
+        if (!_viewportManipulating)
+            return;
+
+        double dx = e.Cumulative.Translation.X;
+        double dy = e.Cumulative.Translation.Y;
+        const double HorizontalIntentThreshold = 12.0;
+
+        if (!_viewportSwipePreviewActive)
+        {
+            if (Math.Abs(dx) < HorizontalIntentThreshold || Math.Abs(dx) <= Math.Abs(dy))
+                return;
+
+            _viewportSwipePreviewActive = true;
+            _logger.LogDebug(
+                "Viewport swipe preview started: dx={Dx:F1}, dy={Dy:F1}, viewport={Viewport:F1}",
+                dx,
+                dy,
+                ImageViewport.ActualWidth);
+        }
+
+        OnZoomImageSwipePreviewProgress(new SwipePreviewEventArgs(dx, ImageViewport.ActualWidth));
+        e.Handled = true;
+    }
+
+    private async void ImageViewport_ManipulationCompleted(object sender, ManipulationCompletedRoutedEventArgs e)
+    {
+        if (!_viewportManipulating)
+            return;
+
+        double dx = e.Cumulative.Translation.X;
+        double dy = e.Cumulative.Translation.Y;
+        _logger.LogDebug(
+            "Viewport manipulation completed: dx={Dx:F1}, dy={Dy:F1}, inertial={IsInertial}",
+            dx,
+            dy,
+            e.IsInertial);
+
+        _viewportManipulating = false;
+
+        if (_viewportSwipePreviewActive)
+        {
+            _viewportSwipePreviewActive = false;
+            OnZoomImageSwipePreviewCompleted();
+        }
+
+        const double MinSwipe = 60.0;
+        if (Math.Abs(dx) < MinSwipe || Math.Abs(dx) < Math.Abs(dy) * 1.5)
+        {
+            _logger.LogDebug("Viewport swipe rejected by threshold");
+            return;
+        }
+
+        if (dx < 0)
+            await NavigateRelativeAsync(1);
+        else
+            await NavigateRelativeAsync(-1);
+    }
+
+    private void OnZoomImageSwipeLeft()
+    {
+        _logger.LogDebug("PhotoDetail swipe event: next photo from index {CurrentIndex}", ViewModel.CurrentIndex);
+        _ = NavigateRelativeAsync(1);
+    }
+
+    private void OnZoomImageSwipeRight()
+    {
+        _logger.LogDebug("PhotoDetail swipe event: previous photo from index {CurrentIndex}", ViewModel.CurrentIndex);
+        _ = NavigateRelativeAsync(-1);
+    }
+
+    private async Task NavigateRelativeAsync(int delta)
+    {
+        int targetIndex = ViewModel.CurrentIndex + delta;
+        _logger.LogDebug(
+            "NavigateRelativeAsync: current={CurrentIndex}, delta={Delta}, target={TargetIndex}, count={Count}",
+            ViewModel.CurrentIndex,
+            delta,
+            targetIndex,
+            ViewModel.FilmStripItems.Count);
+
+        if (targetIndex < 0 || targetIndex >= ViewModel.FilmStripItems.Count)
+        {
+            _logger.LogDebug("NavigateRelativeAsync blocked by boundary");
+            ShowEdgeBoundaryToast(delta < 0);
+            return;
+        }
+
+        await ViewModel.NavigateToIndexAsync(targetIndex, _cts.Token);
+    }
+
+    private void ShowEdgeBoundaryToast(bool isFirst)
+    {
+        if (_edgeBoundaryThrottleActive)
+            return;
+
+        ShowToast(isFirst ? "已经是第一张照片了" : "已经是最后一张照片了", ToastKind.Normal, showUndo: false);
+        _edgeBoundaryThrottleActive = true;
+        _edgeBoundaryThrottle.Stop();
+        _edgeBoundaryThrottle.Start();
+    }
+
+    private void OnZoomImageSwipePreviewProgress(SwipePreviewEventArgs args)
+    {
+        int direction = args.HorizontalOffset < 0 ? 1 : -1;
+        int targetIndex = ViewModel.CurrentIndex + direction;
+        _logger.LogDebug(
+            "Swipe preview progress: current={CurrentIndex}, target={TargetIndex}, offset={Offset:F1}, viewport={Viewport:F1}",
+            ViewModel.CurrentIndex,
+            targetIndex,
+            args.HorizontalOffset,
+            args.ViewportWidth);
+
+        if (targetIndex < 0 || targetIndex >= ViewModel.FilmStripItems.Count)
+        {
+            _logger.LogDebug("Swipe preview blocked by boundary");
+            ResetSwipePreviewTransforms();
+            return;
+        }
+
+        EnsureSwipePreviewImage(targetIndex);
+
+        double viewportWidth = args.ViewportWidth > 0 ? args.ViewportWidth : ImageViewport.ActualWidth;
+        if (viewportWidth <= 0)
+        {
+            _logger.LogDebug("Swipe preview skipped because viewport width is invalid");
+            return;
+        }
+
+        double offset = Math.Clamp(args.HorizontalOffset, -viewportWidth, viewportWidth);
+        ZoomImageTransform.X = offset;
+        SwipePreviewTransform.X = offset < 0 ? viewportWidth + offset : -viewportWidth + offset;
+
+        double progress = Math.Clamp(Math.Abs(offset) / viewportWidth, 0.0, 1.0);
+        SwipePreviewImage.Opacity = Math.Min(1.0, 0.2 + progress * 0.8);
+    }
+
+    private void OnZoomImageSwipePreviewCompleted()
+    {
+        _logger.LogDebug("Swipe preview completed/reset");
+        ResetSwipePreviewTransforms();
+    }
+
+    private void EnsureSwipePreviewImage(int targetIndex)
+    {
+        string targetPath = ViewModel.FilmStripItems[targetIndex].Photo.FilePath;
+        if (string.Equals(_swipePreviewPath, targetPath, StringComparison.OrdinalIgnoreCase))
+        {
+            SwipePreviewImage.Visibility = Visibility.Visible;
+            return;
+        }
+
+        _logger.LogDebug("Loading swipe preview image for target index {TargetIndex}: {Path}", targetIndex, targetPath);
+        _swipePreviewPath = targetPath;
+        SwipePreviewImage.Source = _imageSourceConverter.Convert(targetPath, typeof(ImageSource), string.Empty, string.Empty) as ImageSource;
+        SwipePreviewImage.Visibility = SwipePreviewImage.Source is null ? Visibility.Collapsed : Visibility.Visible;
+        _logger.LogDebug("Swipe preview image source resolved: hasSource={HasSource}", SwipePreviewImage.Source is not null);
+    }
+
+    private void ResetSwipePreviewTransforms()
+    {
+        _swipePreviewPath = null;
+        ZoomImageTransform.X = 0;
+        SwipePreviewTransform.X = 0;
+        SwipePreviewImage.Opacity = 0;
+        SwipePreviewImage.Source = null;
+        SwipePreviewImage.Visibility = Visibility.Collapsed;
+    }
+
     /// <summary>
     /// Recursively search for a named element of type T in the visual tree.
     /// </summary>
@@ -345,6 +538,13 @@ public sealed partial class PhotoDetailPage : Page
 
         _logger.LogDebug("LoadCurrentImage: {Path}", path);
         ZoomImage.SetLoading();
+        if (_viewportManipulating)
+        {
+            _logger.LogDebug("LoadCurrentImage reset viewport swipe state");
+            _viewportManipulating = false;
+            _viewportSwipePreviewActive = false;
+        }
+        ResetSwipePreviewTransforms();
         try
         {
             var loader = GetLoader(path);
@@ -732,20 +932,7 @@ public sealed partial class PhotoDetailPage : Page
                 if (!isCtrl)
                 {
                     e.Handled = true;
-                    // Check if already at first photo
-                    if (ViewModel.CurrentIndex == 0)
-                    {
-                        if (!_edgeBoundaryThrottleActive)
-                        {
-                            ShowToast("已经是第一张照片了", ToastKind.Normal, showUndo: false);
-                            _edgeBoundaryThrottleActive = true;
-                            _edgeBoundaryThrottle.Start();
-                        }
-                    }
-                    else
-                    {
-                        await ViewModel.NavigateToIndexAsync(ViewModel.CurrentIndex - 1, _cts.Token);
-                    }
+                    await NavigateRelativeAsync(-1);
                 }
                 break;
 
@@ -753,20 +940,7 @@ public sealed partial class PhotoDetailPage : Page
                 if (!isCtrl)
                 {
                     e.Handled = true;
-                    // Check if already at last photo
-                    if (ViewModel.CurrentIndex >= ViewModel.FilmStripItems.Count - 1)
-                    {
-                        if (!_edgeBoundaryThrottleActive)
-                        {
-                            ShowToast("已经是最后一张照片了", ToastKind.Normal, showUndo: false);
-                            _edgeBoundaryThrottleActive = true;
-                            _edgeBoundaryThrottle.Start();
-                        }
-                    }
-                    else
-                    {
-                        await ViewModel.NavigateToIndexAsync(ViewModel.CurrentIndex + 1, _cts.Token);
-                    }
+                    await NavigateRelativeAsync(1);
                 }
                 break;
 

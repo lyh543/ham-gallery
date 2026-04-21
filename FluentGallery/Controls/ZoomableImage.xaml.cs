@@ -1,3 +1,5 @@
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -11,6 +13,12 @@ using Windows.System;
 using Windows.UI.Core;
 
 namespace FluentGallery.Controls;
+
+public sealed class SwipePreviewEventArgs(double horizontalOffset, double viewportWidth)
+{
+    public double HorizontalOffset { get; } = horizontalOffset;
+    public double ViewportWidth { get; } = viewportWidth;
+}
 
 /// <summary>
 /// A UserControl that wraps <see cref="ScrollViewer"/> + <see cref="Image"/> to provide:
@@ -27,6 +35,8 @@ public sealed partial class ZoomableImage : UserControl
     // ── State ────────────────────────────────────────────────────────────────
 
     private float _fitZoom = 1f;
+    private readonly ILogger<ZoomableImage> _logger =
+        App.Current.Services.GetRequiredService<ILogger<ZoomableImage>>();
 
     // Tracks the disposable source currently displayed (SoftwareBitmapSource).
     // BitmapImage (GIF) is not IDisposable so _currentDisposable stays null for those.
@@ -39,6 +49,12 @@ public sealed partial class ZoomableImage : UserControl
 
     /// <summary>Raised when the user swipes right (towards previous photo) at fit zoom.</summary>
     public event Action? SwipeRight;
+
+    /// <summary>Raised while the user drags horizontally to preview an adjacent photo.</summary>
+    public event Action<SwipePreviewEventArgs>? SwipePreviewProgress;
+
+    /// <summary>Raised when horizontal drag preview ends and the host should reset transforms.</summary>
+    public event Action? SwipePreviewCompleted;
 
     // ── Zoom slider state ─────────────────────────────────────────────────────
 
@@ -65,6 +81,8 @@ public sealed partial class ZoomableImage : UserControl
     // Swipe tracking (AddHandler on ScrollViewer to receive already-handled events)
     private Point _swipeStart;
     private bool  _swipeTracking = false;
+    private bool  _swipePreviewActive = false;
+    private uint? _swipePointerId;
 
     // Mouse drag-to-pan when zoomed in.
     private bool _mouseDragging = false;
@@ -76,7 +94,7 @@ public sealed partial class ZoomableImage : UserControl
     private Point? _lastPointerPos;
 
     /// <summary>True when the displayed zoom percentage is 100 % (= fit-to-window).</summary>
-    public bool IsAtFitZoom => _sliderValue == 100;
+    public bool IsAtFitZoom => _sliderValue is >= 80 and <= 125;
 
     // ── RotationAngle dependency property ───────────────────────────────────
 
@@ -130,7 +148,10 @@ public sealed partial class ZoomableImage : UserControl
         Scroll.SizeChanged         += OnScrollSizeChanged;
         Scroll.ViewChanged         += OnScrollViewChanged;
         Scroll.PointerMoved += (_, e) => _lastPointerPos = e.GetCurrentPoint(Scroll).Position;
-        Scroll.PointerExited += (_, _) => _lastPointerPos = null;
+        Scroll.PointerExited += (_, _) =>
+        {
+            _lastPointerPos = null;
+        };
 
         // Use AddHandler(handledEventsToo: true) so we receive pointer events
         // even when the inner ScrollViewer marks them as handled.
@@ -425,8 +446,19 @@ public sealed partial class ZoomableImage : UserControl
 
         if (e.Pointer.PointerDeviceType == PointerDeviceType.Touch)
         {
-            _swipeStart    = point.Position;
-            _swipeTracking = true;
+            _swipeStart         = point.Position;
+            _swipeTracking      = true;
+            _swipePreviewActive = false;
+            _swipePointerId     = e.Pointer.PointerId;
+            _logger.LogDebug(
+                "Swipe touch pressed: pointer={PointerId}, pos=({X:F1},{Y:F1}), zoom={Zoom:F3}, fit={Fit:F3}, slider={Slider}",
+                _swipePointerId,
+                _swipeStart.X,
+                _swipeStart.Y,
+                Scroll.ZoomFactor,
+                _fitZoom,
+                _sliderValue);
+            Scroll.CapturePointer(e.Pointer);
             return;
         }
 
@@ -449,15 +481,56 @@ public sealed partial class ZoomableImage : UserControl
         var point = e.GetCurrentPoint(Scroll);
         _lastPointerPos = point.Position;
 
+        if (e.Pointer.PointerDeviceType == PointerDeviceType.Touch && _swipeTracking && _swipePointerId == e.Pointer.PointerId)
+        {
+            if (!IsAtFitZoom)
+            {
+                if (_swipePreviewActive)
+                {
+                    _logger.LogDebug(
+                        "Swipe preview cancelled because zoom is not at fit: pointer={PointerId}, zoom={Zoom:F3}, fit={Fit:F3}, slider={Slider}",
+                        _swipePointerId,
+                        Scroll.ZoomFactor,
+                        _fitZoom,
+                        _sliderValue);
+                    SwipePreviewCompleted?.Invoke();
+                    _swipePreviewActive = false;
+                }
+            }
+            else
+            {
+                double dx = point.Position.X - _swipeStart.X;
+                double dy = point.Position.Y - _swipeStart.Y;
+
+                const double HorizontalIntentThreshold = 12.0;
+                if (_swipePreviewActive || (Math.Abs(dx) >= HorizontalIntentThreshold && Math.Abs(dx) > Math.Abs(dy)))
+                {
+                    bool startedPreview = !_swipePreviewActive;
+                    _swipePreviewActive = true;
+                    if (startedPreview)
+                    {
+                        _logger.LogDebug(
+                            "Swipe preview started: pointer={PointerId}, dx={Dx:F1}, dy={Dy:F1}, viewport={Viewport:F1}",
+                            _swipePointerId,
+                            dx,
+                            dy,
+                            Scroll.ActualWidth);
+                    }
+                    SwipePreviewProgress?.Invoke(new SwipePreviewEventArgs(dx, Scroll.ActualWidth));
+                    e.Handled = true;
+                }
+            }
+        }
+
         if (!_mouseDragging)
             return;
 
-        double dx = point.Position.X - _mouseDragStart.X;
-        double dy = point.Position.Y - _mouseDragStart.Y;
+        double dxMouse = point.Position.X - _mouseDragStart.X;
+        double dyMouse = point.Position.Y - _mouseDragStart.Y;
 
         Scroll.ChangeView(
-            _mouseDragStartHorizontalOffset - dx,
-            _mouseDragStartVerticalOffset - dy,
+            _mouseDragStartHorizontalOffset - dxMouse,
+            _mouseDragStartVerticalOffset - dyMouse,
             null,
             disableAnimation: true);
 
@@ -468,27 +541,89 @@ public sealed partial class ZoomableImage : UserControl
     {
         EndMouseDrag(e.Pointer.PointerId);
 
-        if (!_swipeTracking) return;
+        if (_swipePointerId == e.Pointer.PointerId)
+        {
+            ReleaseSwipePointerCapture(e.Pointer.PointerId);
+
+            if (_swipePreviewActive)
+            {
+                _logger.LogDebug("Swipe preview completed: pointer={PointerId}", _swipePointerId);
+                SwipePreviewCompleted?.Invoke();
+                _swipePreviewActive = false;
+            }
+        }
+
+        if (!_swipeTracking || _swipePointerId != e.Pointer.PointerId) return;
         _swipeTracking = false;
+        _swipePointerId = null;
 
         // Only handle swipe when at fit zoom — zoomed-in panning is handled by ScrollViewer.
-        if (!IsAtFitZoom) return;
+        if (!IsAtFitZoom)
+        {
+            _logger.LogDebug(
+                "Swipe release ignored because not at fit zoom: zoom={Zoom:F3}, fit={Fit:F3}, slider={Slider}",
+                Scroll.ZoomFactor,
+                _fitZoom,
+                _sliderValue);
+            return;
+        }
 
         var end = e.GetCurrentPoint(Scroll).Position;
         double dx = end.X - _swipeStart.X;
         double dy = end.Y - _swipeStart.Y;
 
-        const double MinSwipe = 60.0;
-        if (Math.Abs(dx) < MinSwipe || Math.Abs(dx) < Math.Abs(dy) * 1.5) return;
+        _logger.LogDebug(
+            "Swipe released: dx={Dx:F1}, dy={Dy:F1}, minSwipe={MinSwipe}, pointer={PointerId}",
+            dx,
+            dy,
+            60.0,
+            e.Pointer.PointerId);
 
-        if (dx < 0) SwipeLeft?.Invoke();
-        else         SwipeRight?.Invoke();
+        const double MinSwipe = 60.0;
+        if (Math.Abs(dx) < MinSwipe || Math.Abs(dx) < Math.Abs(dy) * 1.5)
+        {
+            _logger.LogDebug("Swipe rejected: horizontal threshold not met");
+            return;
+        }
+
+        if (dx < 0)
+        {
+            _logger.LogDebug("Swipe accepted: trigger next photo");
+            SwipeLeft?.Invoke();
+        }
+        else
+        {
+            _logger.LogDebug("Swipe accepted: trigger previous photo");
+            SwipeRight?.Invoke();
+        }
     }
 
     private void OnScrollPointerCanceled(object sender, PointerRoutedEventArgs e)
     {
-        _swipeTracking = false;
+        if (_swipePointerId == e.Pointer.PointerId)
+        {
+            if (_swipePreviewActive)
+            {
+                _logger.LogDebug("Swipe cancelled during preview: pointer={PointerId}", _swipePointerId);
+                SwipePreviewCompleted?.Invoke();
+                _swipePreviewActive = false;
+            }
+            ReleaseSwipePointerCapture(e.Pointer.PointerId);
+            _swipeTracking = false;
+            _swipePointerId = null;
+        }
+
         EndMouseDrag(e.Pointer.PointerId);
+    }
+
+    private void ReleaseSwipePointerCapture(uint pointerId)
+    {
+        if (Scroll.PointerCaptures is null)
+            return;
+
+        var captured = Scroll.PointerCaptures.FirstOrDefault(c => c.PointerId == pointerId);
+        if (captured is not null)
+            Scroll.ReleasePointerCapture(captured);
     }
 
     private void EndMouseDrag(uint pointerId)
