@@ -261,6 +261,7 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
 
         List<Photo> photos;
         int         initialIndex;
+        Photo?      syntheticPhoto = null;
 
         if (siblingPhotos.Count > 0)
         {
@@ -289,16 +290,17 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
             {
                 // File is not yet indexed — create a synthetic Photo and insert it
                 // at the correct sort position (by FileName, matching the list order).
-                var synthetic = BuildPhotoFromFile(filePath);
-                initialIndex  = FindSortedInsertPosition(photos, synthetic);
-                photos.Insert(initialIndex, synthetic);
+                syntheticPhoto = await BuildPhotoFromFileAsync(filePath, ct);
+                initialIndex   = FindSortedInsertPosition(photos, syntheticPhoto);
+                photos.Insert(initialIndex, syntheticPhoto);
             }
         }
         else
         {
             // Directory is not indexed — single-file mode, filmstrip unavailable.
             IsFilmStripAvailable = false;
-            photos               = new List<Photo> { BuildPhotoFromFile(filePath) };
+            syntheticPhoto       = await BuildPhotoFromFileAsync(filePath, ct);
+            photos               = new List<Photo> { syntheticPhoto };
             initialIndex         = 0;
         }
 
@@ -307,12 +309,14 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
 
     /// <summary>
     /// Builds a lightweight <see cref="Photo"/> object from a file path without
-    /// touching the database. The returned instance has <c>Id = 0</c> (synthetic).
+    /// touching the database. For files outside the scan index, EXIF and dimensions
+    /// are read on demand so the detail page can still show complete metadata.
+    /// The returned instance has <c>Id = 0</c> (synthetic).
     /// </summary>
-    private static Photo BuildPhotoFromFile(string filePath)
+    private async Task<Photo> BuildPhotoFromFileAsync(string filePath, CancellationToken ct)
     {
         var fi = new FileInfo(filePath);
-        return new Photo
+        var photo = new Photo
         {
             Id         = 0,
             FilePath   = filePath,
@@ -321,6 +325,32 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
             CreatedAt  = fi.Exists ? fi.CreationTimeUtc.ToString("O") : DateTime.UtcNow.ToString("O"),
             ModifiedAt = fi.Exists ? fi.LastWriteTimeUtc.ToString("O") : DateTime.UtcNow.ToString("O"),
         };
+
+        if (!fi.Exists)
+            return photo;
+
+        try
+        {
+            var exif = await Task.Run(() => _exif.ReadExif(filePath), ct);
+            photo.Width       = exif.Width;
+            photo.Height      = exif.Height;
+            photo.TakenAt     = exif.TakenAt;
+            photo.Latitude    = exif.Latitude;
+            photo.Longitude   = exif.Longitude;
+            photo.CameraModel = exif.CameraModel;
+            photo.CameraMake  = exif.CameraMake;
+            photo.Orientation = exif.Orientation;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Metadata preload failed for direct-open file {Path}", filePath);
+        }
+
+        return photo;
     }
 
     /// <summary>
