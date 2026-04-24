@@ -159,6 +159,8 @@ public partial class App : Application
         var db = Services.GetRequiredService<DatabaseService>();
         await db.InitializeAsync();
         var settings = await db.LoadSettingsAsync();
+        var themeService = Services.GetRequiredService<IThemeService>();
+        themeService.Apply(settings.Theme);
         var mainWindow = (MainWindow)_window;
         mainWindow.RestoreWindowSize(settings);
         if (settings.UseAcrylicBackdrop)
