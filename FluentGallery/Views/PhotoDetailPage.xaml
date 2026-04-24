@@ -170,17 +170,19 @@
             </Grid>
         </Border>
 
-        <!-- Index Prompt Widget (right-top overlay) -->
-        <controls:IndexPrompt
-            x:Name="IndexPrompt"
+        <!-- Index Prompt Flyout Anchor (right-top overlay) -->
+        <Border
+            x:Name="IndexPromptAnchor"
             Grid.Column="0"
             Grid.Row="0"
             HorizontalAlignment="Right"
             VerticalAlignment="Top"
             Margin="0,84,20,0"
             Canvas.ZIndex="25"
-            ConfirmClicked="IndexPrompt_ConfirmClicked"
-            CancelClicked="IndexPrompt_CancelClicked" />
+            Width="1"
+            Height="1"
+            Opacity="0"
+            IsHitTestVisible="False" />
 
         <!-- ─────────────────────────────────────────────────────────────────
              Bottom floating action toolbar  (centered, above filmstrip)
