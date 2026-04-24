@@ -23,6 +23,7 @@ public sealed partial class MainWindow : Window
 
     // ── State ─────────────────────────────────────────────────────────────────
     private readonly MainWindowViewModel _vm;
+    private readonly FrameworkElement? _themeRoot;
 
     // ── Dev Warning Toast ─────────────────────────────────────────────────────
 #if DEBUG
@@ -41,6 +42,13 @@ public sealed partial class MainWindow : Window
         AppWindow.TitleBar.ExtendsContentIntoTitleBar = true;
         AppWindow.TitleBar.ButtonBackgroundColor         = Colors.Transparent;
         AppWindow.TitleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
+
+        _themeRoot = Content as FrameworkElement;
+        if (_themeRoot is not null)
+        {
+            _themeRoot.ActualThemeChanged += OnRootActualThemeChanged;
+            ApplyTitleBarButtonTheme(_themeRoot.ActualTheme);
+        }
 
         // Initial size and min-size enforcement (scale logical pixels to physical pixels)
         var hwndForDpi = WinRT.Interop.WindowNative.GetWindowHandle(this);
@@ -116,6 +124,9 @@ public sealed partial class MainWindow : Window
 
     private async void OnWindowClosed(object sender, WindowEventArgs e)
     {
+        if (_themeRoot is not null)
+            _themeRoot.ActualThemeChanged -= OnRootActualThemeChanged;
+
         bool maximized = AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Maximized };
 
         var db       = App.Current.Services.GetRequiredService<DatabaseService>();
@@ -138,6 +149,32 @@ public sealed partial class MainWindow : Window
         }
 
         await db.SaveSettingsAsync(settings).ConfigureAwait(false);
+    }
+
+    private void OnRootActualThemeChanged(FrameworkElement sender, object args)
+        => ApplyTitleBarButtonTheme(sender.ActualTheme);
+
+    private void ApplyTitleBarButtonTheme(ElementTheme theme)
+    {
+        bool dark = theme == ElementTheme.Dark;
+
+        var fg         = dark ? Colors.White : Colors.Black;
+        var inactiveFg = dark
+            ? Windows.UI.Color.FromArgb(0xB3, 0xFF, 0xFF, 0xFF)
+            : Windows.UI.Color.FromArgb(0x99, 0x00, 0x00, 0x00);
+        var hoverBg    = dark
+            ? Windows.UI.Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF)
+            : Windows.UI.Color.FromArgb(0x12, 0x00, 0x00, 0x00);
+        var pressedBg  = dark
+            ? Windows.UI.Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF)
+            : Windows.UI.Color.FromArgb(0x22, 0x00, 0x00, 0x00);
+
+        AppWindow.TitleBar.ButtonForegroundColor         = fg;
+        AppWindow.TitleBar.ButtonHoverForegroundColor    = fg;
+        AppWindow.TitleBar.ButtonPressedForegroundColor  = fg;
+        AppWindow.TitleBar.ButtonInactiveForegroundColor = inactiveFg;
+        AppWindow.TitleBar.ButtonHoverBackgroundColor    = hoverBg;
+        AppWindow.TitleBar.ButtonPressedBackgroundColor  = pressedBg;
     }
 
     // ── Minimum window size ───────────────────────────────────────────────────

@@ -5,34 +5,132 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Width="300"
-    Height="Auto">
+    Width="360"
+    Height="Auto"
+    Visibility="Collapsed">
 
-    <Grid Padding="4">
+    <UserControl.Resources>
+        <Style x:Key="IndexPromptButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Foreground" Value="{ThemeResource SystemAccentColor}" />
+            <Setter Property="Padding" Value="16,10" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="Normal" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="RootBorder"
+                                Background="Transparent"
+                                CornerRadius="{TemplateBinding CornerRadius}"
+                                BorderBrush="Transparent"
+                                BorderThickness="0">
+                            <ContentPresenter x:Name="ContentPresenter"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              Content="{TemplateBinding Content}"
+                                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                                              Foreground="{TemplateBinding Foreground}"
+                                              Margin="{TemplateBinding Padding}" />
+                        </Border>
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal" />
+                                <VisualState x:Name="PointerOver">
+                                    <Storyboard>
+                                        <ObjectAnimationUsingKeyFrames Storyboard.TargetName="RootBorder" 
+                                                                       Storyboard.TargetProperty="Background">
+                                            <DiscreteObjectKeyFrame KeyTime="0">
+                                                <DiscreteObjectKeyFrame.Value>
+                                                    <SolidColorBrush Color="#28FFFFFF" />
+                                                </DiscreteObjectKeyFrame.Value>
+                                            </DiscreteObjectKeyFrame>
+                                        </ObjectAnimationUsingKeyFrames>
+                                    </Storyboard>
+                                </VisualState>
+                                <VisualState x:Name="Pressed">
+                                    <Storyboard>
+                                        <ObjectAnimationUsingKeyFrames Storyboard.TargetName="RootBorder" 
+                                                                       Storyboard.TargetProperty="Background">
+                                            <DiscreteObjectKeyFrame KeyTime="0">
+                                                <DiscreteObjectKeyFrame.Value>
+                                                    <SolidColorBrush Color="#38FFFFFF" />
+                                                </DiscreteObjectKeyFrame.Value>
+                                            </DiscreteObjectKeyFrame>
+                                        </ObjectAnimationUsingKeyFrames>
+                                    </Storyboard>
+                                </VisualState>
+                                <VisualState x:Name="Disabled">
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="ContentPresenter"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0.5"
+                                                         Duration="0:0:0" />
+                                    </Storyboard>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Border x:Name="RootBorder"
+            CornerRadius="14"
+            Padding="20,16"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="1"
+            Translation="0,0,24">
+        <Border.Shadow>
+            <ThemeShadow />
+        </Border.Shadow>
+        <Border.Background>
+            <AcrylicBrush
+                TintColor="#202020"
+                TintOpacity="0.8"
+                FallbackColor="#CC202020" />
+        </Border.Background>
+
         <StackPanel Spacing="12">
-            <StackPanel Spacing="6">
+            <!-- Title & message -->
+            <StackPanel Spacing="8">
                 <TextBlock x:Name="TitleTextBlock"
-                           Text="索引新文件夹？"
-                           Style="{ThemeResource BodyStrongTextBlockStyle}"
+                           Text="加入相册"
+                           FontSize="16"
+                           FontWeight="SemiBold"
+                           Foreground="White"
                            TextWrapping="Wrap" />
 
                 <TextBlock x:Name="MessageTextBlock"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           Foreground="#E6FFFFFF"
+                           FontSize="13"
+                           LineHeight="18"
                            TextWrapping="WrapWholeWords"
-                           MaxLines="5" />
+                           MaxLines="4" />
             </StackPanel>
 
+            <!-- Divider -->
+            <Border Height="1"
+                    Background="{ThemeResource DividerStrokeColorDefaultBrush}"
+                    Margin="0,4,0,4" />
+
+            <!-- Button row -->
             <StackPanel Orientation="Horizontal"
                         HorizontalAlignment="Right"
                         Spacing="8">
                 <Button x:Name="CancelButton"
                         Content="暂不加入"
+                        Style="{StaticResource IndexPromptButtonStyle}"
                         Click="CancelButton_Click" />
                 <Button x:Name="ConfirmButton"
                         Content="加入并索引"
-                        Style="{ThemeResource AccentButtonStyle}"
+                        Style="{StaticResource IndexPromptButtonStyle}"
                         Click="ConfirmButton_Click" />
             </StackPanel>
         </StackPanel>
-    </Grid>
+    </Border>
 </UserControl>
