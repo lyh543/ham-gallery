@@ -40,6 +40,7 @@ public sealed partial class MainWindow : Window
 
         // Extend content into the title bar (Windows Photos-style: no visible title bar strip)
         AppWindow.TitleBar.ExtendsContentIntoTitleBar = true;
+        AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
         AppWindow.TitleBar.ButtonBackgroundColor         = Colors.Transparent;
         AppWindow.TitleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
 

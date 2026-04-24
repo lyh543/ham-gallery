@@ -203,13 +203,6 @@ public sealed partial class PhotoDetailPage : Page
         var appWindow = GetAppWindow();
         if (appWindow != null)
         {
-            // Set system buttons to Tall (75 physical pixels)
-            try
-            {
-                appWindow.TitleBar.PreferredHeightOption = Microsoft.UI.Windowing.TitleBarHeightOption.Tall;
-            }
-            catch { }
-
             var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.Current.MainWindow);
             var dpi = WindowsApiHelper.GetDpiForWindow(hwnd);
             double scale = dpi / 96.0;
