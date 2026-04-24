@@ -125,14 +125,10 @@ make install INSTALL_DIR="C:\Apps\FluentGallery"
 
 ## TODO
 
-触屏优化
-图片旋转还有 bug
-
-
+[] 触屏优化
 [] 支持多种格式 mp4 mov heic heif gif bmp 透明底
    - 支持 mvimg 格式（Live Photo）
 [] 旋转模块不是支持每一种图片类型
-[] 在新相册打开图片，提示是否需要加入相册
 [] i18n，同时将代码中的注释都改为英文。
 [] 【低优先级】优化内存问题。预加载图片的内存似乎没有正确被释放掉。相册关闭以后，这些内存才会被释放。
 

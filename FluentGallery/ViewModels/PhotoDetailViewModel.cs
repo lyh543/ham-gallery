@@ -94,6 +94,7 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
     private readonly DatabaseService               _db;
     private readonly ThumbnailService              _thumbnail;
     private readonly ExifService                   _exif;
+    private readonly ScanService                   _scan;
     private readonly ILogger<PhotoDetailViewModel> _logger;
 
     private IReadOnlyList<Photo>     _photos = Array.Empty<Photo>();
@@ -189,14 +190,16 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
     // ── Constructor ─────────────────────────────────────────────────────────
 
     public PhotoDetailViewModel(
-        DatabaseService              db,
-        ThumbnailService             thumbnail,
-        ExifService                  exif,
+        DatabaseService               db,
+        ThumbnailService              thumbnail,
+        ExifService                   exif,
+        ScanService                   scan,
         ILogger<PhotoDetailViewModel> logger)
     {
         _db        = db;
         _thumbnail = thumbnail;
         _exif      = exif;
+        _scan      = scan;
         _logger    = logger;
     }
 
@@ -305,6 +308,77 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
         }
 
         await InitializeAsync(photos, initialIndex, dispatcher, ct);
+    }
+
+    /// <summary>
+    /// Adds the current file's directory to scan settings if needed, persists the
+    /// updated settings, and starts a fresh background scan so the directory can
+    /// become an indexed album.
+    /// </summary>
+    public async Task<bool> EnsureDirectoryIndexedAsync(
+        string            directoryPath,
+        DispatcherQueue   dispatcher,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(directoryPath))
+            return false;
+
+        var settings = await _db.LoadSettingsAsync(ct);
+        bool added = false;
+        if (!settings.ScanDirectories.Contains(directoryPath, StringComparer.OrdinalIgnoreCase))
+        {
+            settings.ScanDirectories.Add(directoryPath);
+            added = true;
+        }
+
+        settings.RecursiveScan = true;
+
+        if (added)
+            await _db.SaveSettingsAsync(settings, ct);
+
+        await _scan.StartAsync(settings, dispatcher);
+        return true;
+    }
+
+    /// <summary>
+    /// Returns true when the current photo was opened from a directory that has not
+    /// yet been indexed into an album and therefore cannot populate the filmstrip.
+    /// </summary>
+    public bool ShouldPromptToIndexCurrentDirectory()
+        => !IsFilmStripAvailable && !string.IsNullOrEmpty(CurrentImagePath);
+
+    /// <summary>
+    /// Reloads the current direct-open file against the latest database state.
+    /// Used after a newly-added directory finishes scanning so the filmstrip can
+    /// become available without closing the detail page.
+    /// </summary>
+    public Task ReloadCurrentFileContextAsync(
+        DispatcherQueue   dispatcher,
+        CancellationToken ct = default)
+    {
+        var filePath = CurrentImagePath;
+        if (string.IsNullOrEmpty(filePath))
+            return Task.CompletedTask;
+
+        return InitializeFromFileAsync(filePath, dispatcher, ct);
+    }
+
+    /// <summary>
+    /// Returns the directory that contains the current image, or null when none.
+    /// </summary>
+    public string? GetCurrentDirectoryPath()
+        => string.IsNullOrEmpty(CurrentImagePath)
+            ? null
+            : Path.GetDirectoryName(CurrentImagePath);
+
+    /// <summary>
+    /// Returns true when the current image path belongs to the specified directory.
+    /// </summary>
+    public bool IsCurrentFileInDirectory(string directoryPath)
+    {
+        var currentDir = GetCurrentDirectoryPath();
+        return !string.IsNullOrEmpty(currentDir)
+            && string.Equals(currentDir, directoryPath, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

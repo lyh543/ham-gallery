@@ -1,9 +1,11 @@
 using FluentGallery.Data;
 using FluentGallery.Helpers;
 using FluentGallery.Loaders;
+using FluentGallery.Models;
 using FluentGallery.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -12,7 +14,10 @@ using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Navigation;
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Windows.Foundation;
 using Windows.System;
@@ -88,6 +93,9 @@ public sealed partial class PhotoDetailPage : Page
 
     private PhotoDetailArgs?     _pendingArgs;
     private PhotoDetailFileArgs? _pendingFileArgs;
+    private string?              _pendingIndexDirectory;
+    private string?              _pendingPromptDirectory;
+    private bool                 _indexPromptShown;
 
     // ── Computed properties for XAML bindings ─────────────────────────────────
 
@@ -107,6 +115,8 @@ public sealed partial class PhotoDetailPage : Page
     private readonly DispatcherTimer _edgeBoundaryThrottle;
     private bool _edgeBoundaryThrottleActive = false;
     private enum ToastKind { Normal, Error }
+    private readonly ScanService _scanService =
+        App.Current.Services.GetRequiredService<ScanService>();
 
     private readonly ILogger<PhotoDetailPage> _logger =
         App.Current.Services.GetRequiredService<ILogger<PhotoDetailPage>>();
@@ -153,6 +163,7 @@ public sealed partial class PhotoDetailPage : Page
         ZoomImage.ZoomUserChanged += ShowChrome;
 
         ViewModel.PropertyChanged += ViewModel_PropertyChanged;
+        _scanService.ScanCompleted += OnScanCompleted;
     }
 
     // ── Page lifecycle ────────────────────────────────────────────────────────
@@ -246,6 +257,8 @@ public sealed partial class PhotoDetailPage : Page
             // Set up ContentFrame so pressing Back reveals the album's photo list.
             if (ViewModel.AlbumId is long albumId && App.Current.MainWindow is MainWindow mw)
                 mw.NavigateContentToAlbum(albumId);
+
+            await PromptToIndexDirectoryIfNeededAsync();
         }
         else
         {
@@ -275,8 +288,10 @@ public sealed partial class PhotoDetailPage : Page
         _preloadDebounce.Stop();
         _toastTimer.Stop();
         _edgeBoundaryThrottle.Stop();
+        IndexPromptTip.IsOpen = false;
         _cts.Cancel();
         ViewModel.PropertyChanged -= ViewModel_PropertyChanged;
+        _scanService.ScanCompleted -= OnScanCompleted;
         ViewModel.Dispose();
 
         // Signal cancellation on all in-flight preload tasks. Do NOT Dispose here —
@@ -333,6 +348,73 @@ public sealed partial class PhotoDetailPage : Page
                 return result;
         }
         return null;
+    }
+
+    private async Task PromptToIndexDirectoryIfNeededAsync()
+    {
+        if (_indexPromptShown || !ViewModel.ShouldPromptToIndexCurrentDirectory())
+            return;
+
+        var directoryPath = ViewModel.GetCurrentDirectoryPath();
+        if (string.IsNullOrEmpty(directoryPath))
+            return;
+
+        _indexPromptShown = true;
+        _pendingPromptDirectory = directoryPath;
+        IndexPromptTip.IsOpen = true;
+    }
+
+    private async void IndexPromptConfirmButton_Click(object sender, RoutedEventArgs e)
+    {
+        var directoryPath = _pendingPromptDirectory;
+        IndexPromptTip.IsOpen = false;
+
+        if (string.IsNullOrEmpty(directoryPath))
+            return;
+
+        _pendingIndexDirectory = directoryPath;
+        await ViewModel.EnsureDirectoryIndexedAsync(directoryPath, DispatcherQueue, _cts.Token);
+        ShowToast("已加入扫描范围，正在建立索引…", ToastKind.Normal, showUndo: false);
+    }
+
+    private void IndexPromptCancelButton_Click(object sender, RoutedEventArgs e)
+    {
+        IndexPromptTip.IsOpen = false;
+        _pendingPromptDirectory = null;
+    }
+
+    private void IndexPromptTip_Closed(Microsoft.UI.Xaml.Controls.TeachingTip sender, Microsoft.UI.Xaml.Controls.TeachingTipClosedEventArgs args)
+    {
+        _pendingPromptDirectory = null;
+    }
+
+    private async void OnScanCompleted()
+    {
+        var pendingDirectory = _pendingIndexDirectory;
+        if (string.IsNullOrEmpty(pendingDirectory))
+            return;
+
+        if (!ViewModel.IsCurrentFileInDirectory(pendingDirectory))
+            return;
+
+        try
+        {
+            await ViewModel.ReloadCurrentFileContextAsync(DispatcherQueue, _cts.Token);
+            _pendingIndexDirectory = null;
+            _pendingPromptDirectory = null;
+
+            if (ViewModel.AlbumId is long albumId && App.Current.MainWindow is MainWindow mw)
+                mw.NavigateContentToAlbum(albumId);
+
+            ApplyFilmStripPinState();
+            Bindings.Update();
+            ShowToast("索引完成，胶片栏已可用", ToastKind.Normal, showUndo: false);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to reload direct-open file after indexing");
+        }
     }
 
     // ── Image loading ─────────────────────────────────────────────────────────
