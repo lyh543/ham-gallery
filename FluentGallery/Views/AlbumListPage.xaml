@@ -86,13 +86,6 @@
             <AppBarButton x:Name="CreateAlbumButton"
                           Icon="Add" Label="新建相册"
                           Click="CreateAlbumButton_Click"/>
-            <AppBarButton x:Name="TestPromptButton"
-                          Label="测试弹窗"
-                          Click="TestPromptButton_Click">
-                <AppBarButton.Icon>
-                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE7BA;"/>
-                </AppBarButton.Icon>
-            </AppBarButton>
             <AppBarSeparator/>
             <AppBarButton Icon="Sort" Label="排序" Click="SortButton_Click">
                 <AppBarButton.Flyout>

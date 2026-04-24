@@ -10,6 +10,7 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
@@ -99,6 +100,11 @@ public sealed partial class PhotoDetailPage : Page
     private bool                 _indexPromptShown;
     private readonly Flyout      _indexPromptFlyout;
     private readonly IndexPrompt _indexPromptContent;
+    private readonly DispatcherTimer _indexPromptAutoHideTimer;
+    private bool _indexPromptClosingByButton;
+    private bool _indexPromptReopenScheduled;
+    private bool _indexPromptAllowImmediateClose;
+    private bool _indexPromptDismissAnimating;
 
     // ── Computed properties for XAML bindings ─────────────────────────────────
 
@@ -140,7 +146,12 @@ public sealed partial class PhotoDetailPage : Page
             Content   = _indexPromptContent,
         };
 
+        _indexPromptFlyout.OverlayInputPassThroughElement = this;
+        _indexPromptFlyout.Closing += IndexPromptFlyout_Closing;
         _indexPromptFlyout.Closed += IndexPromptFlyout_Closed;
+
+        _indexPromptAutoHideTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
+        _indexPromptAutoHideTimer.Tick += IndexPromptAutoHideTimer_Tick;
 
         ViewModel = App.Current.Services.GetRequiredService<PhotoDetailViewModel>();
 
@@ -179,6 +190,7 @@ public sealed partial class PhotoDetailPage : Page
 
         ViewModel.PropertyChanged += ViewModel_PropertyChanged;
         _scanService.ScanCompleted += OnScanCompleted;
+        SizeChanged += PhotoDetailPage_SizeChanged;
     }
 
     // ── Page lifecycle ────────────────────────────────────────────────────────
@@ -303,10 +315,12 @@ public sealed partial class PhotoDetailPage : Page
         _preloadDebounce.Stop();
         _toastTimer.Stop();
         _edgeBoundaryThrottle.Stop();
+        _indexPromptAutoHideTimer.Stop();
         _indexPromptFlyout.Hide();
         _cts.Cancel();
         ViewModel.PropertyChanged -= ViewModel_PropertyChanged;
         _scanService.ScanCompleted -= OnScanCompleted;
+        SizeChanged -= PhotoDetailPage_SizeChanged;
         ViewModel.Dispose();
 
         // Signal cancellation on all in-flight preload tasks. Do NOT Dispose here —
@@ -381,14 +395,14 @@ public sealed partial class PhotoDetailPage : Page
         _indexPromptContent.Message = "当前图片所在目录尚未加入扫描范围。是否将该目录加入相册并在后台建立索引？建立完成后将自动启用胶片栏。";
         _indexPromptContent.ConfirmText = "加入并索引";
         _indexPromptContent.CancelText = "暂不加入";
-        _indexPromptFlyout.ShowAt(IndexPromptAnchor);
+        ShowIndexPrompt();
     }
 
     private async void IndexPrompt_ConfirmClicked(object sender, RoutedEventArgs e)
     {
         var directoryPath = _pendingPromptDirectory;
         _pendingPromptDirectory = null;
-        _indexPromptFlyout.Hide();
+        await HideIndexPromptWithFadeAsync(fromButton: true);
 
         if (string.IsNullOrEmpty(directoryPath))
             return;
@@ -398,14 +412,126 @@ public sealed partial class PhotoDetailPage : Page
         ShowToast("已加入扫描范围，正在建立索引…", ToastKind.Normal, showUndo: false);
     }
 
-    private void IndexPrompt_CancelClicked(object sender, RoutedEventArgs e)
+    private async void IndexPrompt_CancelClicked(object sender, RoutedEventArgs e)
     {
-        _indexPromptFlyout.Hide();
+        _pendingPromptDirectory = null;
+        await HideIndexPromptWithFadeAsync(fromButton: true);
+    }
+
+    private void IndexPromptFlyout_Closing(FlyoutBase sender, FlyoutBaseClosingEventArgs args)
+    {
+        if (_indexPromptAllowImmediateClose)
+            return;
+
+        // Always keep prompt visible in always-on mode unless closed by buttons.
+        if (DebugKeepChromeVisible && !_indexPromptClosingByButton)
+        {
+            args.Cancel = true;
+            return;
+        }
+
+        // Light-dismiss in normal mode should fade out instead of abrupt close.
+        if (!_indexPromptClosingByButton)
+        {
+            args.Cancel = true;
+            if (_indexPromptDismissAnimating)
+                return;
+
+            _pendingPromptDirectory = null;
+            _ = HideIndexPromptWithFadeAsync(fromButton: false);
+        }
     }
 
     private void IndexPromptFlyout_Closed(object? sender, object e)
     {
+        _indexPromptAutoHideTimer.Stop();
+        _indexPromptDismissAnimating = false;
+        _indexPromptAllowImmediateClose = false;
+
+        // Button-close should fully dismiss and never auto-reopen.
+        if (_indexPromptClosingByButton)
+        {
+            _indexPromptClosingByButton = false;
+            return;
+        }
+
+        // Keep the prompt visible during resize when
+        // toolbar-always-on mode is enabled.
+        if (DebugKeepChromeVisible &&
+            !string.IsNullOrEmpty(_pendingPromptDirectory) &&
+            !_indexPromptReopenScheduled)
+        {
+            _indexPromptReopenScheduled = true;
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                _indexPromptReopenScheduled = false;
+                if (!string.IsNullOrEmpty(_pendingPromptDirectory))
+                    ShowIndexPrompt();
+            });
+            return;
+        }
+
         _pendingPromptDirectory = null;
+    }
+
+    private async void IndexPromptAutoHideTimer_Tick(object? sender, object e)
+    {
+        _indexPromptAutoHideTimer.Stop();
+        if (DebugKeepChromeVisible || !_indexPromptFlyout.IsOpen)
+            return;
+
+        _pendingPromptDirectory = null;
+        await HideIndexPromptWithFadeAsync(fromButton: false);
+    }
+
+    private void PhotoDetailPage_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (!DebugKeepChromeVisible)
+            return;
+
+        if (string.IsNullOrEmpty(_pendingPromptDirectory))
+            return;
+
+        if (_indexPromptFlyout.IsOpen || _indexPromptReopenScheduled)
+            return;
+
+        _indexPromptReopenScheduled = true;
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            _indexPromptReopenScheduled = false;
+            if (!string.IsNullOrEmpty(_pendingPromptDirectory) && !_indexPromptFlyout.IsOpen)
+                ShowIndexPrompt();
+        });
+    }
+
+    private void ShowIndexPrompt()
+    {
+        _indexPromptAutoHideTimer.Stop();
+        _indexPromptFlyout.ShowAt(IndexPromptAnchor, new FlyoutShowOptions
+        {
+            Placement = FlyoutPlacementMode.BottomEdgeAlignedRight,
+        });
+
+        // Fade-in animation for prompt content.
+        _indexPromptContent.Opacity = 0;
+        AnimateOpacity(_indexPromptContent, 1.0, durationMs: 250);
+
+        if (!DebugKeepChromeVisible)
+            _indexPromptAutoHideTimer.Start();
+    }
+
+    private async Task HideIndexPromptWithFadeAsync(bool fromButton)
+    {
+        _indexPromptAutoHideTimer.Stop();
+        if (!_indexPromptFlyout.IsOpen)
+            return;
+
+        _indexPromptClosingByButton = fromButton;
+        AnimateOpacity(_indexPromptContent, 0.0, durationMs: 150);
+        _indexPromptDismissAnimating = true;
+        await Task.Delay(150);
+        _indexPromptAllowImmediateClose = true;
+        _indexPromptFlyout.Hide();
     }
 
     private async void OnScanCompleted()
@@ -654,6 +780,20 @@ public sealed partial class PhotoDetailPage : Page
             case nameof(PhotoDetailViewModel.PreloadCountBack):
             case nameof(PhotoDetailViewModel.PreloadCountForward):
                 ApplyPreloadCount(ViewModel.PreloadCountBack, ViewModel.PreloadCountForward);
+                break;
+
+            case nameof(PhotoDetailViewModel.DebugKeepPhotoDetailChromeVisible):
+                if (DebugKeepChromeVisible)
+                {
+                    _indexPromptAutoHideTimer.Stop();
+                    if (!string.IsNullOrEmpty(_pendingPromptDirectory) && !_indexPromptFlyout.IsOpen)
+                        ShowIndexPrompt();
+                }
+                else if (!string.IsNullOrEmpty(_pendingPromptDirectory) && _indexPromptFlyout.IsOpen)
+                {
+                    _indexPromptAutoHideTimer.Stop();
+                    _indexPromptAutoHideTimer.Start();
+                }
                 break;
         }
     }
