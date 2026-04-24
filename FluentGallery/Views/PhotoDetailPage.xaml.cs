@@ -2,6 +2,7 @@ using FluentGallery.Data;
 using FluentGallery.Helpers;
 using FluentGallery.Loaders;
 using FluentGallery.Models;
+using FluentGallery.Controls;
 using FluentGallery.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -96,6 +97,8 @@ public sealed partial class PhotoDetailPage : Page
     private string?              _pendingIndexDirectory;
     private string?              _pendingPromptDirectory;
     private bool                 _indexPromptShown;
+    private readonly Flyout      _indexPromptFlyout;
+    private readonly IndexPrompt _indexPromptContent;
 
     // ── Computed properties for XAML bindings ─────────────────────────────────
 
@@ -126,6 +129,18 @@ public sealed partial class PhotoDetailPage : Page
     public PhotoDetailPage()
     {
         InitializeComponent();
+
+        _indexPromptContent = new IndexPrompt();
+        _indexPromptContent.ConfirmClicked += IndexPrompt_ConfirmClicked;
+        _indexPromptContent.CancelClicked += IndexPrompt_CancelClicked;
+
+        _indexPromptFlyout = new Flyout
+        {
+            Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.BottomEdgeAlignedRight,
+            Content   = _indexPromptContent,
+        };
+
+        _indexPromptFlyout.Closed += IndexPromptFlyout_Closed;
 
         ViewModel = App.Current.Services.GetRequiredService<PhotoDetailViewModel>();
 
@@ -288,7 +303,7 @@ public sealed partial class PhotoDetailPage : Page
         _preloadDebounce.Stop();
         _toastTimer.Stop();
         _edgeBoundaryThrottle.Stop();
-        IndexPrompt.Hide();
+        _indexPromptFlyout.Hide();
         _cts.Cancel();
         ViewModel.PropertyChanged -= ViewModel_PropertyChanged;
         _scanService.ScanCompleted -= OnScanCompleted;
@@ -362,17 +377,18 @@ public sealed partial class PhotoDetailPage : Page
         _indexPromptShown = true;
         _pendingPromptDirectory = directoryPath;
 
-        IndexPrompt.Title = "加入相册";
-        IndexPrompt.Message = "当前图片所在目录尚未加入扫描范围。是否将该目录加入相册并在后台建立索引？建立完成后将自动启用胶片栏。";
-        IndexPrompt.ConfirmText = "加入并索引";
-        IndexPrompt.CancelText = "暂不加入";
-        IndexPrompt.Show();
+        _indexPromptContent.Title = "加入相册";
+        _indexPromptContent.Message = "当前图片所在目录尚未加入扫描范围。是否将该目录加入相册并在后台建立索引？建立完成后将自动启用胶片栏。";
+        _indexPromptContent.ConfirmText = "加入并索引";
+        _indexPromptContent.CancelText = "暂不加入";
+        _indexPromptFlyout.ShowAt(IndexPromptAnchor);
     }
 
     private async void IndexPrompt_ConfirmClicked(object sender, RoutedEventArgs e)
     {
         var directoryPath = _pendingPromptDirectory;
-        IndexPrompt.Hide();
+        _pendingPromptDirectory = null;
+        _indexPromptFlyout.Hide();
 
         if (string.IsNullOrEmpty(directoryPath))
             return;
@@ -384,7 +400,11 @@ public sealed partial class PhotoDetailPage : Page
 
     private void IndexPrompt_CancelClicked(object sender, RoutedEventArgs e)
     {
-        IndexPrompt.Hide();
+        _indexPromptFlyout.Hide();
+    }
+
+    private void IndexPromptFlyout_Closed(object? sender, object e)
+    {
         _pendingPromptDirectory = null;
     }
 

@@ -37,16 +37,6 @@ public sealed partial class IndexPrompt : UserControl
         set => CancelButton.Content = value;
     }
 
-    public void Show()
-    {
-        Visibility = Visibility.Visible;
-    }
-
-    public void Hide()
-    {
-        Visibility = Visibility.Collapsed;
-    }
-
     private void ConfirmButton_Click(object sender, RoutedEventArgs e)
     {
         ConfirmClicked?.Invoke(this, e);

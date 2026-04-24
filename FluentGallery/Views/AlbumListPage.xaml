@@ -214,15 +214,5 @@
                        Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
         </Border>
 
-        <controls:IndexPrompt
-            x:Name="TestIndexPrompt"
-            Grid.Row="0"
-            Grid.RowSpan="2"
-            HorizontalAlignment="Right"
-            VerticalAlignment="Top"
-            Margin="0,56,20,0"
-            Canvas.ZIndex="20"
-            ConfirmClicked="TestIndexPrompt_ConfirmClicked"
-            CancelClicked="TestIndexPrompt_CancelClicked" />
     </Grid>
 </Page>

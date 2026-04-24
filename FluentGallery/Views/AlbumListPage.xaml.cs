@@ -1,5 +1,6 @@
 using FluentGallery.Data;
 using FluentGallery.Helpers;
+using FluentGallery.Controls;
 using FluentGallery.ViewModels;
 using FluentGallery.Views;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,6 +28,8 @@ public sealed partial class AlbumListPage : Page
 
     // Toast state
     private CancellationTokenSource? _toastCts;
+    private readonly Flyout           _testIndexPromptFlyout;
+    private readonly IndexPrompt      _testIndexPromptContent;
 
     public AlbumListPage()
     {
@@ -34,6 +37,16 @@ public sealed partial class AlbumListPage : Page
         _db         = App.Current.Services.GetRequiredService<DatabaseService>();
         _thumbnails = App.Current.Services.GetRequiredService<ThumbnailService>();
         this.InitializeComponent();
+
+        _testIndexPromptContent = new IndexPrompt();
+        _testIndexPromptContent.ConfirmClicked += TestIndexPrompt_ConfirmClicked;
+        _testIndexPromptContent.CancelClicked += TestIndexPrompt_CancelClicked;
+
+        _testIndexPromptFlyout = new Flyout
+        {
+            Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.BottomEdgeAlignedRight,
+            Content   = _testIndexPromptContent,
+        };
 
         ViewModel.Albums.CollectionChanged += (_, _) => UpdateEmptyState();
         ViewModel.PropertyChanged += (_, e) =>
@@ -214,21 +227,21 @@ public sealed partial class AlbumListPage : Page
 
     private void TestPromptButton_Click(object sender, RoutedEventArgs e)
     {
-        TestIndexPrompt.Title = "加入相册";
-        TestIndexPrompt.Message = "这是相册列表页上的测试弹窗，用来确认阴影、边框和按钮布局是否符合预期。";
-        TestIndexPrompt.ConfirmText = "确认样式";
-        TestIndexPrompt.CancelText = "关闭";
-        TestIndexPrompt.Show();
+        _testIndexPromptContent.Title = "加入相册";
+        _testIndexPromptContent.Message = "这是相册列表页上的测试弹窗，用来确认 Flyout 版本的层级、边框和按钮布局是否更顺眼。";
+        _testIndexPromptContent.ConfirmText = "确认样式";
+        _testIndexPromptContent.CancelText = "关闭";
+        _testIndexPromptFlyout.ShowAt(TestPromptButton);
     }
 
     private void TestIndexPrompt_ConfirmClicked(object sender, RoutedEventArgs e)
     {
-        TestIndexPrompt.Hide();
+        _testIndexPromptFlyout.Hide();
     }
 
     private void TestIndexPrompt_CancelClicked(object sender, RoutedEventArgs e)
     {
-        TestIndexPrompt.Hide();
+        _testIndexPromptFlyout.Hide();
     }
 
     // ── Inline rename ─────────────────────────────────────────────────────────
