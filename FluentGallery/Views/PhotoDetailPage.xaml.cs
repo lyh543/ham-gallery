@@ -288,7 +288,7 @@ public sealed partial class PhotoDetailPage : Page
         _preloadDebounce.Stop();
         _toastTimer.Stop();
         _edgeBoundaryThrottle.Stop();
-        IndexPromptTip.IsOpen = false;
+        IndexPrompt.Hide();
         _cts.Cancel();
         ViewModel.PropertyChanged -= ViewModel_PropertyChanged;
         _scanService.ScanCompleted -= OnScanCompleted;
@@ -361,13 +361,18 @@ public sealed partial class PhotoDetailPage : Page
 
         _indexPromptShown = true;
         _pendingPromptDirectory = directoryPath;
-        IndexPromptTip.IsOpen = true;
+
+        IndexPrompt.Title = "加入相册";
+        IndexPrompt.Message = "当前图片所在目录尚未加入扫描范围。是否将该目录加入相册并在后台建立索引？建立完成后将自动启用胶片栏。";
+        IndexPrompt.ConfirmText = "加入并索引";
+        IndexPrompt.CancelText = "暂不加入";
+        IndexPrompt.Show();
     }
 
-    private async void IndexPromptConfirmButton_Click(object sender, RoutedEventArgs e)
+    private async void IndexPrompt_ConfirmClicked(object sender, RoutedEventArgs e)
     {
         var directoryPath = _pendingPromptDirectory;
-        IndexPromptTip.IsOpen = false;
+        IndexPrompt.Hide();
 
         if (string.IsNullOrEmpty(directoryPath))
             return;
@@ -377,14 +382,9 @@ public sealed partial class PhotoDetailPage : Page
         ShowToast("已加入扫描范围，正在建立索引…", ToastKind.Normal, showUndo: false);
     }
 
-    private void IndexPromptCancelButton_Click(object sender, RoutedEventArgs e)
+    private void IndexPrompt_CancelClicked(object sender, RoutedEventArgs e)
     {
-        IndexPromptTip.IsOpen = false;
-        _pendingPromptDirectory = null;
-    }
-
-    private void IndexPromptTip_Closed(Microsoft.UI.Xaml.Controls.TeachingTip sender, Microsoft.UI.Xaml.Controls.TeachingTipClosedEventArgs args)
-    {
+        IndexPrompt.Hide();
         _pendingPromptDirectory = null;
     }
 

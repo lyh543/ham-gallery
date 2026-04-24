@@ -212,6 +212,25 @@ public sealed partial class AlbumListPage : Page
         UpdateEmptyState();
     }
 
+    private void TestPromptButton_Click(object sender, RoutedEventArgs e)
+    {
+        TestIndexPrompt.Title = "加入相册";
+        TestIndexPrompt.Message = "这是相册列表页上的测试弹窗，用来确认阴影、边框和按钮布局是否符合预期。";
+        TestIndexPrompt.ConfirmText = "确认样式";
+        TestIndexPrompt.CancelText = "关闭";
+        TestIndexPrompt.Show();
+    }
+
+    private void TestIndexPrompt_ConfirmClicked(object sender, RoutedEventArgs e)
+    {
+        TestIndexPrompt.Hide();
+    }
+
+    private void TestIndexPrompt_CancelClicked(object sender, RoutedEventArgs e)
+    {
+        TestIndexPrompt.Hide();
+    }
+
     // ── Inline rename ─────────────────────────────────────────────────────────
 
     private void RenameBox_KeyDown(object sender, KeyRoutedEventArgs e)
