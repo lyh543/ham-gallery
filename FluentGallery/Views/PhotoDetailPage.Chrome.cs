@@ -7,13 +7,43 @@ using Microsoft.UI.Xaml.Media.Animation;
 using System;
 using System.Threading.Tasks;
 using Windows.Foundation;
-using Windows.System;
 using Windows.UI;
 
 namespace FluentGallery.Views;
 
 public sealed partial class PhotoDetailPage
 {
+    private DispatcherTimer _hideTimer = null!;
+    private bool _toolbarVisible = false;
+    private bool _hideChromeInProgress = false;
+    private int _chromePointerCount = 0;
+    private Point? _lastPagePointerPosition;
+
+    private bool _isFullscreen = false;
+    private bool _wasMaximizedBeforeFullscreen = false;
+
+    private DispatcherTimer _toastTimer = null!;
+    private DispatcherTimer _edgeBoundaryThrottle = null!;
+    private bool _edgeBoundaryThrottleActive = false;
+
+    private enum ToastKind { Normal, Error }
+
+    private void InitializeChromeState()
+    {
+        _hideTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _hideTimer.Tick += (_, _) => HideChrome();
+
+        _toastTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+        _toastTimer.Tick += (_, _) => HideToast();
+
+        _edgeBoundaryThrottle = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+        _edgeBoundaryThrottle.Tick += (_, _) =>
+        {
+            _edgeBoundaryThrottleActive = false;
+            _edgeBoundaryThrottle.Stop();
+        };
+    }
+
     private void ShowChrome()
     {
         if (DebugKeepChromeVisible)
@@ -95,8 +125,8 @@ public sealed partial class PhotoDetailPage
     {
         var anim = new DoubleAnimation
         {
-            To             = target,
-            Duration       = TimeSpan.FromMilliseconds(durationMs),
+            To = target,
+            Duration = TimeSpan.FromMilliseconds(durationMs),
             EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
         };
         Storyboard.SetTarget(anim, element);
@@ -208,7 +238,7 @@ public sealed partial class PhotoDetailPage
     private void ToggleFullscreen()
     {
         if (_isFullscreen) ExitFullscreen();
-        else               EnterFullscreen();
+        else EnterFullscreen();
     }
 
     private void EnterFullscreen()
@@ -243,7 +273,7 @@ public sealed partial class PhotoDetailPage
 
     private AppWindow? GetAppWindow()
     {
-        var hwnd     = WinRT.Interop.WindowNative.GetWindowHandle(App.Current.MainWindow);
+        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.Current.MainWindow);
         var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
         return AppWindow.GetFromWindowId(windowId);
     }

@@ -9,23 +9,15 @@ using Microsoft.UI.Input;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.UI.Dispatching;
-using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Navigation;
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 using Windows.Foundation;
 using Windows.System;
-using Windows.UI;
 
 namespace FluentGallery.Views;
 
@@ -34,19 +26,6 @@ public sealed partial class PhotoDetailPage : Page
     // ── ViewModel ─────────────────────────────────────────────────────────────
 
     public PhotoDetailViewModel ViewModel { get; }
-
-    // ── Toolbar auto-hide ─────────────────────────────────────────────────────
-
-    private readonly DispatcherTimer _hideTimer;
-    private bool _toolbarVisible = false;
-    private bool _hideChromeInProgress = false;
-
-    // Track pointer count over Chrome elements; pause hide timer when > 0
-    private int _chromePointerCount = 0;
-
-    // Last pointer position on the page. Used to ignore synthetic PointerMoved
-    // events that can fire without actual mouse movement when overlays hide/show.
-    private Point? _lastPagePointerPosition;
 
     // ── Rotation ──────────────────────────────────────────────────────────────
 
@@ -67,11 +46,6 @@ public sealed partial class PhotoDetailPage : Page
     private bool _filmstripPointerCaptured = false;
     private double _filmstripLastX = 0;
     private Point _filmstripDragStart = default;
-
-    // ── Fullscreen ────────────────────────────────────────────────────────────
-
-    private bool _isFullscreen = false;
-    private bool _wasMaximizedBeforeFullscreen = false;
 
     // ── CancellationTokens ────────────────────────────────────────────────────
 
@@ -95,18 +69,8 @@ public sealed partial class PhotoDetailPage : Page
 
     // ── Pending navigation args (set in OnNavigatedTo, consumed in Loaded) ───
 
-    private PhotoDetailArgs?     _pendingArgs;
+    private PhotoDetailArgs? _pendingArgs;
     private PhotoDetailFileArgs? _pendingFileArgs;
-    private string?              _pendingIndexDirectory;
-    private string?              _pendingPromptDirectory;
-    private bool                 _indexPromptShown;
-    private readonly Flyout      _indexPromptFlyout;
-    private readonly IndexPrompt _indexPromptContent;
-    private readonly DispatcherTimer _indexPromptAutoHideTimer;
-    private bool _indexPromptClosingByButton;
-    private bool _indexPromptReopenScheduled;
-    private bool _indexPromptAllowImmediateClose;
-    private bool _indexPromptDismissAnimating;
 
     // ── Computed properties for XAML bindings ─────────────────────────────────
 
@@ -142,15 +106,6 @@ public sealed partial class PhotoDetailPage : Page
     private DateTime _lastMouseTapTime = DateTime.MinValue;
     private Point _lastMouseTapPosition;
 
-    // ── Toast ─────────────────────────────────────────────────────────────────
-
-    private readonly DispatcherTimer _toastTimer;
-    private readonly DispatcherTimer _edgeBoundaryThrottle;
-    private bool _edgeBoundaryThrottleActive = false;
-    private enum ToastKind { Normal, Error }
-    private readonly ScanService _scanService =
-        App.Current.Services.GetRequiredService<ScanService>();
-
     private readonly ILogger<PhotoDetailPage> _logger =
         App.Current.Services.GetRequiredService<ILogger<PhotoDetailPage>>();
 
@@ -160,22 +115,7 @@ public sealed partial class PhotoDetailPage : Page
     {
         InitializeComponent();
 
-        _indexPromptContent = new IndexPrompt();
-        _indexPromptContent.ConfirmClicked += IndexPrompt_ConfirmClicked;
-        _indexPromptContent.CancelClicked += IndexPrompt_CancelClicked;
-
-        _indexPromptFlyout = new Flyout
-        {
-            Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.BottomEdgeAlignedRight,
-            Content   = _indexPromptContent,
-        };
-
-        _indexPromptFlyout.OverlayInputPassThroughElement = this;
-        _indexPromptFlyout.Closing += IndexPromptFlyout_Closing;
-        _indexPromptFlyout.Closed += IndexPromptFlyout_Closed;
-
-        _indexPromptAutoHideTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
-        _indexPromptAutoHideTimer.Tick += IndexPromptAutoHideTimer_Tick;
+        InitializeIndexState();
 
         ViewModel = App.Current.Services.GetRequiredService<PhotoDetailViewModel>();
 
@@ -183,9 +123,7 @@ public sealed partial class PhotoDetailPage : Page
         _magickLoader = App.Current.Services.GetRequiredService<MagickImageLoader>();
         ApplyPreloadCount(ViewModel.PreloadCountBack, ViewModel.PreloadCountForward);
 
-        // Auto-hide timer
-        _hideTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-        _hideTimer.Tick += (_, _) => HideChrome();
+        InitializeChromeState();
 
         // Preload debounce: 1 s after last navigation, compute diff and launch tasks.
         _preloadDebounce = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
@@ -196,25 +134,11 @@ public sealed partial class PhotoDetailPage : Page
                 UpdatePreloadTasks(_pendingPreloadIndex);
         };
 
-        // Toast auto-dismiss timer (3 s)
-        _toastTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
-        _toastTimer.Tick += (_, _) => HideToast();
-
-        // Edge boundary throttle timer (500 ms) - prevents too frequent toast notifications
-        _edgeBoundaryThrottle = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
-        _edgeBoundaryThrottle.Tick += (_, _) =>
-        {
-            _edgeBoundaryThrottleActive = false;
-            _edgeBoundaryThrottle.Stop();
-        };
-
         ZoomImage.SwipeLeft  += OnZoomImageSwipeLeft;
         ZoomImage.SwipeRight += OnZoomImageSwipeRight;
         ZoomImage.ZoomUserChanged += ShowChrome;
 
         ViewModel.PropertyChanged += ViewModel_PropertyChanged;
-        _scanService.ScanCompleted += OnScanCompleted;
-        SizeChanged += PhotoDetailPage_SizeChanged;
     }
 
     // ── Page lifecycle ────────────────────────────────────────────────────────
@@ -369,190 +293,6 @@ public sealed partial class PhotoDetailPage : Page
         _logger.LogDebug("OnNavigatedFrom: image caches cleared");
     }
 
-    private async Task PromptToIndexDirectoryIfNeededAsync()
-    {
-        if (_indexPromptShown || !ViewModel.ShouldPromptToIndexCurrentDirectory())
-            return;
-
-        var directoryPath = ViewModel.GetCurrentDirectoryPath();
-        if (string.IsNullOrEmpty(directoryPath))
-            return;
-
-        _indexPromptShown = true;
-        _pendingPromptDirectory = directoryPath;
-
-        _indexPromptContent.Title = "加入相册";
-        _indexPromptContent.Message = "当前图片所在目录尚未加入扫描范围。是否将该目录加入相册并在后台建立索引？建立完成后将自动启用胶片栏。";
-        _indexPromptContent.ConfirmText = "加入并索引";
-        _indexPromptContent.CancelText = "暂不加入";
-        ShowIndexPrompt();
-    }
-
-    private async void IndexPrompt_ConfirmClicked(object sender, RoutedEventArgs e)
-    {
-        var directoryPath = _pendingPromptDirectory;
-        _pendingPromptDirectory = null;
-        await HideIndexPromptWithFadeAsync(fromButton: true);
-
-        if (string.IsNullOrEmpty(directoryPath))
-            return;
-
-        _pendingIndexDirectory = directoryPath;
-        await ViewModel.EnsureDirectoryIndexedAsync(directoryPath, DispatcherQueue, _cts.Token);
-        ShowToast("已加入扫描范围，正在建立索引…", ToastKind.Normal, showUndo: false);
-    }
-
-    private async void IndexPrompt_CancelClicked(object sender, RoutedEventArgs e)
-    {
-        _pendingPromptDirectory = null;
-        await HideIndexPromptWithFadeAsync(fromButton: true);
-    }
-
-    private void IndexPromptFlyout_Closing(FlyoutBase sender, FlyoutBaseClosingEventArgs args)
-    {
-        if (_indexPromptAllowImmediateClose)
-            return;
-
-        // Always keep prompt visible in always-on mode unless closed by buttons.
-        if (DebugKeepChromeVisible && !_indexPromptClosingByButton)
-        {
-            args.Cancel = true;
-            return;
-        }
-
-        // Light-dismiss in normal mode should fade out instead of abrupt close.
-        if (!_indexPromptClosingByButton)
-        {
-            args.Cancel = true;
-            if (_indexPromptDismissAnimating)
-                return;
-
-            _pendingPromptDirectory = null;
-            _ = HideIndexPromptWithFadeAsync(fromButton: false);
-        }
-    }
-
-    private void IndexPromptFlyout_Closed(object? sender, object e)
-    {
-        _indexPromptAutoHideTimer.Stop();
-        _indexPromptDismissAnimating = false;
-        _indexPromptAllowImmediateClose = false;
-
-        // Button-close should fully dismiss and never auto-reopen.
-        if (_indexPromptClosingByButton)
-        {
-            _indexPromptClosingByButton = false;
-            return;
-        }
-
-        // Keep the prompt visible during resize when
-        // toolbar-always-on mode is enabled.
-        if (DebugKeepChromeVisible &&
-            !string.IsNullOrEmpty(_pendingPromptDirectory) &&
-            !_indexPromptReopenScheduled)
-        {
-            _indexPromptReopenScheduled = true;
-            DispatcherQueue.TryEnqueue(() =>
-            {
-                _indexPromptReopenScheduled = false;
-                if (!string.IsNullOrEmpty(_pendingPromptDirectory))
-                    ShowIndexPrompt();
-            });
-            return;
-        }
-
-        _pendingPromptDirectory = null;
-    }
-
-    private async void IndexPromptAutoHideTimer_Tick(object? sender, object e)
-    {
-        _indexPromptAutoHideTimer.Stop();
-        if (DebugKeepChromeVisible || !_indexPromptFlyout.IsOpen)
-            return;
-
-        _pendingPromptDirectory = null;
-        await HideIndexPromptWithFadeAsync(fromButton: false);
-    }
-
-    private void PhotoDetailPage_SizeChanged(object sender, SizeChangedEventArgs e)
-    {
-        if (!DebugKeepChromeVisible)
-            return;
-
-        if (string.IsNullOrEmpty(_pendingPromptDirectory))
-            return;
-
-        if (_indexPromptFlyout.IsOpen || _indexPromptReopenScheduled)
-            return;
-
-        _indexPromptReopenScheduled = true;
-        DispatcherQueue.TryEnqueue(() =>
-        {
-            _indexPromptReopenScheduled = false;
-            if (!string.IsNullOrEmpty(_pendingPromptDirectory) && !_indexPromptFlyout.IsOpen)
-                ShowIndexPrompt();
-        });
-    }
-
-    private void ShowIndexPrompt()
-    {
-        _indexPromptAutoHideTimer.Stop();
-        _indexPromptFlyout.ShowAt(IndexPromptAnchor, new FlyoutShowOptions
-        {
-            Placement = FlyoutPlacementMode.BottomEdgeAlignedRight,
-        });
-
-        // Fade-in animation for prompt content.
-        _indexPromptContent.Opacity = 0;
-        AnimateOpacity(_indexPromptContent, 1.0, durationMs: 250);
-
-        if (!DebugKeepChromeVisible)
-            _indexPromptAutoHideTimer.Start();
-    }
-
-    private async Task HideIndexPromptWithFadeAsync(bool fromButton)
-    {
-        _indexPromptAutoHideTimer.Stop();
-        if (!_indexPromptFlyout.IsOpen)
-            return;
-
-        _indexPromptClosingByButton = fromButton;
-        AnimateOpacity(_indexPromptContent, 0.0, durationMs: 150);
-        _indexPromptDismissAnimating = true;
-        await Task.Delay(150);
-        _indexPromptAllowImmediateClose = true;
-        _indexPromptFlyout.Hide();
-    }
-
-    private async void OnScanCompleted()
-    {
-        var pendingDirectory = _pendingIndexDirectory;
-        if (string.IsNullOrEmpty(pendingDirectory))
-            return;
-
-        if (!ViewModel.IsCurrentFileInDirectory(pendingDirectory))
-            return;
-
-        try
-        {
-            await ViewModel.ReloadCurrentFileContextAsync(DispatcherQueue, _cts.Token);
-            _pendingIndexDirectory = null;
-            _pendingPromptDirectory = null;
-
-            if (ViewModel.AlbumId is long albumId && App.Current.MainWindow is MainWindow mw)
-                mw.NavigateContentToAlbum(albumId);
-
-            ApplyFilmStripPinState();
-            Bindings.Update();
-            ShowToast("索引完成，胶片栏已可用", ToastKind.Normal, showUndo: false);
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to reload direct-open file after indexing");
-        }
-    }
-
     // ── FilmStrip pin toggle ──────────────────────────────────────────────────
 
     private void FilmStripPin_Click(object sender, RoutedEventArgs e)
@@ -668,17 +408,7 @@ public sealed partial class PhotoDetailPage : Page
                 break;
 
             case nameof(PhotoDetailViewModel.DebugKeepPhotoDetailChromeVisible):
-                if (DebugKeepChromeVisible)
-                {
-                    _indexPromptAutoHideTimer.Stop();
-                    if (!string.IsNullOrEmpty(_pendingPromptDirectory) && !_indexPromptFlyout.IsOpen)
-                        ShowIndexPrompt();
-                }
-                else if (!string.IsNullOrEmpty(_pendingPromptDirectory) && _indexPromptFlyout.IsOpen)
-                {
-                    _indexPromptAutoHideTimer.Stop();
-                    _indexPromptAutoHideTimer.Start();
-                }
+                HandleDebugKeepChromeVisibleChanged();
                 break;
         }
     }
