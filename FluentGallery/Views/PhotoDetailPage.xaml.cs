@@ -27,45 +27,9 @@ public sealed partial class PhotoDetailPage : Page
 
     public PhotoDetailViewModel ViewModel { get; }
 
-    // ── Rotation ──────────────────────────────────────────────────────────────
-
-    private double _rotationAngle = 0.0;
-
-    // ── Filmstrip selection guard ─────────────────────────────────────────────
-
-    private bool _suppressFilmStripChange = false;
-
-    // ── Filmstrip lazy-loading ────────────────────────────────────────────────
-
-    private HashSet<int> _loadedFilmstripIndices = new();
-    private readonly object _filmstripLoadLock = new();
-
-    // ── Filmstrip drag-scroll ──────────────────────────────────────────────────
-
-    private bool _filmstripDragging = false;
-    private bool _filmstripPointerCaptured = false;
-    private double _filmstripLastX = 0;
-    private Point _filmstripDragStart = default;
-
     // ── CancellationTokens ────────────────────────────────────────────────────
 
     private CancellationTokenSource _cts = new();
-
-    // Per-path CTS for in-flight preload tasks. Allows cancelling individual paths
-    // rather than all at once when the preload window shifts.
-    private readonly Dictionary<string, CancellationTokenSource> _preloadTasks =
-        new(StringComparer.OrdinalIgnoreCase);
-
-    // Incremented on every photo navigation; stale LoadCurrentImageAsync completions
-    // check this and discard their result if a newer load has started.
-    private int _loadGeneration = 0;
-
-    // ── Preload debounce ──────────────────────────────────────────────────────
-
-    // Fires 1 s after the last navigation to start/update preload tasks.
-    private readonly DispatcherTimer _preloadDebounce;
-    private int _pendingPreloadIndex = -1;
-    private bool _isInitialized = false;
 
     // ── Pending navigation args (set in OnNavigatedTo, consumed in Loaded) ───
 
@@ -324,22 +288,7 @@ public sealed partial class PhotoDetailPage : Page
         switch (e.PropertyName)
         {
             case nameof(PhotoDetailViewModel.CurrentImagePath):
-                _ = LoadCurrentImageAsync();
-                UpdateCounterText();
-                TitleText.Text = ViewModel.CurrentPhoto?.FileName ?? string.Empty;
-                // Only debounce if initialized; skip debounce on first navigation
-                if (_isInitialized)
-                {
-                    _pendingPreloadIndex = ViewModel.CurrentIndex;
-                    _preloadDebounce.Stop();
-                    _preloadDebounce.Start();
-                }
-                else
-                {
-                    // First load: trigger preload immediately without debounce
-                    _pendingPreloadIndex = ViewModel.CurrentIndex;
-                    UpdatePreloadTasks(_pendingPreloadIndex);
-                }
+                HandleCurrentImagePathChanged();
                 break;
 
             case nameof(PhotoDetailViewModel.InfoFileName):
@@ -487,20 +436,6 @@ public sealed partial class PhotoDetailPage : Page
             mw.ClosePhotoDetail();
         else if (Frame.CanGoBack)
             Frame.GoBack();
-    }
-
-    private async void RotateCw_Click(object sender, RoutedEventArgs e)
-    {
-        _rotationAngle = (_rotationAngle + 90) % 360;
-        ZoomImage.RotationAngle = _rotationAngle;
-        await ViewModel.RotateAsync(clockwise: true, _cts.Token);
-    }
-
-    private async void RotateCcw_Click(object sender, RoutedEventArgs e)
-    {
-        _rotationAngle = (_rotationAngle - 90 + 360) % 360;
-        ZoomImage.RotationAngle = _rotationAngle;
-        await ViewModel.RotateAsync(clockwise: false, _cts.Token);
     }
 
     private async void OpenExternal_Click(object sender, RoutedEventArgs e)

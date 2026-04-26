@@ -4,14 +4,43 @@ using FluentGallery.ViewModels;
 using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace FluentGallery.Views;
 
 public sealed partial class PhotoDetailPage
 {
+    private readonly Dictionary<string, CancellationTokenSource> _preloadTasks =
+        new(StringComparer.OrdinalIgnoreCase);
+    private int _loadGeneration = 0;
+
+    private DispatcherTimer _preloadDebounce = null!;
+    private int _pendingPreloadIndex = -1;
+    private bool _isInitialized = false;
+
+    private void HandleCurrentImagePathChanged()
+    {
+        _ = LoadCurrentImageAsync();
+        UpdateCounterText();
+        TitleText.Text = ViewModel.CurrentPhoto?.FileName ?? string.Empty;
+
+        if (_isInitialized)
+        {
+            _pendingPreloadIndex = ViewModel.CurrentIndex;
+            _preloadDebounce.Stop();
+            _preloadDebounce.Start();
+        }
+        else
+        {
+            _pendingPreloadIndex = ViewModel.CurrentIndex;
+            UpdatePreloadTasks(_pendingPreloadIndex);
+        }
+    }
+
     private async Task LoadCurrentImageAsync()
     {
         int gen  = ++_loadGeneration;

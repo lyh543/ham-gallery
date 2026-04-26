@@ -12,11 +12,21 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using Windows.Foundation;
 
 namespace FluentGallery.Views;
 
 public sealed partial class PhotoDetailPage
 {
+    private bool _suppressFilmStripChange = false;
+    private readonly HashSet<int> _loadedFilmstripIndices = new();
+    private readonly object _filmstripLoadLock = new();
+
+    private bool _filmstripDragging = false;
+    private bool _filmstripPointerCaptured = false;
+    private double _filmstripLastX = 0;
+    private Point _filmstripDragStart = default;
+
     private void FilmStrip_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_filmstripDragging) return;
