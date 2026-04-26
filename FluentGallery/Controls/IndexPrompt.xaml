@@ -1,0 +1,38 @@
+<UserControl
+    x:Class="FluentGallery.Controls.IndexPrompt"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Width="300"
+    Height="Auto">
+
+    <Grid Padding="4">
+        <StackPanel Spacing="12">
+            <StackPanel Spacing="6">
+                <TextBlock x:Name="TitleTextBlock"
+                           Text="索引新文件夹？"
+                           Style="{ThemeResource BodyStrongTextBlockStyle}"
+                           TextWrapping="Wrap" />
+
+                <TextBlock x:Name="MessageTextBlock"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           TextWrapping="WrapWholeWords"
+                           MaxLines="5" />
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        Spacing="8">
+                <Button x:Name="CancelButton"
+                        Content="暂不加入"
+                        Click="CancelButton_Click" />
+                <Button x:Name="ConfirmButton"
+                        Content="加入并索引"
+                        Style="{ThemeResource AccentButtonStyle}"
+                        Click="ConfirmButton_Click" />
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</UserControl>

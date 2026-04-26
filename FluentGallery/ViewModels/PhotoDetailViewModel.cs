@@ -94,6 +94,7 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
     private readonly DatabaseService               _db;
     private readonly ThumbnailService              _thumbnail;
     private readonly ExifService                   _exif;
+    private readonly ScanService                   _scan;
     private readonly ILogger<PhotoDetailViewModel> _logger;
 
     private IReadOnlyList<Photo>     _photos = Array.Empty<Photo>();
@@ -189,14 +190,16 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
     // ── Constructor ─────────────────────────────────────────────────────────
 
     public PhotoDetailViewModel(
-        DatabaseService              db,
-        ThumbnailService             thumbnail,
-        ExifService                  exif,
+        DatabaseService               db,
+        ThumbnailService              thumbnail,
+        ExifService                   exif,
+        ScanService                   scan,
         ILogger<PhotoDetailViewModel> logger)
     {
         _db        = db;
         _thumbnail = thumbnail;
         _exif      = exif;
+        _scan      = scan;
         _logger    = logger;
     }
 
@@ -261,6 +264,7 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
 
         List<Photo> photos;
         int         initialIndex;
+        Photo?      syntheticPhoto = null;
 
         if (siblingPhotos.Count > 0)
         {
@@ -289,16 +293,17 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
             {
                 // File is not yet indexed — create a synthetic Photo and insert it
                 // at the correct sort position (by FileName, matching the list order).
-                var synthetic = BuildPhotoFromFile(filePath);
-                initialIndex  = FindSortedInsertPosition(photos, synthetic);
-                photos.Insert(initialIndex, synthetic);
+                syntheticPhoto = await BuildPhotoFromFileAsync(filePath, ct);
+                initialIndex   = FindSortedInsertPosition(photos, syntheticPhoto);
+                photos.Insert(initialIndex, syntheticPhoto);
             }
         }
         else
         {
             // Directory is not indexed — single-file mode, filmstrip unavailable.
             IsFilmStripAvailable = false;
-            photos               = new List<Photo> { BuildPhotoFromFile(filePath) };
+            syntheticPhoto       = await BuildPhotoFromFileAsync(filePath, ct);
+            photos               = new List<Photo> { syntheticPhoto };
             initialIndex         = 0;
         }
 
@@ -306,13 +311,86 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Builds a lightweight <see cref="Photo"/> object from a file path without
-    /// touching the database. The returned instance has <c>Id = 0</c> (synthetic).
+    /// Adds the current file's directory to scan settings if needed, persists the
+    /// updated settings, and starts a fresh background scan so the directory can
+    /// become an indexed album.
     /// </summary>
-    private static Photo BuildPhotoFromFile(string filePath)
+    public async Task<bool> EnsureDirectoryIndexedAsync(
+        string            directoryPath,
+        DispatcherQueue   dispatcher,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(directoryPath))
+            return false;
+
+        var settings = await _db.LoadSettingsAsync(ct);
+        bool added = false;
+        if (!settings.ScanDirectories.Contains(directoryPath, StringComparer.OrdinalIgnoreCase))
+        {
+            settings.ScanDirectories.Add(directoryPath);
+            added = true;
+        }
+
+        settings.RecursiveScan = true;
+
+        if (added)
+            await _db.SaveSettingsAsync(settings, ct);
+
+        await _scan.StartAsync(settings, dispatcher);
+        return true;
+    }
+
+    /// <summary>
+    /// Returns true when the current photo was opened from a directory that has not
+    /// yet been indexed into an album and therefore cannot populate the filmstrip.
+    /// </summary>
+    public bool ShouldPromptToIndexCurrentDirectory()
+        => !IsFilmStripAvailable && !string.IsNullOrEmpty(CurrentImagePath);
+
+    /// <summary>
+    /// Reloads the current direct-open file against the latest database state.
+    /// Used after a newly-added directory finishes scanning so the filmstrip can
+    /// become available without closing the detail page.
+    /// </summary>
+    public Task ReloadCurrentFileContextAsync(
+        DispatcherQueue   dispatcher,
+        CancellationToken ct = default)
+    {
+        var filePath = CurrentImagePath;
+        if (string.IsNullOrEmpty(filePath))
+            return Task.CompletedTask;
+
+        return InitializeFromFileAsync(filePath, dispatcher, ct);
+    }
+
+    /// <summary>
+    /// Returns the directory that contains the current image, or null when none.
+    /// </summary>
+    public string? GetCurrentDirectoryPath()
+        => string.IsNullOrEmpty(CurrentImagePath)
+            ? null
+            : Path.GetDirectoryName(CurrentImagePath);
+
+    /// <summary>
+    /// Returns true when the current image path belongs to the specified directory.
+    /// </summary>
+    public bool IsCurrentFileInDirectory(string directoryPath)
+    {
+        var currentDir = GetCurrentDirectoryPath();
+        return !string.IsNullOrEmpty(currentDir)
+            && string.Equals(currentDir, directoryPath, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Builds a lightweight <see cref="Photo"/> object from a file path without
+    /// touching the database. For files outside the scan index, EXIF and dimensions
+    /// are read on demand so the detail page can still show complete metadata.
+    /// The returned instance has <c>Id = 0</c> (synthetic).
+    /// </summary>
+    private async Task<Photo> BuildPhotoFromFileAsync(string filePath, CancellationToken ct)
     {
         var fi = new FileInfo(filePath);
-        return new Photo
+        var photo = new Photo
         {
             Id         = 0,
             FilePath   = filePath,
@@ -321,6 +399,32 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
             CreatedAt  = fi.Exists ? fi.CreationTimeUtc.ToString("O") : DateTime.UtcNow.ToString("O"),
             ModifiedAt = fi.Exists ? fi.LastWriteTimeUtc.ToString("O") : DateTime.UtcNow.ToString("O"),
         };
+
+        if (!fi.Exists)
+            return photo;
+
+        try
+        {
+            var exif = await Task.Run(() => _exif.ReadExif(filePath), ct);
+            photo.Width       = exif.Width;
+            photo.Height      = exif.Height;
+            photo.TakenAt     = exif.TakenAt;
+            photo.Latitude    = exif.Latitude;
+            photo.Longitude   = exif.Longitude;
+            photo.CameraModel = exif.CameraModel;
+            photo.CameraMake  = exif.CameraMake;
+            photo.Orientation = exif.Orientation;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Metadata preload failed for direct-open file {Path}", filePath);
+        }
+
+        return photo;
     }
 
     /// <summary>
