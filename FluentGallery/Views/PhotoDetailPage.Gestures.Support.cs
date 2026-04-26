@@ -13,6 +13,12 @@ namespace FluentGallery.Views;
 
 public sealed partial class PhotoDetailPage
 {
+    private string? _swipePreviewPath;
+    private DateTime _lastTouchTapTime = DateTime.MinValue;
+    private Point _lastTouchTapPosition;
+    private DateTime _lastMouseTapTime = DateTime.MinValue;
+    private Point _lastMouseTapPosition;
+
     private void TouchSwipeOverlay_PointerCanceled(object sender, PointerRoutedEventArgs e)
     {
         if (e.Pointer.PointerDeviceType == Microsoft.UI.Input.PointerDeviceType.Mouse)
