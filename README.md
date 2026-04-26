@@ -130,9 +130,6 @@ make install INSTALL_DIR="C:\Apps\FluentGallery"
 - [] 滑动以后只预加载了 jpg，没有预加载 heic
 图片旋转还有 bug
 
-
-[] 图片修改日期发生变化时，需要重新读取 exif 并重新生成缩略图。
-[] 照片详情页，改为全窗口，在左上角添加一个返回，类似于 Windows 的相册 app。
 [] 支持多种格式 mp4 mov heic heif gif bmp 透明底
    - 支持 mvimg 格式（Live Photo）
 [] 旋转模块不是支持每一种图片类型
