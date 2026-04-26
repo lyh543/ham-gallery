@@ -94,6 +94,8 @@ public sealed partial class ZoomableImage : UserControl
     private Point? _lastPointerPos;
 
     /// <summary>True when the displayed zoom percentage is 100 % (= fit-to-window).</summary>
+    public double CurrentZoomFactor => Scroll.ZoomFactor;
+
     public bool IsAtFitZoom => _sliderValue is >= 80 and <= 125;
 
     // ── RotationAngle dependency property ───────────────────────────────────
@@ -297,6 +299,7 @@ public sealed partial class ZoomableImage : UserControl
         ZoomSlider.Value     = 100;
         ZoomPercentText.Text = "100%";
         _ignoreSliderChange = false;
+        ApplyScrollModesForZoomState();
 
     }
 
@@ -365,6 +368,7 @@ public sealed partial class ZoomableImage : UserControl
         // Eagerly mark as fit zoom so IsAtFitZoom is correct before ViewChanged fires
         // (ChangeView is async in WinUI 3; ViewChanged may not fire until next frame).
         _sliderValue = 100;
+        ApplyScrollModesForZoomState();
     }
 
     // ── Double-tap to toggle zoom ─────────────────────────────────────────────
@@ -377,19 +381,47 @@ public sealed partial class ZoomableImage : UserControl
         Math.Max(0.0, (Scroll.ViewportWidth  - MainImage.Width  * Scroll.ZoomFactor) / 2.0),
         Math.Max(0.0, (Scroll.ViewportHeight - MainImage.Height * Scroll.ZoomFactor) / 2.0));
 
-    private void MainImage_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+    public void ToggleZoomAt(Point anchor)
     {
-        Point inScroll = e.GetPosition(Scroll);
-
         if (IsAtFitZoom)
         {
-            ApplyZoomPercentAroundPoint(200, inScroll);
+            ApplyZoomPercentAroundPoint(200, anchor);
         }
         else
         {
             FitToWindow();
         }
         ZoomUserChanged?.Invoke();
+    }
+
+    public void ZoomToFactorAt(double zoomFactor, Point anchor)
+    {
+        if (_fitZoom <= 0 || zoomFactor <= 0 || !double.IsFinite(zoomFactor)) return;
+        float newZoom = Math.Clamp((float)zoomFactor, 0.1f, GetMaxAllowedZoomFactor());
+        ZoomAroundViewportPoint(anchor, newZoom);
+        _sliderValue = ComputeZoomPercent();
+        ZoomUserChanged?.Invoke();
+    }
+
+    public void PanBy(double deltaX, double deltaY)
+    {
+        if (IsAtFitZoom) return;
+        Scroll.ChangeView(
+            Scroll.HorizontalOffset - deltaX,
+            Scroll.VerticalOffset - deltaY,
+            null,
+            disableAnimation: true);
+    }
+
+    public void ZoomByScaleAt(double scaleDelta, Point anchor)
+    {
+        if (_fitZoom <= 0 || scaleDelta <= 0 || !double.IsFinite(scaleDelta)) return;
+        ZoomToFactorAt(Scroll.ZoomFactor * scaleDelta, anchor);
+    }
+
+    private void MainImage_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+    {
+        ToggleZoomAt(e.GetPosition(Scroll));
     }
 
     private void ApplyZoomPercentAroundPoint(int pct, Point anchor)
@@ -458,7 +490,14 @@ public sealed partial class ZoomableImage : UserControl
                 Scroll.ZoomFactor,
                 _fitZoom,
                 _sliderValue);
+
+            if (IsAtFitZoom)
+            {
+                ApplyScrollModesForZoomState();
+            }
+
             Scroll.CapturePointer(e.Pointer);
+            e.Handled = true;
             return;
         }
 
@@ -618,12 +657,27 @@ public sealed partial class ZoomableImage : UserControl
 
     private void ReleaseSwipePointerCapture(uint pointerId)
     {
+        ApplyScrollModesForZoomState();
+
         if (Scroll.PointerCaptures is null)
             return;
 
         var captured = Scroll.PointerCaptures.FirstOrDefault(c => c.PointerId == pointerId);
         if (captured is not null)
             Scroll.ReleasePointerCapture(captured);
+    }
+
+    private void ApplyScrollModesForZoomState()
+    {
+        bool enablePanning = !IsAtFitZoom;
+        Scroll.HorizontalScrollMode = enablePanning ? ScrollMode.Enabled : ScrollMode.Disabled;
+        Scroll.VerticalScrollMode = enablePanning ? ScrollMode.Enabled : ScrollMode.Disabled;
+        _logger.LogDebug(
+            "Scroll modes updated: enabled={Enabled}, zoom={Zoom:F3}, fit={Fit:F3}, slider={Slider}",
+            enablePanning,
+            Scroll.ZoomFactor,
+            _fitZoom,
+            _sliderValue);
     }
 
     private void EndMouseDrag(uint pointerId)
@@ -763,6 +817,7 @@ public sealed partial class ZoomableImage : UserControl
     {
         int pct = ComputeZoomPercent();
         _sliderValue = pct;
+        ApplyScrollModesForZoomState();
         _ignoreSliderChange = true;
         ZoomSlider.Value = pct;
         ZoomPercentText.Text = $"{pct}%";

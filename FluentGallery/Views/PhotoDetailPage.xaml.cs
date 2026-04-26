@@ -4,6 +4,7 @@ using FluentGallery.Loaders;
 using FluentGallery.ViewModels;
 using FluentGallery.Controls;
 using FluentGallery.Converters;
+using Microsoft.UI.Input;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.UI.Windowing;
@@ -107,8 +108,23 @@ public sealed partial class PhotoDetailPage : Page
     // ── Swipe preview ────────────────────────────────────────────────────────
 
     private string? _swipePreviewPath;
-    private bool _viewportManipulating = false;
-    private bool _viewportSwipePreviewActive = false;
+    private bool _touchSwipeDragging = false;
+    private uint? _touchSwipePointerId;
+    private Point _touchSwipeStart;
+    private bool _touchSwipePreviewActive = false;
+    private readonly Dictionary<uint, Point> _touchPointers = new();
+    private bool _touchPinching = false;
+    private double _touchPinchStartDistance = 0.0;
+    private double _touchPinchStartZoom = 1.0;
+    private DateTime _lastTouchTapTime = DateTime.MinValue;
+    private Point _lastTouchTapPosition;
+    private bool _mouseOverlayDragging = false;
+    private bool _mouseOverlayMoved = false;
+    private bool _mouseOverlayPreviewActive = false;
+    private Point _mouseOverlayStart;
+    private Point _mouseOverlayLastPoint;
+    private DateTime _lastMouseTapTime = DateTime.MinValue;
+    private Point _lastMouseTapPosition;
 
     // ── Toast ─────────────────────────────────────────────────────────────────
 
@@ -284,8 +300,15 @@ public sealed partial class PhotoDetailPage : Page
         _preloadDebounce.Stop();
         _toastTimer.Stop();
         _edgeBoundaryThrottle.Stop();
-        _viewportManipulating = false;
-        _viewportSwipePreviewActive = false;
+        _touchSwipeDragging = false;
+        _touchSwipePreviewActive = false;
+        _touchSwipePointerId = null;
+        _touchPointers.Clear();
+        _touchPinching = false;
+        _touchPinchStartDistance = 0;
+        _touchPinchStartZoom = 1;
+        _mouseOverlayDragging = false;
+        _mouseOverlayPreviewActive = false;
         ResetSwipePreviewTransforms();
         _cts.Cancel();
         ViewModel.PropertyChanged -= ViewModel_PropertyChanged;
@@ -325,68 +348,208 @@ public sealed partial class PhotoDetailPage : Page
         }
     }
 
-    private void ImageViewport_ManipulationStarted(object sender, ManipulationStartedRoutedEventArgs e)
+    private void TouchSwipeOverlay_PointerPressed(object sender, PointerRoutedEventArgs e)
     {
-        _viewportManipulating = ZoomImage.IsAtFitZoom;
-        _viewportSwipePreviewActive = false;
-        _logger.LogDebug(
-            "Viewport manipulation started: fitZoom={IsAtFitZoom}, origin=({X:F1},{Y:F1})",
-            _viewportManipulating,
-            e.Position.X,
-            e.Position.Y);
-    }
+        var point = e.GetCurrentPoint(ImageViewport).Position;
 
-    private void ImageViewport_ManipulationDelta(object sender, ManipulationDeltaRoutedEventArgs e)
-    {
-        if (!_viewportManipulating)
+        if (e.Pointer.PointerDeviceType == PointerDeviceType.Mouse)
+        {
+            if (!e.GetCurrentPoint(ImageViewport).Properties.IsLeftButtonPressed)
+                return;
+
+            _mouseOverlayDragging = true;
+            _mouseOverlayMoved = false;
+            _mouseOverlayPreviewActive = false;
+            _mouseOverlayStart = point;
+            _mouseOverlayLastPoint = point;
+            TouchSwipeOverlay.CapturePointer(e.Pointer);
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Pointer.PointerDeviceType != PointerDeviceType.Touch)
             return;
 
-        double dx = e.Cumulative.Translation.X;
-        double dy = e.Cumulative.Translation.Y;
-        const double HorizontalIntentThreshold = 12.0;
+        _touchPointers[e.Pointer.PointerId] = point;
+        TouchSwipeOverlay.CapturePointer(e.Pointer);
 
-        if (!_viewportSwipePreviewActive)
+        if (_touchPointers.Count == 1)
+        {
+            _touchSwipeDragging = ZoomImage.IsAtFitZoom;
+            _touchSwipePreviewActive = false;
+            _touchSwipePointerId = e.Pointer.PointerId;
+            _touchSwipeStart = point;
+            _logger.LogDebug("Touch overlay pressed: pointer={PointerId}, pos=({X:F1},{Y:F1}), fit={IsAtFitZoom}", _touchSwipePointerId, point.X, point.Y, ZoomImage.IsAtFitZoom);
+        }
+        else if (_touchPointers.Count == 2)
+        {
+            CancelTouchSwipePreview();
+            _touchPinching = true;
+            _touchPinchStartDistance = GetTouchPinchDistance();
+            _touchPinchStartZoom = ZoomImage.CurrentZoomFactor;
+            _logger.LogDebug("Touch overlay pinch started: distance={Distance:F1}, zoom={Zoom:F3}", _touchPinchStartDistance, _touchPinchStartZoom);
+        }
+
+        e.Handled = true;
+    }
+
+    private void TouchSwipeOverlay_PointerMoved(object sender, PointerRoutedEventArgs e)
+    {
+        var point = e.GetCurrentPoint(ImageViewport).Position;
+
+        if (e.Pointer.PointerDeviceType == PointerDeviceType.Mouse && _mouseOverlayDragging)
+        {
+            double mouseDx = point.X - _mouseOverlayLastPoint.X;
+            double mouseDy = point.Y - _mouseOverlayLastPoint.Y;
+            double totalDx = point.X - _mouseOverlayStart.X;
+            double totalDy = point.Y - _mouseOverlayStart.Y;
+
+            if (ZoomImage.IsAtFitZoom)
+            {
+                const double MouseHorizontalIntentThreshold = 12.0;
+                if (!_mouseOverlayPreviewActive)
+                {
+                    if (Math.Abs(totalDx) < MouseHorizontalIntentThreshold || Math.Abs(totalDx) <= Math.Abs(totalDy))
+                        return;
+
+                    _mouseOverlayPreviewActive = true;
+                    _mouseOverlayMoved = true;
+                    _logger.LogDebug("Mouse overlay preview started: dx={Dx:F1}, dy={Dy:F1}", totalDx, totalDy);
+                }
+
+                OnZoomImageSwipePreviewProgress(new SwipePreviewEventArgs(totalDx, ImageViewport.ActualWidth));
+            }
+            else
+            {
+                if (Math.Abs(mouseDx) > 1 || Math.Abs(mouseDy) > 1)
+                    _mouseOverlayMoved = true;
+                ZoomImage.PanBy(mouseDx, mouseDy);
+            }
+
+            _mouseOverlayLastPoint = point;
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Pointer.PointerDeviceType != PointerDeviceType.Touch || !_touchPointers.ContainsKey(e.Pointer.PointerId))
+            return;
+
+        _touchPointers[e.Pointer.PointerId] = point;
+
+        if (_touchPinching && _touchPointers.Count >= 2)
+        {
+            double distance = GetTouchPinchDistance();
+            if (_touchPinchStartDistance > 0 && distance > 0)
+            {
+                double scale = distance / _touchPinchStartDistance;
+                ZoomImage.ZoomToFactorAt(_touchPinchStartZoom * scale, GetTouchPinchCenter());
+            }
+            e.Handled = true;
+            return;
+        }
+
+        if (!_touchSwipeDragging || _touchSwipePointerId != e.Pointer.PointerId || !ZoomImage.IsAtFitZoom)
+            return;
+
+        double dx = point.X - _touchSwipeStart.X;
+        double dy = point.Y - _touchSwipeStart.Y;
+
+        const double HorizontalIntentThreshold = 12.0;
+        if (!_touchSwipePreviewActive)
         {
             if (Math.Abs(dx) < HorizontalIntentThreshold || Math.Abs(dx) <= Math.Abs(dy))
                 return;
 
-            _viewportSwipePreviewActive = true;
-            _logger.LogDebug(
-                "Viewport swipe preview started: dx={Dx:F1}, dy={Dy:F1}, viewport={Viewport:F1}",
-                dx,
-                dy,
-                ImageViewport.ActualWidth);
+            _touchSwipePreviewActive = true;
+            _logger.LogDebug("Touch overlay preview started: dx={Dx:F1}, dy={Dy:F1}", dx, dy);
         }
 
         OnZoomImageSwipePreviewProgress(new SwipePreviewEventArgs(dx, ImageViewport.ActualWidth));
         e.Handled = true;
     }
 
-    private async void ImageViewport_ManipulationCompleted(object sender, ManipulationCompletedRoutedEventArgs e)
+    private async void TouchSwipeOverlay_PointerReleased(object sender, PointerRoutedEventArgs e)
     {
-        if (!_viewportManipulating)
+        var point = e.GetCurrentPoint(ImageViewport).Position;
+
+        if (e.Pointer.PointerDeviceType == PointerDeviceType.Mouse)
+        {
+            if (_mouseOverlayDragging)
+            {
+                if (_mouseOverlayPreviewActive)
+                    OnZoomImageSwipePreviewCompleted();
+
+                double totalDx = point.X - _mouseOverlayStart.X;
+                double totalDy = point.Y - _mouseOverlayStart.Y;
+                bool mouseHadPreview = _mouseOverlayPreviewActive;
+
+                _mouseOverlayDragging = false;
+                _mouseOverlayPreviewActive = false;
+                ReleaseTouchOverlayPointer(e.Pointer.PointerId);
+
+                if (mouseHadPreview)
+                {
+                    const double MouseMinSwipe = 60.0;
+                    if (Math.Abs(totalDx) >= MouseMinSwipe && Math.Abs(totalDx) >= Math.Abs(totalDy) * 1.5)
+                    {
+                        if (totalDx < 0)
+                            await NavigateRelativeAsync(1);
+                        else
+                            await NavigateRelativeAsync(-1);
+                    }
+                }
+                else if (!_mouseOverlayMoved)
+                {
+                    HandleMouseTap(point);
+                }
+
+                e.Handled = true;
+            }
+            return;
+        }
+
+        if (e.Pointer.PointerDeviceType != PointerDeviceType.Touch)
             return;
 
-        double dx = e.Cumulative.Translation.X;
-        double dy = e.Cumulative.Translation.Y;
-        _logger.LogDebug(
-            "Viewport manipulation completed: dx={Dx:F1}, dy={Dy:F1}, inertial={IsInertial}",
-            dx,
-            dy,
-            e.IsInertial);
+        bool wasSwipePointer = _touchSwipePointerId == e.Pointer.PointerId;
+        _touchPointers.Remove(e.Pointer.PointerId);
+        ReleaseTouchOverlayPointer(e.Pointer.PointerId);
 
-        _viewportManipulating = false;
-
-        if (_viewportSwipePreviewActive)
+        if (_touchPinching)
         {
-            _viewportSwipePreviewActive = false;
-            OnZoomImageSwipePreviewCompleted();
+            if (_touchPointers.Count < 2)
+            {
+                _touchPinching = false;
+                _touchPinchStartDistance = 0;
+                _touchPinchStartZoom = 1;
+                _logger.LogDebug("Touch overlay pinch ended");
+            }
+            e.Handled = true;
+            return;
+        }
+
+        if (!wasSwipePointer)
+            return;
+
+        double dx = point.X - _touchSwipeStart.X;
+        double dy = point.Y - _touchSwipeStart.Y;
+        bool hadPreview = _touchSwipePreviewActive;
+        _logger.LogDebug("Touch overlay released: dx={Dx:F1}, dy={Dy:F1}, hadPreview={HadPreview}", dx, dy, hadPreview);
+
+        EndTouchSwipeState();
+
+        if (!hadPreview)
+        {
+            HandleTouchTap(point);
+            e.Handled = true;
+            return;
         }
 
         const double MinSwipe = 60.0;
         if (Math.Abs(dx) < MinSwipe || Math.Abs(dx) < Math.Abs(dy) * 1.5)
         {
-            _logger.LogDebug("Viewport swipe rejected by threshold");
+            _logger.LogDebug("Touch overlay swipe rejected by threshold");
+            e.Handled = true;
             return;
         }
 
@@ -394,6 +557,112 @@ public sealed partial class PhotoDetailPage : Page
             await NavigateRelativeAsync(1);
         else
             await NavigateRelativeAsync(-1);
+
+        e.Handled = true;
+    }
+
+    private void TouchSwipeOverlay_PointerCanceled(object sender, PointerRoutedEventArgs e)
+    {
+        if (e.Pointer.PointerDeviceType == PointerDeviceType.Mouse)
+        {
+            _mouseOverlayDragging = false;
+            ReleaseTouchOverlayPointer(e.Pointer.PointerId);
+            return;
+        }
+
+        if (e.Pointer.PointerDeviceType != PointerDeviceType.Touch)
+            return;
+
+        _touchPointers.Remove(e.Pointer.PointerId);
+        ReleaseTouchOverlayPointer(e.Pointer.PointerId);
+
+        if (_touchSwipePointerId == e.Pointer.PointerId)
+            EndTouchSwipeState();
+
+        if (_touchPointers.Count < 2)
+        {
+            _touchPinching = false;
+            _touchPinchStartDistance = 0;
+            _touchPinchStartZoom = 1;
+        }
+
+        _logger.LogDebug("Touch overlay cancelled: pointer={PointerId}", e.Pointer.PointerId);
+        e.Handled = true;
+    }
+
+    private void HandleTouchTap(Point point)
+    {
+        DateTime now = DateTime.UtcNow;
+        double dt = (now - _lastTouchTapTime).TotalMilliseconds;
+        double dx = point.X - _lastTouchTapPosition.X;
+        double dy = point.Y - _lastTouchTapPosition.Y;
+
+        if (dt <= 350 && Math.Sqrt(dx * dx + dy * dy) <= 48)
+        {
+            _lastTouchTapTime = DateTime.MinValue;
+            _logger.LogDebug("Touch overlay double tap: pos=({X:F1},{Y:F1})", point.X, point.Y);
+            ZoomImage.ToggleZoomAt(point);
+            return;
+        }
+
+        _lastTouchTapTime = now;
+        _lastTouchTapPosition = point;
+    }
+
+    private void HandleMouseTap(Point point)
+    {
+        DateTime now = DateTime.UtcNow;
+        double dt = (now - _lastMouseTapTime).TotalMilliseconds;
+        double dx = point.X - _lastMouseTapPosition.X;
+        double dy = point.Y - _lastMouseTapPosition.Y;
+
+        if (dt <= 350 && Math.Sqrt(dx * dx + dy * dy) <= 6)
+        {
+            _lastMouseTapTime = DateTime.MinValue;
+            _logger.LogDebug("Mouse overlay double click: pos=({X:F1},{Y:F1})", point.X, point.Y);
+            ZoomImage.ToggleZoomAt(point);
+            return;
+        }
+
+        _lastMouseTapTime = now;
+        _lastMouseTapPosition = point;
+    }
+
+    private void CancelTouchSwipePreview()
+    {
+        if (_touchSwipePreviewActive)
+            OnZoomImageSwipePreviewCompleted();
+
+        _touchSwipeDragging = false;
+        _touchSwipePreviewActive = false;
+        _touchSwipePointerId = null;
+    }
+
+    private void EndTouchSwipeState()
+    {
+        CancelTouchSwipePreview();
+    }
+
+    private double GetTouchPinchDistance()
+    {
+        if (_touchPointers.Count < 2) return 0;
+        var points = _touchPointers.Values.Take(2).ToArray();
+        double dx = points[0].X - points[1].X;
+        double dy = points[0].Y - points[1].Y;
+        return Math.Sqrt(dx * dx + dy * dy);
+    }
+
+    private Point GetTouchPinchCenter()
+    {
+        var points = _touchPointers.Values.Take(2).ToArray();
+        return new Point((points[0].X + points[1].X) / 2.0, (points[0].Y + points[1].Y) / 2.0);
+    }
+
+    private void ReleaseTouchOverlayPointer(uint pointerId)
+    {
+        var captured = TouchSwipeOverlay.PointerCaptures.FirstOrDefault(c => c.PointerId == pointerId);
+        if (captured is not null)
+            TouchSwipeOverlay.ReleasePointerCapture(captured);
     }
 
     private void OnZoomImageSwipeLeft()
@@ -538,12 +807,15 @@ public sealed partial class PhotoDetailPage : Page
 
         _logger.LogDebug("LoadCurrentImage: {Path}", path);
         ZoomImage.SetLoading();
-        if (_viewportManipulating)
+        if (_touchSwipeDragging)
         {
-            _logger.LogDebug("LoadCurrentImage reset viewport swipe state");
-            _viewportManipulating = false;
-            _viewportSwipePreviewActive = false;
+            _logger.LogDebug("LoadCurrentImage reset touch swipe state");
+            EndTouchSwipeState();
         }
+        _touchPointers.Clear();
+        _touchPinching = false;
+        _touchPinchStartDistance = 0;
+        _touchPinchStartZoom = 1;
         ResetSwipePreviewTransforms();
         try
         {
