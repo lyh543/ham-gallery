@@ -49,20 +49,6 @@ public sealed partial class PhotoDetailPage : Page
     private readonly MagickImageLoader _magickLoader;
     private readonly StringToImageSourceConverter _imageSourceConverter = new();
 
-    private bool _touchSwipeDragging = false;
-    private uint? _touchSwipePointerId;
-    private Point _touchSwipeStart;
-    private bool _touchSwipePreviewActive = false;
-    private readonly Dictionary<uint, Point> _touchPointers = new();
-    private bool _touchPinching = false;
-    private double _touchPinchStartDistance = 0.0;
-    private double _touchPinchStartZoom = 1.0;
-    private bool _mouseOverlayDragging = false;
-    private bool _mouseOverlayMoved = false;
-    private bool _mouseOverlayPreviewActive = false;
-    private Point _mouseOverlayStart;
-    private Point _mouseOverlayLastPoint;
-
     private readonly ILogger<PhotoDetailPage> _logger =
         App.Current.Services.GetRequiredService<ILogger<PhotoDetailPage>>();
 
