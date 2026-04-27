@@ -236,22 +236,6 @@ public sealed partial class PhotoDetailPage : Page
         _logger.LogDebug("OnNavigatedFrom: image caches cleared");
     }
 
-    // ── FilmStrip pin toggle ──────────────────────────────────────────────────
-
-    private void FilmStripPin_Click(object sender, RoutedEventArgs e)
-    {
-        _ = ViewModel.ToggleFilmStripPinnedAsync(_cts.Token);
-        ApplyFilmStripPinState();
-    }
-
-    private void ApplyFilmStripPinState()
-    {
-        bool available = ViewModel.IsFilmStripAvailable;
-        bool pinned    = available && ViewModel.FilmStripPinned;
-        FilmStripPinButton.IsChecked = pinned;
-        FilmStripRow.Height = pinned ? GridLength.Auto : new GridLength(0);
-    }
-
     private void ApplyShowPreloadStatus()
     {
         bool show = ViewModel.ShowPreloadStatus;
@@ -407,13 +391,4 @@ public sealed partial class PhotoDetailPage : Page
         }
     }
 
-    // ── Counter text ──────────────────────────────────────────────────────────
-
-    private void UpdateCounterText()
-    {
-        int total = ViewModel.FilmStripItems.Count;
-        CounterText.Text = total > 0
-            ? $"{ViewModel.CurrentIndex + 1} / {total}"
-            : string.Empty;
-    }
 }

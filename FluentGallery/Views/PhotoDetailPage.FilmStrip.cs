@@ -27,6 +27,20 @@ public sealed partial class PhotoDetailPage
     private double _filmstripLastX = 0;
     private Point _filmstripDragStart = default;
 
+    private void FilmStripPin_Click(object sender, RoutedEventArgs e)
+    {
+        _ = ViewModel.ToggleFilmStripPinnedAsync(_cts.Token);
+        ApplyFilmStripPinState();
+    }
+
+    private void ApplyFilmStripPinState()
+    {
+        bool available = ViewModel.IsFilmStripAvailable;
+        bool pinned = available && ViewModel.FilmStripPinned;
+        FilmStripPinButton.IsChecked = pinned;
+        FilmStripRow.Height = pinned ? GridLength.Auto : new GridLength(0);
+    }
+
     private void FilmStrip_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_filmstripDragging) return;

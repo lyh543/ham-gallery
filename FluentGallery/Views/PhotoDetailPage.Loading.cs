@@ -41,6 +41,14 @@ public sealed partial class PhotoDetailPage
         }
     }
 
+    private void UpdateCounterText()
+    {
+        int total = ViewModel.FilmStripItems.Count;
+        CounterText.Text = total > 0
+            ? $"{ViewModel.CurrentIndex + 1} / {total}"
+            : string.Empty;
+    }
+
     private async Task LoadCurrentImageAsync()
     {
         int gen  = ++_loadGeneration;
