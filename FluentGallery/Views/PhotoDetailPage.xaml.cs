@@ -78,6 +78,7 @@ public sealed partial class PhotoDetailPage : Page
         ZoomImage.SwipeLeft  += OnZoomImageSwipeLeft;
         ZoomImage.SwipeRight += OnZoomImageSwipeRight;
         ZoomImage.ZoomUserChanged += ShowChrome;
+        ZoomImage.PendingImageSwapCompleted += OnZoomImagePendingSwapCompleted;
 
         ViewModel.PropertyChanged += ViewModel_PropertyChanged;
     }

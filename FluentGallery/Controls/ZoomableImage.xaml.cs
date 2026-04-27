@@ -42,6 +42,9 @@ public sealed partial class ZoomableImage : UserControl
     // BitmapImage (GIF) is not IDisposable so _currentDisposable stays null for those.
     private IDisposable? _currentDisposable;
 
+    // When seamless navigation loads into pending: pending image source and disposal.
+    private IDisposable? _pendingDisposable;
+
     // ── Swipe-to-navigate events (fired when at fit-zoom + horizontal swipe) ─
 
     /// <summary>Raised when the user swipes left (towards next photo) at fit zoom.</summary>
@@ -70,6 +73,10 @@ public sealed partial class ZoomableImage : UserControl
     // Incremented on every SetSource call so stale FitAfterLayout callbacks can be discarded.
     private int _sourceGeneration = 0;
 
+    // True while seamless pending->main swap is in progress and waiting for post-swap layout.
+    // During this window, ignore Scroll.SizeChanged-triggered FitToWindow to avoid stale refits.
+    private bool _suppressSizeChangedFit = false;
+
     // Timestamp of last programmatic FitToWindow call.
     // ViewChanged within 300 ms of this is considered programmatic and won’t notify ZoomUserChanged.
     private DateTime _fitToWindowTime = DateTime.MinValue;
@@ -77,6 +84,10 @@ public sealed partial class ZoomableImage : UserControl
     /// <summary>Raised when the user actively changes the zoom (pinch, wheel, button, slider).
     /// PhotoDetailPage subscribes and calls ShowChrome(), which in turn calls ShowZoomSlider().</summary>
     public event Action? ZoomUserChanged;
+
+    /// <summary>Raised when a seamless image swap (pending→main) completes.
+    /// PhotoDetailPage uses this to clean up swipe preview state.</summary>
+    public event Action? PendingImageSwapCompleted;
 
     // Swipe tracking (AddHandler on ScrollViewer to receive already-handled events)
     private Point _swipeStart;
@@ -224,27 +235,41 @@ public sealed partial class ZoomableImage : UserControl
     /// Disposes the previous <see cref="SoftwareBitmapSource"/> before showing the new image.
     /// Must be called from the UI thread.
     /// </summary>
-    public void SetSource(Loaders.LoadedImage image, CancellationToken ct = default)
+    /// <param name="skipFadeOut">When true, does not set Opacity=0 before displaying the new image,
+    /// allowing seamless image swap without flicker during committed navigation.</param>
+    public void SetSource(Loaders.LoadedImage image, CancellationToken ct = default, bool skipFadeOut = false)
     {
         ct.ThrowIfCancellationRequested();
 
-        // Clear Source so the compositor stops using the old surface.
+        if (skipFadeOut)
+        {
+            // Seamless mode: load into hidden PendingImage, then swap when ready.
+            LoadImageIntoPending(image, ct);
+        }
+        else
+        {
+            // Normal mode: load into MainImage with fade-in animation.
+            LoadImageIntoMain(image, ct);
+        }
+    }
+
+    private void LoadImageIntoMain(Loaders.LoadedImage image, CancellationToken ct)
+    {
+        // In normal mode (skipFadeOut=false), clear and fade in.
         MainImage.Opacity = 0;
         MainImage.Source  = null;
+        ShowLoading();
+
         DeferDispose(_currentDisposable);
         _currentDisposable = image.Source as IDisposable;
-        ShowLoading();
 
         if (image.PixelWidth > 0)
         {
-            // SoftwareBitmapSource is already decoded — dimensions are known immediately.
             MainImage.Source  = image.Source;
             MainImage.Width   = image.PixelWidth;
             MainImage.Height  = image.PixelHeight;
-            // Step 1: establish _fitZoom↔slider mapping now (no layout needed for math).
             EstablishFitZoom(image.PixelWidth, image.PixelHeight);
-            // Step 2: apply ChangeView after layout commits the new content size.
-            FitAfterLayout();
+            FitAfterLayout(skipFadeIn: false);
             return;
         }
 
@@ -263,7 +288,53 @@ public sealed partial class ZoomableImage : UserControl
             MainImage.Width  = bitmap.PixelWidth;
             MainImage.Height = bitmap.PixelHeight;
             EstablishFitZoom(bitmap.PixelWidth, bitmap.PixelHeight);
-            FitAfterLayout();
+            FitAfterLayout(skipFadeIn: false);
+        };
+        onFailed = (_, _) =>
+        {
+            bitmap.ImageOpened -= onOpened;
+            bitmap.ImageFailed -= onFailed;
+            HideLoading();
+        };
+
+        bitmap.ImageOpened += onOpened;
+        bitmap.ImageFailed += onFailed;
+    }
+
+    private void LoadImageIntoPending(Loaders.LoadedImage image, CancellationToken ct)
+    {
+        // Seamless mode: load new source into hidden PendingImage.
+        // When layout completes, swap PendingImage → MainImage to avoid visible change.
+        DeferDispose(_pendingDisposable);
+        _pendingDisposable = image.Source as IDisposable;
+
+        if (image.PixelWidth > 0)
+        {
+            // SoftwareBitmapSource is already decoded.
+            PendingImage.Source  = image.Source;
+            PendingImage.Width   = image.PixelWidth;
+            PendingImage.Height  = image.PixelHeight;
+            EstablishFitZoom(image.PixelWidth, image.PixelHeight);
+            FitAfterLayout(skipFadeIn: true, usePending: true);
+            return;
+        }
+
+        // BitmapImage / GIF: still decoding in background.
+        PendingImage.Source = image.Source;
+
+        if (image.Source is not BitmapImage bitmap) return;
+
+        RoutedEventHandler?          onOpened = null;
+        ExceptionRoutedEventHandler? onFailed = null;
+
+        onOpened = (_, _) =>
+        {
+            bitmap.ImageOpened -= onOpened;
+            bitmap.ImageFailed -= onFailed;
+            PendingImage.Width  = bitmap.PixelWidth;
+            PendingImage.Height = bitmap.PixelHeight;
+            EstablishFitZoom(bitmap.PixelWidth, bitmap.PixelHeight);
+            FitAfterLayout(skipFadeIn: true, usePending: true);
         };
         onFailed = (_, _) =>
         {
@@ -320,7 +391,7 @@ public sealed partial class ZoomableImage : UserControl
         _ignoreSliderChange = false;
     }
 
-    private void FitAfterLayout()
+    private void FitAfterLayout(bool skipFadeIn = false, bool usePending = false)
     {
         int gen = ++_sourceGeneration;
 
@@ -334,11 +405,72 @@ public sealed partial class ZoomableImage : UserControl
             if (_sourceGeneration != gen) { Scroll.LayoutUpdated -= handler; return; }
             if (Scroll.ExtentWidth <= 0 || Scroll.ExtentHeight <= 0) return;
             Scroll.LayoutUpdated -= handler;
+            
+            if (usePending)
+            {
+                // Seamless path: swap first, then wait one more layout pass so ScrollViewer
+                // commits the new content before fitting. This mirrors the stable keyboard path.
+                _suppressSizeChangedFit = true;
+                SwapPendingToMain();
+
+                EventHandler<object>? postSwapHandler = null;
+                postSwapHandler = (_, _) =>
+                {
+                    if (_sourceGeneration != gen)
+                    {
+                        Scroll.LayoutUpdated -= postSwapHandler;
+                        _suppressSizeChangedFit = false;
+                        return;
+                    }
+
+                    if (Scroll.ExtentWidth <= 0 || Scroll.ExtentHeight <= 0) return;
+
+                    Scroll.LayoutUpdated -= postSwapHandler;
+
+                    _suppressSizeChangedFit = false;
+                    FitToWindow();
+                    HideLoading();
+                };
+
+                Scroll.LayoutUpdated += postSwapHandler;
+                return;
+            }
+
             FitToWindow();
             HideLoading();
-            FadeInImage();
+
+            if (skipFadeIn)
+            {
+                MainImage.Opacity = 1;
+            }
+            else
+            {
+                FadeInImage();
+            }
         };
         Scroll.LayoutUpdated += handler;
+    }
+
+    private void SwapPendingToMain()
+    {
+        // Transfer source and state from pending to main image.
+        // PendingImage was loaded hidden, now make it the displayed image.
+        DeferDispose(_currentDisposable);
+        _currentDisposable = _pendingDisposable;
+        _pendingDisposable = null;
+
+        MainImage.Source  = PendingImage.Source;
+        MainImage.Width   = PendingImage.Width;
+        MainImage.Height  = PendingImage.Height;
+        MainImage.Opacity = 1;
+
+        // Clear pending.
+        PendingImage.Source = null;
+        PendingImage.Width  = 0;
+        PendingImage.Height = 0;
+
+        // Signal that seamless swap is complete.
+        PendingImageSwapCompleted?.Invoke();
     }
 
     /// <summary>Scales the image so it fits entirely within the current viewport.</summary>
@@ -708,10 +840,15 @@ public sealed partial class ZoomableImage : UserControl
 
     private void OnScrollSizeChanged(object sender, SizeChangedEventArgs e)
     {
+        if (_suppressSizeChangedFit)
+            return;
+
         // Only re-fit when the user is currently at (or near) fit-zoom.
         // If the user has manually zoomed in (e.g. 200%), do NOT reset their zoom on resize.
         if (IsAtFitZoom)
+        {
             FitToWindow();
+        }
     }
 
     // ── Loading indicator ─────────────────────────────────────────────────────

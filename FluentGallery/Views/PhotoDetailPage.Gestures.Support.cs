@@ -212,6 +212,14 @@ public sealed partial class PhotoDetailPage
         ResetSwipePreviewTransforms();
     }
 
+    private void OnZoomImagePendingSwapCompleted()
+    {
+        // Called when ZoomableImage finishes swapping pending image into main.
+        // Now safe to reset preview state without showing the old image.
+        _logger.LogDebug("Pending image swapped to main, resetting preview");
+        ResetSwipePreviewTransforms();
+    }
+
     private void EnsureSwipePreviewImage(int targetIndex)
     {
         string targetPath = ViewModel.FilmStripItems[targetIndex].Photo.FilePath;

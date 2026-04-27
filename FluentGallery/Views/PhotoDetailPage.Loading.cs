@@ -96,10 +96,19 @@ public sealed partial class PhotoDetailPage
                 return;
             }
 
-            ZoomImage.SetSource(loaded, _cts.Token);
+            ZoomImage.SetSource(loaded, _cts.Token, skipFadeOut: keepSwipePreviewDuringLoad);
 
-            if (keepSwipePreviewDuringLoad || ConsumeSwipeCommitForPath(path))
+            // Note: For seamless swipe, ResetSwipePreviewTransforms is deferred until after
+            // the pending image is swapped into main (see SwapPendingToMain in ZoomableImage).
+            if (keepSwipePreviewDuringLoad)
+            {
+                // Seamless mode: preview will be cleared by ZoomableImage after swap.
+                ConsumeSwipeCommitForPath(path);
+            }
+            else if (ConsumeSwipeCommitForPath(path))
+            {
                 ResetSwipePreviewTransforms();
+            }
 
             var loadedItem = FindFilmStripItem(path);
             if (loadedItem is not null)
