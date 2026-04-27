@@ -111,8 +111,6 @@ public sealed partial class PhotoDetailPage
         AnimateOpacity(NextButton, 0.0);
         ZoomImage.HideZoomSlider();
 
-        _logger.LogDebug("Chrome: Hiding chrome");
-
         _ = Task.Delay(250).ContinueWith(_ =>
         {
             DispatcherQueue.TryEnqueue(() => _hideChromeInProgress = false);
@@ -171,7 +169,6 @@ public sealed partial class PhotoDetailPage
 
         _chromePointerCount++;
         _hideTimer.Stop();
-        _logger.LogDebug("Chrome PointerEntered: count={Count}, timer stopped", _chromePointerCount);
     }
 
     private void ChromeElement_PointerExited(object sender, PointerRoutedEventArgs e)
@@ -180,7 +177,6 @@ public sealed partial class PhotoDetailPage
             return;
 
         _chromePointerCount = Math.Max(0, _chromePointerCount - 1);
-        _logger.LogDebug("Chrome PointerExited: count={Count}", _chromePointerCount);
 
         if (_chromePointerCount == 0)
             RestartHideTimer();

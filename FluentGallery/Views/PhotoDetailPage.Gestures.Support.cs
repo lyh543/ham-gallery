@@ -17,6 +17,8 @@ public sealed partial class PhotoDetailPage
     private string? _swipePreviewRequestedPath;
     private int _swipePreviewLoadGeneration = 0;
     private IDisposable? _swipePreviewDisposable;
+    private int _swipePreviewPixelWidth = 0;
+    private int _swipePreviewPixelHeight = 0;
     private bool _swipeCommitPending = false;
     private string? _swipeCommitTargetPath;
     private DateTime _lastTouchTapTime = DateTime.MinValue;
@@ -123,6 +125,9 @@ public sealed partial class PhotoDetailPage
 
     private void ReleaseTouchOverlayPointer(uint pointerId)
     {
+        if (TouchSwipeOverlay.PointerCaptures is null)
+            return;
+
         var captured = TouchSwipeOverlay.PointerCaptures.FirstOrDefault(c => c.PointerId == pointerId);
         if (captured is not null)
             TouchSwipeOverlay.ReleasePointerCapture(captured);
@@ -175,12 +180,6 @@ public sealed partial class PhotoDetailPage
     {
         int direction = args.HorizontalOffset < 0 ? 1 : -1;
         int targetIndex = ViewModel.CurrentIndex + direction;
-        _logger.LogDebug(
-            "Swipe preview progress: current={CurrentIndex}, target={TargetIndex}, offset={Offset:F1}, viewport={Viewport:F1}",
-            ViewModel.CurrentIndex,
-            targetIndex,
-            args.HorizontalOffset,
-            args.ViewportWidth);
 
         if (targetIndex < 0 || targetIndex >= ViewModel.FilmStripItems.Count)
         {
@@ -263,7 +262,7 @@ public sealed partial class PhotoDetailPage
                 return;
             }
 
-            ReplaceSwipePreviewSource(loaded.Source, targetPath);
+            ReplaceSwipePreviewSource(loaded, targetPath);
             _logger.LogDebug("Swipe preview image source resolved via loader: target index {TargetIndex}, hasSource={HasSource}, path={Path}",
                 targetIndex,
                 SwipePreviewImage.Source is not null,
@@ -279,17 +278,47 @@ public sealed partial class PhotoDetailPage
         }
     }
 
-    private void ReplaceSwipePreviewSource(ImageSource source, string path)
+    private void ReplaceSwipePreviewSource(Loaders.LoadedImage loaded, string path)
     {
         // Detach old source before disposing to avoid compositor using freed native surface.
         SwipePreviewImage.Source = null;
         DeferDisposeSwipePreview(_swipePreviewDisposable);
 
-        _swipePreviewDisposable = source as IDisposable;
+        _swipePreviewDisposable = loaded.Source as IDisposable;
         _swipePreviewPath = path;
+        _swipePreviewPixelWidth = loaded.PixelWidth;
+        _swipePreviewPixelHeight = loaded.PixelHeight;
 
-        SwipePreviewImage.Source = source;
+        SwipePreviewImage.Source = loaded.Source;
         SwipePreviewImage.Visibility = Visibility.Visible;
+    }
+
+    private bool TryConsumeSwipePreviewLoadedImage(string path, out Loaders.LoadedImage? loaded)
+    {
+        loaded = null;
+
+        if (!_swipeCommitPending)
+            return false;
+
+        if (!string.Equals(_swipeCommitTargetPath, path, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        if (!string.Equals(_swipePreviewPath, path, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        if (SwipePreviewImage.Source is null)
+            return false;
+
+        if (SwipePreviewImage.Source is not IDisposable disposableSource)
+            return false;
+
+        // Transfer ownership of preview source to ZoomImage so it is disposed there.
+        SwipePreviewImage.Source = null;
+        SwipePreviewImage.Visibility = Visibility.Collapsed;
+        _swipePreviewDisposable = null;
+
+        loaded = new Loaders.LoadedImage((ImageSource)disposableSource, _swipePreviewPixelWidth, _swipePreviewPixelHeight);
+        return true;
     }
 
     private void DeferDisposeSwipePreview(IDisposable? disposable)
@@ -356,6 +385,8 @@ public sealed partial class PhotoDetailPage
         CancelSwipeCommit();
         _swipePreviewRequestedPath = null;
         _swipePreviewPath = null;
+        _swipePreviewPixelWidth = 0;
+        _swipePreviewPixelHeight = 0;
         ZoomImageTransform.X = 0;
         SwipePreviewTransform.X = 0;
         SwipePreviewImage.Opacity = 0;

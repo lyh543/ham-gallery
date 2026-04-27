@@ -76,8 +76,17 @@ public sealed partial class PhotoDetailPage
             ResetSwipePreviewTransforms();
         try
         {
-            var loader = GetLoader(path);
-            var loaded = await loader.LoadAsync(path, _cts.Token);
+            Loaders.LoadedImage? loaded;
+            if (keepSwipePreviewDuringLoad && TryConsumeSwipePreviewLoadedImage(path, out var previewLoaded))
+            {
+                loaded = previewLoaded;
+            }
+            else
+            {
+                var loader = GetLoader(path);
+                loaded = await loader.LoadAsync(path, _cts.Token);
+            }
+
             if (loaded is null)
             {
                 if (keepSwipePreviewDuringLoad)
