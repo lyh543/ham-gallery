@@ -77,6 +77,7 @@
             <!-- Add photos -->
             <AppBarButton
                 x:Name="AddPhotosButton"
+                x:Uid="PhotoList_AddPhotosButton"
                 Icon="Add"
                 Label="添加照片"
                 Click="AddPhotos_Click"/>
@@ -84,6 +85,7 @@
             <!-- Delete (enabled only in multi-select mode with ≥1 selection) -->
             <AppBarButton
                 x:Name="DeleteButton"
+                x:Uid="PhotoList_DeleteButton"
                 Icon="Delete"
                 Label="删除"
                 Click="Delete_Click"
@@ -92,6 +94,7 @@
             <!-- Move to album -->
             <AppBarButton
                 x:Name="MoveToAlbumButton"
+                x:Uid="PhotoList_MoveToAlbumButton"
                 Icon="MoveToFolder"
                 Label="移到相册"
                 IsEnabled="{x:Bind ViewModel.IsMultiSelectMode, Mode=OneWay}"
@@ -102,35 +105,36 @@
             <!-- Rename album -->
             <AppBarButton
                 x:Name="RenameAlbumButton"
+                x:Uid="PhotoList_RenameAlbumButton"
                 Icon="Rename"
                 Label="重命名"
                 Click="RenameAlbum_Click"/>
 
             <!-- Sort -->
-            <AppBarButton Icon="Sort" Label="排序">
+            <AppBarButton x:Uid="PhotoList_SortButton" Icon="Sort" Label="排序">
                 <AppBarButton.Flyout>
                     <MenuFlyout x:Name="SortFlyout" Opening="SortFlyout_Opening">
-                        <RadioMenuFlyoutItem x:Name="SortByName"       Text="文件名"   GroupName="PhotoSort" Tag="Name"       Click="SortMenuItem_Click">
+                        <RadioMenuFlyoutItem x:Name="SortByName" x:Uid="PhotoList_SortByName" Text="文件名" GroupName="PhotoSort" Tag="Name" Click="SortMenuItem_Click">
                             <RadioMenuFlyoutItem.Icon>
                                 <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8A5;"/>
                             </RadioMenuFlyoutItem.Icon>
                         </RadioMenuFlyoutItem>
-                        <RadioMenuFlyoutItem x:Name="SortBySize"       Text="文件大小" GroupName="PhotoSort" Tag="Size"       Click="SortMenuItem_Click">
+                        <RadioMenuFlyoutItem x:Name="SortBySize" x:Uid="PhotoList_SortBySize" Text="文件大小" GroupName="PhotoSort" Tag="Size" Click="SortMenuItem_Click">
                             <RadioMenuFlyoutItem.Icon>
                                 <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8C8;"/>
                             </RadioMenuFlyoutItem.Icon>
                         </RadioMenuFlyoutItem>
-                        <RadioMenuFlyoutItem x:Name="SortByCreated"    Text="创建时间" GroupName="PhotoSort" Tag="CreatedAt"  Click="SortMenuItem_Click">
+                        <RadioMenuFlyoutItem x:Name="SortByCreated" x:Uid="PhotoList_SortByCreated" Text="创建时间" GroupName="PhotoSort" Tag="CreatedAt" Click="SortMenuItem_Click">
                             <RadioMenuFlyoutItem.Icon>
                                 <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE74E;"/>
                             </RadioMenuFlyoutItem.Icon>
                         </RadioMenuFlyoutItem>
-                        <RadioMenuFlyoutItem x:Name="SortByModified"   Text="修改时间" GroupName="PhotoSort" Tag="ModifiedAt" Click="SortMenuItem_Click">
+                        <RadioMenuFlyoutItem x:Name="SortByModified" x:Uid="PhotoList_SortByModified" Text="修改时间" GroupName="PhotoSort" Tag="ModifiedAt" Click="SortMenuItem_Click">
                             <RadioMenuFlyoutItem.Icon>
                                 <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE70F;"/>
                             </RadioMenuFlyoutItem.Icon>
                         </RadioMenuFlyoutItem>
-                        <RadioMenuFlyoutItem x:Name="SortByTakenAt"    Text="拍摄时间" GroupName="PhotoSort" Tag="TakenAt"    Click="SortMenuItem_Click">
+                        <RadioMenuFlyoutItem x:Name="SortByTakenAt" x:Uid="PhotoList_SortByTakenAt" Text="拍摄时间" GroupName="PhotoSort" Tag="TakenAt" Click="SortMenuItem_Click">
                             <RadioMenuFlyoutItem.Icon>
                                 <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE722;"/>
                             </RadioMenuFlyoutItem.Icon>
@@ -138,6 +142,7 @@
                         <MenuFlyoutSeparator/>
                         <ToggleMenuFlyoutItem
                             x:Name="SortDescToggle"
+                            x:Uid="PhotoList_SortDescToggle"
                             Text="升序"
                             Click="SortDescToggle_Click">
                             <ToggleMenuFlyoutItem.Icon>
@@ -151,6 +156,7 @@
             <!-- Multi-select toggle -->
             <AppBarToggleButton
                 x:Name="MultiSelectToggle"
+                x:Uid="PhotoList_MultiSelectToggle"
                 Label="多选"
                 IsChecked="{x:Bind ViewModel.IsMultiSelectMode, Mode=OneWay}"
                 Click="MultiSelectToggle_Click">
@@ -164,6 +170,7 @@
             <!-- Zoom in / out -->
             <AppBarButton
                 x:Name="ZoomInButton"
+                x:Uid="PhotoList_ZoomInButton"
                 Label="放大"
                 IsEnabled="{x:Bind ViewModel.CanZoomIn, Mode=OneWay}"
                 Click="ZoomInButton_Click">
@@ -173,6 +180,7 @@
             </AppBarButton>
             <AppBarButton
                 x:Name="ZoomOutButton"
+                x:Uid="PhotoList_ZoomOutButton"
                 Label="缩小"
                 IsEnabled="{x:Bind ViewModel.CanZoomOut, Mode=OneWay}"
                 Click="ZoomOutButton_Click">
@@ -186,6 +194,7 @@
             <!-- Search within this album -->
             <AppBarButton
                 x:Name="SearchButton"
+                x:Uid="PhotoList_SearchButton"
                 Label="搜索"
                 Click="Search_Click">
                 <AppBarButton.Icon>
@@ -256,10 +265,12 @@
                 FontSize="64"
                 Opacity="0.3"/>
             <TextBlock
+                x:Uid="PhotoList_EmptyTitle"
                 Text="相册中还没有照片"
                 HorizontalAlignment="Center"
                 Style="{ThemeResource SubtitleTextBlockStyle}"/>
             <TextBlock
+                x:Uid="PhotoList_EmptySubtitle"
                 Text="点击「添加照片」将照片加入此相册"
                 HorizontalAlignment="Center"
                 Style="{ThemeResource BodyTextBlockStyle}"

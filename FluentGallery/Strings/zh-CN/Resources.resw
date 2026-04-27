@@ -69,6 +69,21 @@
   <data name="NavItem_Settings.Content" xml:space="preserve">
     <value>设置</value>
   </data>
+  <data name="MainWindow_AlbumsNavItem.Content" xml:space="preserve">
+    <value>相册</value>
+  </data>
+  <data name="MainWindow_AllPhotosNavItem.Content" xml:space="preserve">
+    <value>所有照片</value>
+  </data>
+  <data name="MainWindow_SearchNavItem.Content" xml:space="preserve">
+    <value>搜索</value>
+  </data>
+  <data name="MainWindow_SettingsNavItem.Content" xml:space="preserve">
+    <value>设置</value>
+  </data>
+  <data name="MainWindow_DevWarnMuteButton.Content" xml:space="preserve">
+    <value>本次启动不再提示</value>
+  </data>
 
   <!-- ==================== 相册列表页 ==================== -->
   <data name="AlbumList_Title" xml:space="preserve">
@@ -83,6 +98,45 @@
   <data name="AlbumList_DeleteDialog_Content" xml:space="preserve">
     <value>确定要删除这个相册吗？相册内的照片不会被删除。</value>
   </data>
+  <data name="AlbumCard_PhotoCountSuffix.Text" xml:space="preserve">
+    <value> 张</value>
+  </data>
+  <data name="AlbumList_CreateAlbumButton.Label" xml:space="preserve">
+    <value>新建相册</value>
+  </data>
+  <data name="AlbumList_SortButton.Label" xml:space="preserve">
+    <value>排序</value>
+  </data>
+  <data name="AlbumList_SortByName.Text" xml:space="preserve">
+    <value>名称</value>
+  </data>
+  <data name="AlbumList_SortByCreated.Text" xml:space="preserve">
+    <value>创建时间</value>
+  </data>
+  <data name="AlbumList_SortByModified.Text" xml:space="preserve">
+    <value>修改时间</value>
+  </data>
+  <data name="AlbumList_SortByTakenAt.Text" xml:space="preserve">
+    <value>拍摄时间</value>
+  </data>
+  <data name="AlbumList_SortByPhotoCount.Text" xml:space="preserve">
+    <value>照片数量</value>
+  </data>
+  <data name="AlbumList_SortDescToggle.Text" xml:space="preserve">
+    <value>升序</value>
+  </data>
+  <data name="AlbumList_ZoomInButton.Label" xml:space="preserve">
+    <value>放大</value>
+  </data>
+  <data name="AlbumList_ZoomOutButton.Label" xml:space="preserve">
+    <value>缩小</value>
+  </data>
+  <data name="AlbumList_EmptyTitle.Text" xml:space="preserve">
+    <value>还没有相册</value>
+  </data>
+  <data name="AlbumList_EmptySubtitle.Text" xml:space="preserve">
+    <value>点击「新建相册」创建第一个相册</value>
+  </data>
 
   <!-- ==================== 照片列表页 ==================== -->
   <data name="PhotoList_AddPhotos_Text" xml:space="preserve">
@@ -94,6 +148,120 @@
   <data name="PhotoList_MoveToAlbum_Text" xml:space="preserve">
     <value>移动到相册</value>
   </data>
+  <data name="AllPhotos_MultiSelectToggle.Label" xml:space="preserve">
+    <value>多选</value>
+  </data>
+  <data name="AllPhotos_DeleteButton.Label" xml:space="preserve">
+    <value>删除</value>
+  </data>
+  <data name="AllPhotos_MoveToAlbumButton.Label" xml:space="preserve">
+    <value>移到相册</value>
+  </data>
+  <data name="AllPhotos_SortButton.Label" xml:space="preserve">
+    <value>排序</value>
+  </data>
+  <data name="AllPhotos_SortByName.Text" xml:space="preserve">
+    <value>文件名</value>
+  </data>
+  <data name="AllPhotos_SortBySize.Text" xml:space="preserve">
+    <value>文件大小</value>
+  </data>
+  <data name="AllPhotos_SortByCreated.Text" xml:space="preserve">
+    <value>创建时间</value>
+  </data>
+  <data name="AllPhotos_SortByModified.Text" xml:space="preserve">
+    <value>修改时间</value>
+  </data>
+  <data name="AllPhotos_SortByTakenAt.Text" xml:space="preserve">
+    <value>拍摄时间</value>
+  </data>
+  <data name="AllPhotos_SortDescToggle.Text" xml:space="preserve">
+    <value>升序</value>
+  </data>
+  <data name="AllPhotos_ZoomInButton.Label" xml:space="preserve">
+    <value>放大</value>
+  </data>
+  <data name="AllPhotos_ZoomOutButton.Label" xml:space="preserve">
+    <value>缩小</value>
+  </data>
+  <data name="AllPhotos_SearchToggle.Label" xml:space="preserve">
+    <value>搜索</value>
+  </data>
+  <data name="AllPhotos_KeywordLabel.Text" xml:space="preserve">
+    <value>文件名</value>
+  </data>
+  <data name="AllPhotos_KeywordBox.PlaceholderText" xml:space="preserve">
+    <value>输入文件名关键词...</value>
+  </data>
+  <data name="AllPhotos_DateFromLabel.Text" xml:space="preserve">
+    <value>起始日期</value>
+  </data>
+  <data name="AllPhotos_DateToLabel.Text" xml:space="preserve">
+    <value>截止日期</value>
+  </data>
+  <data name="AllPhotos_SearchButton.Content" xml:space="preserve">
+    <value>搜索</value>
+  </data>
+  <data name="AllPhotos_ClearButton.Content" xml:space="preserve">
+    <value>清除</value>
+  </data>
+  <data name="AllPhotos_EmptyTitle.Text" xml:space="preserve">
+    <value>没有照片</value>
+  </data>
+  <data name="AllPhotos_EmptySubtitle.Text" xml:space="preserve">
+    <value>当前没有找到匹配的照片</value>
+  </data>
+  <data name="PhotoList_AddPhotosButton.Label" xml:space="preserve">
+    <value>添加照片</value>
+  </data>
+  <data name="PhotoList_DeleteButton.Label" xml:space="preserve">
+    <value>删除</value>
+  </data>
+  <data name="PhotoList_MoveToAlbumButton.Label" xml:space="preserve">
+    <value>移到相册</value>
+  </data>
+  <data name="PhotoList_RenameAlbumButton.Label" xml:space="preserve">
+    <value>重命名</value>
+  </data>
+  <data name="PhotoList_SortButton.Label" xml:space="preserve">
+    <value>排序</value>
+  </data>
+  <data name="PhotoList_SortByName.Text" xml:space="preserve">
+    <value>文件名</value>
+  </data>
+  <data name="PhotoList_SortBySize.Text" xml:space="preserve">
+    <value>文件大小</value>
+  </data>
+  <data name="PhotoList_SortByCreated.Text" xml:space="preserve">
+    <value>创建时间</value>
+  </data>
+  <data name="PhotoList_SortByModified.Text" xml:space="preserve">
+    <value>修改时间</value>
+  </data>
+  <data name="PhotoList_SortByTakenAt.Text" xml:space="preserve">
+    <value>拍摄时间</value>
+  </data>
+  <data name="PhotoList_SortDescToggle.Text" xml:space="preserve">
+    <value>升序</value>
+  </data>
+  <data name="PhotoList_MultiSelectToggle.Label" xml:space="preserve">
+    <value>多选</value>
+  </data>
+  <data name="PhotoList_ZoomInButton.Label" xml:space="preserve">
+    <value>放大</value>
+  </data>
+  <data name="PhotoList_ZoomOutButton.Label" xml:space="preserve">
+    <value>缩小</value>
+  </data>
+  <data name="PhotoList_SearchButton.Label" xml:space="preserve">
+    <value>搜索</value>
+  </data>
+  <data name="PhotoList_EmptyTitle.Text" xml:space="preserve">
+    <value>相册中还没有照片</value>
+  </data>
+  <data name="PhotoList_EmptySubtitle.Text" xml:space="preserve">
+    <value>点击「添加照片」将照片加入此相册</value>
+  </data>
 
   <!-- ==================== 照片详情页 ==================== -->
   <data name="PhotoDetail_FileNotFound" xml:space="preserve">
@@ -102,6 +270,69 @@
   <data name="PhotoDetail_HeicNotSupported" xml:space="preserve">
     <value>HEIC/HEIF 格式需要安装「HEVC 视频扩展」。点击前往 Microsoft Store 安装。</value>
   </data>
+  <data name="PhotoDetail_ToastUndoText.Text" xml:space="preserve">
+    <value>撤销</value>
+  </data>
+  <data name="PhotoDetail_InfoTitle.Text" xml:space="preserve">
+    <value>照片信息</value>
+  </data>
+  <data name="PhotoDetail_FileNameLabel.Text" xml:space="preserve">
+    <value>文件名</value>
+  </data>
+  <data name="PhotoDetail_PathLabel.Text" xml:space="preserve">
+    <value>路径</value>
+  </data>
+  <data name="PhotoDetail_FileSizeLabel.Text" xml:space="preserve">
+    <value>文件大小</value>
+  </data>
+  <data name="PhotoDetail_ResolutionLabel.Text" xml:space="preserve">
+    <value>分辨率</value>
+  </data>
+  <data name="PhotoDetail_CreatedAtLabel.Text" xml:space="preserve">
+    <value>创建时间</value>
+  </data>
+  <data name="PhotoDetail_ModifiedAtLabel.Text" xml:space="preserve">
+    <value>修改时间</value>
+  </data>
+  <data name="PhotoDetail_TakenAtLabel.Text" xml:space="preserve">
+    <value>拍摄时间</value>
+  </data>
+  <data name="PhotoDetail_CameraLabel.Text" xml:space="preserve">
+    <value>相机</value>
+  </data>
+  <data name="PhotoDetail_LensLabel.Text" xml:space="preserve">
+    <value>镜头</value>
+  </data>
+  <data name="PhotoDetail_ApertureLabel.Text" xml:space="preserve">
+    <value>光圈</value>
+  </data>
+  <data name="PhotoDetail_ShutterLabel.Text" xml:space="preserve">
+    <value>快门速度</value>
+  </data>
+  <data name="PhotoDetail_IsoLabel.Text" xml:space="preserve">
+    <value>ISO</value>
+  </data>
+  <data name="PhotoDetail_FocalLengthLabel.Text" xml:space="preserve">
+    <value>焦距</value>
+  </data>
+  <data name="PhotoDetail_ColorSpaceLabel.Text" xml:space="preserve">
+    <value>颜色空间</value>
+  </data>
+  <data name="PhotoDetail_BitDepthLabel.Text" xml:space="preserve">
+    <value>位深</value>
+  </data>
+  <data name="PhotoDetail_OrientationLabel.Text" xml:space="preserve">
+    <value>方向</value>
+  </data>
+  <data name="PhotoDetail_GpsLabel.Text" xml:space="preserve">
+    <value>GPS 坐标</value>
+  </data>
+  <data name="PhotoDetail_GifDurationFramesLabel.Text" xml:space="preserve">
+    <value>时长 / 帧数</value>
+  </data>
+  <data name="PhotoDetail_GifFrameRateLabel.Text" xml:space="preserve">
+    <value>帧率</value>
+  </data>
 
   <!-- ==================== 所有照片页 ==================== -->
   <data name="AllPhotos_Title" xml:space="preserve">
@@ -109,6 +340,51 @@
   </data>
   <data name="AllPhotos_SearchPlaceholder" xml:space="preserve">
     <value>按文件名搜索…</value>
+  </data>
+  <data name="Search_KeywordLabel.Text" xml:space="preserve">
+    <value>文件名</value>
+  </data>
+  <data name="Search_KeywordBox.PlaceholderText" xml:space="preserve">
+    <value>输入文件名关键词（支持模糊匹配）</value>
+  </data>
+  <data name="Search_DateFieldLabel.Text" xml:space="preserve">
+    <value>时间字段</value>
+  </data>
+  <data name="Search_DateFieldTakenAt.Content" xml:space="preserve">
+    <value>拍摄时间</value>
+  </data>
+  <data name="Search_DateFieldModifiedAt.Content" xml:space="preserve">
+    <value>修改时间</value>
+  </data>
+  <data name="Search_DateFieldCreatedAt.Content" xml:space="preserve">
+    <value>创建时间</value>
+  </data>
+  <data name="Search_DateFromLabel.Text" xml:space="preserve">
+    <value>从</value>
+  </data>
+  <data name="Search_DateFromPicker.PlaceholderText" xml:space="preserve">
+    <value>开始日期</value>
+  </data>
+  <data name="Search_DateToLabel.Text" xml:space="preserve">
+    <value>至</value>
+  </data>
+  <data name="Search_DateToPicker.PlaceholderText" xml:space="preserve">
+    <value>结束日期</value>
+  </data>
+  <data name="Search_ClearDatesButton.Content" xml:space="preserve">
+    <value>清除日期</value>
+  </data>
+  <data name="Search_SearchButton.Content" xml:space="preserve">
+    <value>搜索</value>
+  </data>
+  <data name="Search_EmptyTitle.Text" xml:space="preserve">
+    <value>没有找到匹配的照片</value>
+  </data>
+  <data name="Search_EmptySubtitle.Text" xml:space="preserve">
+    <value>请尝试修改关键词或调整时间范围</value>
+  </data>
+  <data name="Search_PromptText.Text" xml:space="preserve">
+    <value>输入关键词或选择时间范围，然后点击「搜索」</value>
   </data>
 
   <!-- ==================== 设置页 ==================== -->
@@ -146,6 +422,15 @@
   </data>
   <data name="Common_Scanning" xml:space="preserve">
     <value>正在扫描…</value>
+  </data>
+  <data name="IndexPrompt_TitleTextBlock.Text" xml:space="preserve">
+    <value>索引新文件夹？</value>
+  </data>
+  <data name="IndexPrompt_CancelButton.Content" xml:space="preserve">
+    <value>暂不加入</value>
+  </data>
+  <data name="IndexPrompt_ConfirmButton.Content" xml:space="preserve">
+    <value>加入并索引</value>
   </data>
 
 </root>

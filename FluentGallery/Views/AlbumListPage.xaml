@@ -57,7 +57,7 @@
                         <TextBlock Opacity="0.6" FontSize="11"
                                    Style="{ThemeResource CaptionTextBlockStyle}">
                             <Run Text="{x:Bind PhotoCount.ToString(), Mode=OneWay}"/>
-                            <Run Text=" 张"/>
+                            <Run x:Uid="AlbumCard_PhotoCountSuffix" Text=" 张"/>
                         </TextBlock>
                     </StackPanel>
                 </Border>
@@ -84,39 +84,40 @@
         <CommandBar Grid.Row="0" DefaultLabelPosition="Right"
                     Background="Transparent" OverflowButtonVisibility="Collapsed">
             <AppBarButton x:Name="CreateAlbumButton"
+                          x:Uid="AlbumList_CreateAlbumButton"
                           Icon="Add" Label="新建相册"
                           Click="CreateAlbumButton_Click"/>
             <AppBarSeparator/>
-            <AppBarButton Icon="Sort" Label="排序" Click="SortButton_Click">
+            <AppBarButton x:Uid="AlbumList_SortButton" Icon="Sort" Label="排序" Click="SortButton_Click">
                 <AppBarButton.Flyout>
                     <MenuFlyout x:Name="SortFlyout" Opening="SortFlyout_Opening">
-                        <RadioMenuFlyoutItem x:Name="SortByName"       Text="名称"     GroupName="AlbumSort" Tag="Name"       Click="SortMenuItem_Click">
+                        <RadioMenuFlyoutItem x:Name="SortByName" x:Uid="AlbumList_SortByName" Text="名称" GroupName="AlbumSort" Tag="Name" Click="SortMenuItem_Click">
                             <RadioMenuFlyoutItem.Icon>
                                 <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8A5;"/>
                             </RadioMenuFlyoutItem.Icon>
                         </RadioMenuFlyoutItem>
-                        <RadioMenuFlyoutItem x:Name="SortByCreated"    Text="创建时间" GroupName="AlbumSort" Tag="CreatedAt"  Click="SortMenuItem_Click">
+                        <RadioMenuFlyoutItem x:Name="SortByCreated" x:Uid="AlbumList_SortByCreated" Text="创建时间" GroupName="AlbumSort" Tag="CreatedAt" Click="SortMenuItem_Click">
                             <RadioMenuFlyoutItem.Icon>
                                 <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE74E;"/>
                             </RadioMenuFlyoutItem.Icon>
                         </RadioMenuFlyoutItem>
-                        <RadioMenuFlyoutItem x:Name="SortByModified"   Text="修改时间" GroupName="AlbumSort" Tag="ModifiedAt" Click="SortMenuItem_Click">
+                        <RadioMenuFlyoutItem x:Name="SortByModified" x:Uid="AlbumList_SortByModified" Text="修改时间" GroupName="AlbumSort" Tag="ModifiedAt" Click="SortMenuItem_Click">
                             <RadioMenuFlyoutItem.Icon>
                                 <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xEB9E;"/>
                             </RadioMenuFlyoutItem.Icon>
                         </RadioMenuFlyoutItem>
-                        <RadioMenuFlyoutItem x:Name="SortByTakenAt"    Text="拍摄时间" GroupName="AlbumSort" Tag="TakenAt"    Click="SortMenuItem_Click">
+                        <RadioMenuFlyoutItem x:Name="SortByTakenAt" x:Uid="AlbumList_SortByTakenAt" Text="拍摄时间" GroupName="AlbumSort" Tag="TakenAt" Click="SortMenuItem_Click">
                             <RadioMenuFlyoutItem.Icon>
                                 <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE722;"/>
                             </RadioMenuFlyoutItem.Icon>
                         </RadioMenuFlyoutItem>
-                        <RadioMenuFlyoutItem x:Name="SortByPhotoCount" Text="照片数量" GroupName="AlbumSort" Tag="PhotoCount" Click="SortMenuItem_Click">
+                        <RadioMenuFlyoutItem x:Name="SortByPhotoCount" x:Uid="AlbumList_SortByPhotoCount" Text="照片数量" GroupName="AlbumSort" Tag="PhotoCount" Click="SortMenuItem_Click">
                             <RadioMenuFlyoutItem.Icon>
                                 <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE7C5;"/>
                             </RadioMenuFlyoutItem.Icon>
                         </RadioMenuFlyoutItem>
                         <MenuFlyoutSeparator/>
-                        <ToggleMenuFlyoutItem x:Name="SortDescToggle" Text="升序" Click="SortDescToggle_Click">
+                        <ToggleMenuFlyoutItem x:Name="SortDescToggle" x:Uid="AlbumList_SortDescToggle" Text="升序" Click="SortDescToggle_Click">
                             <ToggleMenuFlyoutItem.Icon>
                                 <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE74A;"/>
                             </ToggleMenuFlyoutItem.Icon>
@@ -125,6 +126,7 @@
                 </AppBarButton.Flyout>
             </AppBarButton>
             <AppBarButton x:Name="ZoomInButton"
+                          x:Uid="AlbumList_ZoomInButton"
                           Label="放大"
                           IsEnabled="{x:Bind ViewModel.CanZoomIn, Mode=OneWay}"
                           Click="ZoomInButton_Click">
@@ -133,6 +135,7 @@
                 </AppBarButton.Icon>
             </AppBarButton>
             <AppBarButton x:Name="ZoomOutButton"
+                          x:Uid="AlbumList_ZoomOutButton"
                           Label="缩小"
                           IsEnabled="{x:Bind ViewModel.CanZoomOut, Mode=OneWay}"
                           Click="ZoomOutButton_Click">
@@ -188,9 +191,9 @@
                     Visibility="Collapsed">
             <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
                       Glyph="&#xE93C;" FontSize="64" Opacity="0.3"/>
-            <TextBlock Text="还没有相册" HorizontalAlignment="Center"
+            <TextBlock x:Uid="AlbumList_EmptyTitle" Text="还没有相册" HorizontalAlignment="Center"
                        Style="{ThemeResource SubtitleTextBlockStyle}"/>
-            <TextBlock Text="点击「新建相册」创建第一个相册" HorizontalAlignment="Center"
+            <TextBlock x:Uid="AlbumList_EmptySubtitle" Text="点击「新建相册」创建第一个相册" HorizontalAlignment="Center"
                        Style="{ThemeResource BodyTextBlockStyle}" Opacity="0.6"/>
         </StackPanel>
 

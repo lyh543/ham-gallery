@@ -455,7 +455,7 @@
                                 Glyph="&#xE7A7;"
                                 FontSize="14"
                                 Foreground="White" />
-                            <TextBlock Text="撤销" Foreground="White" FontSize="13" />
+                            <TextBlock x:Uid="PhotoDetail_ToastUndoText" Text="撤销" Foreground="White" FontSize="13" />
                         </StackPanel>
                     </Button>
 
@@ -482,85 +482,86 @@
 
                 <StackPanel Padding="16,12" Spacing="0">
 
-                    <TextBlock Text="照片信息"
+                    <TextBlock x:Uid="PhotoDetail_InfoTitle" Text="照片信息"
                                Style="{ThemeResource TitleTextBlockStyle}"
                                Margin="0,0,0,12" />
 
                     <!-- ── 文件信息 ── -->
-                    <TextBlock Text="文件名" Style="{StaticResource InfoLabelStyle}" />
+                    <TextBlock x:Uid="PhotoDetail_FileNameLabel" Text="文件名" Style="{StaticResource InfoLabelStyle}" />
                     <TextBlock x:Name="InfoFileName"
                                Style="{StaticResource InfoValueStyle}" />
 
-                    <TextBlock Text="路径" Style="{StaticResource InfoLabelStyle}" />
+                    <TextBlock x:Uid="PhotoDetail_PathLabel" Text="路径" Style="{StaticResource InfoLabelStyle}" />
                     <TextBlock x:Name="InfoFilePath"
                                Style="{StaticResource InfoValueStyle}"
                                IsTextSelectionEnabled="True" />
 
-                    <TextBlock Text="文件大小" Style="{StaticResource InfoLabelStyle}" />
+                    <TextBlock x:Uid="PhotoDetail_FileSizeLabel" Text="文件大小" Style="{StaticResource InfoLabelStyle}" />
                     <TextBlock x:Name="InfoFileSize"
                                Style="{StaticResource InfoValueStyle}" />
 
-                    <TextBlock Text="分辨率" Style="{StaticResource InfoLabelStyle}" />
+                    <TextBlock x:Uid="PhotoDetail_ResolutionLabel" Text="分辨率" Style="{StaticResource InfoLabelStyle}" />
                     <TextBlock x:Name="InfoResolution"
                                Style="{StaticResource InfoValueStyle}" />
 
-                    <TextBlock Text="创建时间" Style="{StaticResource InfoLabelStyle}" />
+                    <TextBlock x:Uid="PhotoDetail_CreatedAtLabel" Text="创建时间" Style="{StaticResource InfoLabelStyle}" />
                     <TextBlock x:Name="InfoCreatedAt"
                                Style="{StaticResource InfoValueStyle}" />
 
-                    <TextBlock Text="修改时间" Style="{StaticResource InfoLabelStyle}" />
+                    <TextBlock x:Uid="PhotoDetail_ModifiedAtLabel" Text="修改时间" Style="{StaticResource InfoLabelStyle}" />
                     <TextBlock x:Name="InfoModifiedAt"
                                Style="{StaticResource InfoValueStyle}" />
 
                     <MenuFlyoutSeparator Margin="0,10" />
 
                     <!-- ── EXIF 基础 ── -->
-                    <TextBlock Text="拍摄时间" Style="{StaticResource InfoLabelStyle}" />
+                    <TextBlock x:Uid="PhotoDetail_TakenAtLabel" Text="拍摄时间" Style="{StaticResource InfoLabelStyle}" />
                     <TextBlock x:Name="InfoTakenAt"
                                Style="{StaticResource InfoValueStyle}" />
 
-                    <TextBlock Text="相机" Style="{StaticResource InfoLabelStyle}" />
+                    <TextBlock x:Uid="PhotoDetail_CameraLabel" Text="相机" Style="{StaticResource InfoLabelStyle}" />
                     <TextBlock x:Name="InfoCamera"
                                Style="{StaticResource InfoValueStyle}" />
 
-                    <TextBlock Text="镜头" Style="{StaticResource InfoLabelStyle}" />
+                    <TextBlock x:Uid="PhotoDetail_LensLabel" Text="镜头" Style="{StaticResource InfoLabelStyle}" />
                     <TextBlock x:Name="InfoLens"
                                Style="{StaticResource InfoValueStyle}" />
 
                     <MenuFlyoutSeparator Margin="0,10" />
 
                     <!-- ── 曝光参数 ── -->
-                    <TextBlock Text="光圈" Style="{StaticResource InfoLabelStyle}" />
+                    <TextBlock x:Uid="PhotoDetail_ApertureLabel" Text="光圈" Style="{StaticResource InfoLabelStyle}" />
                     <TextBlock x:Name="InfoAperture"
                                Style="{StaticResource InfoValueStyle}" />
 
-                    <TextBlock Text="快门速度" Style="{StaticResource InfoLabelStyle}" />
+                    <TextBlock x:Uid="PhotoDetail_ShutterLabel" Text="快门速度" Style="{StaticResource InfoLabelStyle}" />
                     <TextBlock x:Name="InfoShutter"
                                Style="{StaticResource InfoValueStyle}" />
 
-                    <TextBlock Text="ISO" Style="{StaticResource InfoLabelStyle}" />
+                    <TextBlock x:Uid="PhotoDetail_IsoLabel" Text="ISO" Style="{StaticResource InfoLabelStyle}" />
                     <TextBlock x:Name="InfoIso"
                                Style="{StaticResource InfoValueStyle}" />
 
-                    <TextBlock Text="焦距" Style="{StaticResource InfoLabelStyle}" />
+                    <TextBlock x:Uid="PhotoDetail_FocalLengthLabel" Text="焦距" Style="{StaticResource InfoLabelStyle}" />
                     <TextBlock x:Name="InfoFocalLength"
                                Style="{StaticResource InfoValueStyle}" />
 
                     <!-- ── 颜色信息 ── -->
-                    <TextBlock Text="颜色空间" Style="{StaticResource InfoLabelStyle}" />
+                    <TextBlock x:Uid="PhotoDetail_ColorSpaceLabel" Text="颜色空间" Style="{StaticResource InfoLabelStyle}" />
                     <TextBlock x:Name="InfoColorSpace"
                                Style="{StaticResource InfoValueStyle}" />
 
-                    <TextBlock Text="位深" Style="{StaticResource InfoLabelStyle}" />
+                    <TextBlock x:Uid="PhotoDetail_BitDepthLabel" Text="位深" Style="{StaticResource InfoLabelStyle}" />
                     <TextBlock x:Name="InfoBitDepth"
                                Style="{StaticResource InfoValueStyle}" />
 
-                    <TextBlock Text="方向" Style="{StaticResource InfoLabelStyle}" />
+                    <TextBlock x:Uid="PhotoDetail_OrientationLabel" Text="方向" Style="{StaticResource InfoLabelStyle}" />
                     <TextBlock x:Name="InfoOrientation"
                                Style="{StaticResource InfoValueStyle}" />
 
                     <!-- ── GPS ── -->
                     <TextBlock x:Name="GpsLabel"
+                               x:Uid="PhotoDetail_GpsLabel"
                                Text="GPS 坐标"
                                Style="{StaticResource InfoLabelStyle}"
                                Visibility="Collapsed" />
@@ -572,7 +573,7 @@
                     <!-- ── GIF 信息 ── -->
                     <StackPanel x:Name="GifSection" Visibility="Collapsed">
                         <MenuFlyoutSeparator Margin="0,10" />
-                        <TextBlock Text="时长 / 帧数" Style="{StaticResource InfoLabelStyle}" />
+                        <TextBlock x:Uid="PhotoDetail_GifDurationFramesLabel" Text="时长 / 帧数" Style="{StaticResource InfoLabelStyle}" />
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <TextBlock x:Name="InfoGifDuration"
                                        Style="{StaticResource InfoValueStyle}" />
@@ -582,7 +583,7 @@
                             <TextBlock x:Name="InfoGifFrames"
                                        Style="{StaticResource InfoValueStyle}" />
                         </StackPanel>
-                        <TextBlock Text="帧率" Style="{StaticResource InfoLabelStyle}" />
+                        <TextBlock x:Uid="PhotoDetail_GifFrameRateLabel" Text="帧率" Style="{StaticResource InfoLabelStyle}" />
                         <TextBlock x:Name="InfoGifFrameRate"
                                    Style="{StaticResource InfoValueStyle}" />
                     </StackPanel>

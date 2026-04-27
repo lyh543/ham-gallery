@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
+using Microsoft.Windows.Globalization;
 using Serilog;
 using Serilog.Events;
 
@@ -29,10 +30,31 @@ public partial class App : Application
     public Window? MainWindow => _window;
 
     private Window? _window;
+    private Models.AppSettings? _startupSettings;
+    private bool _dbInitializedInCtor;
 
     public App()
     {
         Services = ConfigureServices();
+
+        // Apply startup language before any XAML is initialized.
+        // Setting PrimaryLanguageOverride after InitializeComponent can throw
+        // InvalidOperationException in WinUI/WinRT.
+        try
+        {
+            var db = Services.GetRequiredService<DatabaseService>();
+            db.InitializeAsync().GetAwaiter().GetResult();
+            _dbInitializedInCtor = true;
+
+            _startupSettings = db.LoadSettingsAsync().GetAwaiter().GetResult();
+            Microsoft.Windows.Globalization.ApplicationLanguages.PrimaryLanguageOverride = _startupSettings.Language ?? string.Empty;
+        }
+        catch (Exception ex)
+        {
+            // Never crash startup because of language preference loading.
+            Log.Warning(ex, "Failed to apply startup language override from persisted settings");
+        }
+
         this.InitializeComponent();
 
         // ── Unhandled exception handlers — log crash then flush before dying ──
@@ -152,13 +174,16 @@ public partial class App : Application
 
     protected override async void OnLaunched(LaunchActivatedEventArgs args)
     {
+        var db = Services.GetRequiredService<DatabaseService>();
+        if (!_dbInitializedInCtor)
+            await db.InitializeAsync();
+
+        var settings = _startupSettings ?? await db.LoadSettingsAsync();
+
         _window = new MainWindow();
 
-        // Init DB and restore window size before showing the window so there is
+        // Restore window/theme preferences before showing the window so there is
         // no visible resize flash.
-        var db = Services.GetRequiredService<DatabaseService>();
-        await db.InitializeAsync();
-        var settings = await db.LoadSettingsAsync();
         var themeService = Services.GetRequiredService<IThemeService>();
         themeService.Apply(settings.Theme);
         var mainWindow = (MainWindow)_window;

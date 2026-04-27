@@ -61,6 +61,7 @@
             <!-- Multi-select toggle -->
             <AppBarToggleButton
                 x:Name="MultiSelectToggle"
+                x:Uid="AllPhotos_MultiSelectToggle"
                 Label="多选"
                 IsChecked="{x:Bind ViewModel.IsMultiSelectMode, Mode=OneWay}"
                 Click="MultiSelectToggle_Click">
@@ -72,6 +73,7 @@
             <!-- Delete (enabled only in multi-select mode with ≥1 selection) -->
             <AppBarButton
                 x:Name="DeleteButton"
+                x:Uid="AllPhotos_DeleteButton"
                 Icon="Delete"
                 Label="删除"
                 Click="Delete_Click"
@@ -80,6 +82,7 @@
             <!-- Move to album -->
             <AppBarButton
                 x:Name="MoveToAlbumButton"
+                x:Uid="AllPhotos_MoveToAlbumButton"
                 Icon="MoveToFolder"
                 Label="移到相册"
                 IsEnabled="{x:Bind ViewModel.IsMultiSelectMode, Mode=OneWay}"
@@ -88,30 +91,30 @@
             <AppBarSeparator/>
 
             <!-- Sort -->
-            <AppBarButton Icon="Sort" Label="排序">
+            <AppBarButton x:Uid="AllPhotos_SortButton" Icon="Sort" Label="排序">
                 <AppBarButton.Flyout>
                     <MenuFlyout x:Name="SortFlyout" Opening="SortFlyout_Opening">
-                        <RadioMenuFlyoutItem x:Name="SortByName"       Text="文件名"   GroupName="PhotoSort" Tag="Name"       Click="SortMenuItem_Click">
+                        <RadioMenuFlyoutItem x:Name="SortByName" x:Uid="AllPhotos_SortByName" Text="文件名" GroupName="PhotoSort" Tag="Name" Click="SortMenuItem_Click">
                             <RadioMenuFlyoutItem.Icon>
                                 <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8A5;"/>
                             </RadioMenuFlyoutItem.Icon>
                         </RadioMenuFlyoutItem>
-                        <RadioMenuFlyoutItem x:Name="SortBySize"       Text="文件大小" GroupName="PhotoSort" Tag="Size"       Click="SortMenuItem_Click">
+                        <RadioMenuFlyoutItem x:Name="SortBySize" x:Uid="AllPhotos_SortBySize" Text="文件大小" GroupName="PhotoSort" Tag="Size" Click="SortMenuItem_Click">
                             <RadioMenuFlyoutItem.Icon>
                                 <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8C8;"/>
                             </RadioMenuFlyoutItem.Icon>
                         </RadioMenuFlyoutItem>
-                        <RadioMenuFlyoutItem x:Name="SortByCreated"    Text="创建时间" GroupName="PhotoSort" Tag="CreatedAt"  Click="SortMenuItem_Click">
+                        <RadioMenuFlyoutItem x:Name="SortByCreated" x:Uid="AllPhotos_SortByCreated" Text="创建时间" GroupName="PhotoSort" Tag="CreatedAt" Click="SortMenuItem_Click">
                             <RadioMenuFlyoutItem.Icon>
                                 <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE74E;"/>
                             </RadioMenuFlyoutItem.Icon>
                         </RadioMenuFlyoutItem>
-                        <RadioMenuFlyoutItem x:Name="SortByModified"   Text="修改时间" GroupName="PhotoSort" Tag="ModifiedAt" Click="SortMenuItem_Click">
+                        <RadioMenuFlyoutItem x:Name="SortByModified" x:Uid="AllPhotos_SortByModified" Text="修改时间" GroupName="PhotoSort" Tag="ModifiedAt" Click="SortMenuItem_Click">
                             <RadioMenuFlyoutItem.Icon>
                                 <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE70F;"/>
                             </RadioMenuFlyoutItem.Icon>
                         </RadioMenuFlyoutItem>
-                        <RadioMenuFlyoutItem x:Name="SortByTakenAt"    Text="拍摄时间" GroupName="PhotoSort" Tag="TakenAt"    Click="SortMenuItem_Click">
+                        <RadioMenuFlyoutItem x:Name="SortByTakenAt" x:Uid="AllPhotos_SortByTakenAt" Text="拍摄时间" GroupName="PhotoSort" Tag="TakenAt" Click="SortMenuItem_Click">
                             <RadioMenuFlyoutItem.Icon>
                                 <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE722;"/>
                             </RadioMenuFlyoutItem.Icon>
@@ -119,6 +122,7 @@
                         <MenuFlyoutSeparator/>
                         <ToggleMenuFlyoutItem
                             x:Name="SortDescToggle"
+                            x:Uid="AllPhotos_SortDescToggle"
                             Text="升序"
                             Click="SortDescToggle_Click">
                             <ToggleMenuFlyoutItem.Icon>
@@ -134,6 +138,7 @@
             <!-- Zoom in / out -->
             <AppBarButton
                 x:Name="ZoomInButton"
+                x:Uid="AllPhotos_ZoomInButton"
                 Label="放大"
                 IsEnabled="{x:Bind ViewModel.CanZoomIn, Mode=OneWay}"
                 Click="ZoomInButton_Click">
@@ -143,6 +148,7 @@
             </AppBarButton>
             <AppBarButton
                 x:Name="ZoomOutButton"
+                x:Uid="AllPhotos_ZoomOutButton"
                 Label="缩小"
                 IsEnabled="{x:Bind ViewModel.CanZoomOut, Mode=OneWay}"
                 Click="ZoomOutButton_Click">
@@ -156,6 +162,7 @@
             <!-- Search toggle -->
             <AppBarToggleButton
                 x:Name="SearchToggle"
+                x:Uid="AllPhotos_SearchToggle"
                 Label="搜索"
                 Click="SearchToggle_Click">
                 <AppBarToggleButton.Icon>
@@ -183,11 +190,13 @@
                     </Grid.ColumnDefinitions>
                     <TextBlock
                         Grid.Column="0"
+                        x:Uid="AllPhotos_KeywordLabel"
                         Text="文件名"
                         VerticalAlignment="Center"
                         Style="{ThemeResource BodyTextBlockStyle}"/>
                     <TextBox
                         x:Name="KeywordBox"
+                        x:Uid="AllPhotos_KeywordBox"
                         Grid.Column="1"
                         Text="{x:Bind ViewModel.SearchKeyword, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                         PlaceholderText="输入文件名关键词..."
@@ -205,6 +214,7 @@
 
                     <TextBlock
                         Grid.Column="0"
+                        x:Uid="AllPhotos_DateFromLabel"
                         Text="起始日期"
                         VerticalAlignment="Center"
                         Style="{ThemeResource BodyTextBlockStyle}"/>
@@ -215,6 +225,7 @@
 
                     <TextBlock
                         Grid.Column="2"
+                        x:Uid="AllPhotos_DateToLabel"
                         Text="截止日期"
                         VerticalAlignment="Center"
                         Margin="12 0 0 0"
@@ -228,9 +239,11 @@
                 <!-- Row 3: Buttons -->
                 <StackPanel Orientation="Horizontal" Spacing="8">
                     <Button
+                        x:Uid="AllPhotos_SearchButton"
                         Content="搜索"
                         Click="SearchButton_Click"/>
                     <Button
+                        x:Uid="AllPhotos_ClearButton"
                         Content="清除"
                         Click="ClearSearch_Click"/>
                 </StackPanel>
@@ -299,10 +312,12 @@
                 FontSize="64"
                 Opacity="0.3"/>
             <TextBlock
+                x:Uid="AllPhotos_EmptyTitle"
                 Text="没有照片"
                 HorizontalAlignment="Center"
                 Style="{ThemeResource SubtitleTextBlockStyle}"/>
             <TextBlock
+                x:Uid="AllPhotos_EmptySubtitle"
                 Text="当前没有找到匹配的照片"
                 HorizontalAlignment="Center"
                 Style="{ThemeResource BodyTextBlockStyle}"

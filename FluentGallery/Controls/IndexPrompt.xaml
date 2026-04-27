@@ -12,6 +12,7 @@
         <StackPanel Spacing="12">
             <StackPanel Spacing="6">
                 <TextBlock x:Name="TitleTextBlock"
+                           x:Uid="IndexPrompt_TitleTextBlock"
                            Text="索引新文件夹？"
                            Style="{ThemeResource BodyStrongTextBlockStyle}"
                            TextWrapping="Wrap" />
@@ -26,9 +27,11 @@
                         HorizontalAlignment="Right"
                         Spacing="8">
                 <Button x:Name="CancelButton"
+                    x:Uid="IndexPrompt_CancelButton"
                         Content="暂不加入"
                         Click="CancelButton_Click" />
                 <Button x:Name="ConfirmButton"
+                    x:Uid="IndexPrompt_ConfirmButton"
                         Content="加入并索引"
                         Style="{ThemeResource AccentButtonStyle}"
                         Click="ConfirmButton_Click" />

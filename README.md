@@ -125,9 +125,6 @@ make install INSTALL_DIR="C:\Apps\FluentGallery"
 
 ## TODO
 
-[] 触屏优化
-- [] 滑动以后出现的 ZoomableImage 会闪烁，像是重新在新的组建里加载了，而不是无限滚动的 imagelist
-- [] 滑动以后只预加载了 jpg，没有预加载 heic
 图片旋转还有 bug
 
 [] 支持多种格式 mp4 mov heic heif gif bmp 透明底

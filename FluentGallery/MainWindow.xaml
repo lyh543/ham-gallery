@@ -34,6 +34,7 @@
                 <!-- 相册 (Albums) -->
                 <NavigationViewItem
                     x:Name="AlbumsNavItem"
+                    x:Uid="MainWindow_AlbumsNavItem"
                     Tag="AlbumList"
                     Content="相册">
                     <NavigationViewItem.Icon>
@@ -45,6 +46,7 @@
                 <!-- 所有照片 (All Photos) -->
                 <NavigationViewItem
                     x:Name="AllPhotosNavItem"
+                    x:Uid="MainWindow_AllPhotosNavItem"
                     Tag="AllPhotos"
                     Content="所有照片">
                     <NavigationViewItem.Icon>
@@ -56,6 +58,7 @@
                 <!-- 搜索 (Search) -->
                 <NavigationViewItem
                     x:Name="SearchNavItem"
+                    x:Uid="MainWindow_SearchNavItem"
                     Tag="Search"
                     Content="搜索">
                     <NavigationViewItem.Icon>
@@ -69,6 +72,7 @@
             <NavigationView.FooterMenuItems>
                 <NavigationViewItem
                     x:Name="SettingsNavItem"
+                    x:Uid="MainWindow_SettingsNavItem"
                     Tag="Settings"
                     Content="设置">
                     <NavigationViewItem.Icon>
@@ -153,6 +157,7 @@
                     <!-- 第二行："本次启动不再提示"超链接按钮 -->
                     <HyperlinkButton
                         x:Name="DevWarnMuteButton"
+                        x:Uid="MainWindow_DevWarnMuteButton"
                         Content="本次启动不再提示"
                         Foreground="#FFFFD080"
                         FontSize="12"

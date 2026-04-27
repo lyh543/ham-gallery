@@ -73,12 +73,14 @@
 
                     <TextBlock
                         Grid.Column="0"
+                        x:Uid="Search_KeywordLabel"
                         Text="文件名"
                         VerticalAlignment="Center"
                         Style="{ThemeResource BodyTextBlockStyle}"/>
 
                     <TextBox
                         x:Name="KeywordBox"
+                        x:Uid="Search_KeywordBox"
                         Grid.Column="1"
                         PlaceholderText="输入文件名关键词（支持模糊匹配）"
                         Text="{x:Bind ViewModel.Keyword, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
@@ -99,6 +101,7 @@
 
                     <TextBlock
                         Grid.Column="0"
+                        x:Uid="Search_DateFieldLabel"
                         Text="时间字段"
                         VerticalAlignment="Center"
                         Style="{ThemeResource BodyTextBlockStyle}"/>
@@ -108,13 +111,14 @@
                         Grid.Column="1"
                         HorizontalAlignment="Stretch"
                         SelectionChanged="DateFieldCombo_SelectionChanged">
-                        <ComboBoxItem Content="拍摄时间" Tag="TakenAt"/>
-                        <ComboBoxItem Content="修改时间" Tag="ModifiedAt"/>
-                        <ComboBoxItem Content="创建时间" Tag="CreatedAt"/>
+                        <ComboBoxItem x:Uid="Search_DateFieldTakenAt" Content="拍摄时间" Tag="TakenAt"/>
+                        <ComboBoxItem x:Uid="Search_DateFieldModifiedAt" Content="修改时间" Tag="ModifiedAt"/>
+                        <ComboBoxItem x:Uid="Search_DateFieldCreatedAt" Content="创建时间" Tag="CreatedAt"/>
                     </ComboBox>
 
                     <TextBlock
                         Grid.Column="2"
+                        x:Uid="Search_DateFromLabel"
                         Text="从"
                         VerticalAlignment="Center"
                         Margin="4 0 0 0"
@@ -122,6 +126,7 @@
 
                     <CalendarDatePicker
                         x:Name="DateFromPicker"
+                        x:Uid="Search_DateFromPicker"
                         Grid.Column="3"
                         PlaceholderText="开始日期"
                         HorizontalAlignment="Stretch"
@@ -129,6 +134,7 @@
 
                     <TextBlock
                         Grid.Column="4"
+                        x:Uid="Search_DateToLabel"
                         Text="至"
                         VerticalAlignment="Center"
                         Margin="4 0 0 0"
@@ -136,6 +142,7 @@
 
                     <CalendarDatePicker
                         x:Name="DateToPicker"
+                        x:Uid="Search_DateToPicker"
                         Grid.Column="5"
                         PlaceholderText="结束日期"
                         HorizontalAlignment="Stretch"
@@ -143,6 +150,7 @@
 
                     <Button
                         Grid.Column="6"
+                        x:Uid="Search_ClearDatesButton"
                         Content="清除日期"
                         Margin="4 0 0 0"
                         Click="ClearDates_Click"
@@ -153,6 +161,7 @@
                 <StackPanel Orientation="Horizontal" Spacing="8">
                     <Button
                         x:Name="SearchButton"
+                        x:Uid="Search_SearchButton"
                         Content="搜索"
                         Style="{ThemeResource AccentButtonStyle}"
                         Click="SearchButton_Click"
@@ -240,10 +249,12 @@
                 FontSize="64"
                 Opacity="0.3"/>
             <TextBlock
+                x:Uid="Search_EmptyTitle"
                 Text="没有找到匹配的照片"
                 HorizontalAlignment="Center"
                 Style="{ThemeResource SubtitleTextBlockStyle}"/>
             <TextBlock
+                x:Uid="Search_EmptySubtitle"
                 Text="请尝试修改关键词或调整时间范围"
                 HorizontalAlignment="Center"
                 Style="{ThemeResource BodyTextBlockStyle}"
@@ -263,6 +274,7 @@
                 FontSize="64"
                 Opacity="0.2"/>
             <TextBlock
+                x:Uid="Search_PromptText"
                 Text="输入关键词或选择时间范围，然后点击「搜索」"
                 HorizontalAlignment="Center"
                 Style="{ThemeResource BodyTextBlockStyle}"
