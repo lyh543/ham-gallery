@@ -510,6 +510,7 @@ This action cannot be undone. Continue?</value></data>
   <data name="Settings_Status_OpenThumbFolder_Failed" xml:space="preserve"><value>Unable to open thumbnail folder: {0}</value></data>
   <data name="Settings_Status_OpenLogsFolder_Failed" xml:space="preserve"><value>Unable to open logs folder: {0}</value></data>
   <data name="Settings_Status_GenerateThumbFailed" xml:space="preserve"><value>Generate thumbnails failed: {0}</value></data>
+  <data name="Settings_Status_RestartFailed" xml:space="preserve"><value>Unable to restart app: {0}</value></data>
   <data name="Settings_FormatEta_Sec" xml:space="preserve"><value>ETA {0} s</value></data>
   <data name="Settings_FormatEta_Min" xml:space="preserve"><value>ETA {0} m {1} s</value></data>
   <data name="Settings_FormatEta_Hour" xml:space="preserve"><value>ETA {0} h {1} m</value></data>
@@ -576,6 +577,7 @@ This action cannot be undone. Continue?</value></data>
   <data name="SettingsPage_ThumbSizeHint.Title" xml:space="preserve"><value>Thumbnail Size Changed</value></data>
   <data name="SettingsPage_ThumbSizeHint.Message" xml:space="preserve"><value>Existing thumbnails remain at old size. Clear cache to regenerate at new size.</value></data>
   <data name="SettingsPage_ThumbSizeHintAction.Content" xml:space="preserve"><value>Clear Now</value></data>
+  <data name="SettingsPage_RestartNowAction.Content" xml:space="preserve"><value>Restart Now</value></data>
   <data name="SettingsPage_DebugSectionTitle.Text" xml:space="preserve"><value>Debug</value></data>
   <data name="SettingsPage_ForceGcCard.Header" xml:space="preserve"><value>Force GC</value></data>
   <data name="SettingsPage_ForceGcCard.Description" xml:space="preserve"><value>Release unmanaged memory (WIC decode surfaces, COM objects). Use when memory is not reclaimed promptly after page switches.</value></data>

@@ -510,6 +510,7 @@
   <data name="Settings_Status_OpenThumbFolder_Failed" xml:space="preserve"><value>无法打开缩略图目录：{0}</value></data>
   <data name="Settings_Status_OpenLogsFolder_Failed" xml:space="preserve"><value>无法打开日志目录：{0}</value></data>
   <data name="Settings_Status_GenerateThumbFailed" xml:space="preserve"><value>生成缩略图失败：{0}</value></data>
+  <data name="Settings_Status_RestartFailed" xml:space="preserve"><value>无法重启应用：{0}</value></data>
   <data name="Settings_FormatEta_Sec" xml:space="preserve"><value>预计剩余 {0} 秒</value></data>
   <data name="Settings_FormatEta_Min" xml:space="preserve"><value>预计剩余 {0} 分 {1} 秒</value></data>
   <data name="Settings_FormatEta_Hour" xml:space="preserve"><value>预计剩余 {0} 小时 {1} 分</value></data>
@@ -576,6 +577,7 @@
   <data name="SettingsPage_ThumbSizeHint.Title" xml:space="preserve"><value>缩略图尺寸已更改</value></data>
   <data name="SettingsPage_ThumbSizeHint.Message" xml:space="preserve"><value>历史缩略图将继续以旧尺寸展示，清理缓存后才会按新尺寸重新生成</value></data>
   <data name="SettingsPage_ThumbSizeHintAction.Content" xml:space="preserve"><value>立即清理</value></data>
+  <data name="SettingsPage_RestartNowAction.Content" xml:space="preserve"><value>立即重启</value></data>
   <data name="SettingsPage_DebugSectionTitle.Text" xml:space="preserve"><value>调试</value></data>
   <data name="SettingsPage_ForceGcCard.Header" xml:space="preserve"><value>强制 GC</value></data>
   <data name="SettingsPage_ForceGcCard.Description" xml:space="preserve"><value>释放非托管内存（WIC 解码面、COM 对象）。切换页面后内存未及时回收时使用。</value></data>

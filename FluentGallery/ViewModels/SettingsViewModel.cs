@@ -6,6 +6,7 @@ using FluentGallery.Models;
 using FluentGallery.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.UI.Dispatching;
+using Microsoft.UI.Xaml;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 
@@ -99,6 +100,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     /// <summary>True → show as warning/error; false → show as success/informational.</summary>
     [ObservableProperty] public partial bool    IsWarningStatus  { get; set; }
+    [ObservableProperty] public partial bool    ShowRestartNowAction { get; set; }
 
     // ── Thumbnail batch generation ───────────────────────────────────────
     private CancellationTokenSource? _buildCts;
@@ -160,7 +162,10 @@ public sealed partial class SettingsViewModel : ObservableObject
         => OnPropertyChanged(nameof(ThumbnailBuildStatsText));
 
     partial void OnStatusMessageChanged(string? value)
-        => HasStatusMessage = !string.IsNullOrEmpty(value);
+    {
+        HasStatusMessage = !string.IsNullOrEmpty(value);
+        ShowRestartNowAction = string.Equals(value, L10n.Get("Settings_Status_LanguageRestart"), StringComparison.Ordinal);
+    }
 
     public SettingsViewModel(
         DatabaseService            db,
@@ -377,6 +382,31 @@ public sealed partial class SettingsViewModel : ObservableObject
         StatusMessage   = L10n.Get("Settings_Status_LanguageRestart");
     }
 
+    [RelayCommand]
+    public void RestartApp()
+    {
+        try
+        {
+            var processPath = Environment.ProcessPath;
+            if (string.IsNullOrWhiteSpace(processPath))
+                throw new InvalidOperationException("Current process path is unavailable.");
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = processPath,
+                UseShellExecute = true,
+            });
+
+            Application.Current.Exit();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to restart application");
+            IsWarningStatus = true;
+            StatusMessage = L10n.Format("Settings_Status_RestartFailed", ex.Message);
+        }
+    }
+
     partial void OnConfirmBeforeDeleteChanged(bool value)
     {
         if (!_isInitialized) return;
@@ -585,11 +615,11 @@ public sealed partial class SettingsViewModel : ObservableObject
                 FileName        = dir,
                 UseShellExecute = true,
             });
-            _logger.LogInformation("用户打开了缩略图目录: {Dir}", dir);
+            _logger.LogInformation("User opened thumbnail folder: {Dir}", dir);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "无法打开缩略图目录");
+            _logger.LogError(ex, "Failed to open thumbnail folder");
             IsWarningStatus = true;
             StatusMessage   = L10n.Format("Settings_Status_OpenThumbFolder_Failed", ex.Message);
         }
@@ -608,11 +638,11 @@ public sealed partial class SettingsViewModel : ObservableObject
                 FileName        = logsDir,
                 UseShellExecute = true,
             });
-            _logger.LogInformation("用户打开了日志目录: {Dir}", logsDir);
+            _logger.LogInformation("User opened logs folder: {Dir}", logsDir);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "无法打开日志目录");
+            _logger.LogError(ex, "Failed to open logs folder");
             IsWarningStatus = true;
             StatusMessage   = L10n.Format("Settings_Status_OpenLogsFolder_Failed", ex.Message);
         }
@@ -691,7 +721,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         catch (OperationCanceledException) { }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "批量生成缩略图失败");
+            _logger.LogError(ex, "Failed to generate thumbnails in batch");
             IsWarningStatus = true;
             StatusMessage   = L10n.Format("Settings_Status_GenerateThumbFailed", ex.Message);
         }

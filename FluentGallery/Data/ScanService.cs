@@ -163,14 +163,14 @@ public sealed class ScanService : IDisposable
         _albumIdCache.Clear(); // stale IDs cause FK failures if albums were deleted between scans
 
         _logger.LogInformation(
-            "═══ 扫描开始 ═══  目录数: {DirCount}  递归: {Recursive}",
+            "=== Scan started === Directories: {DirCount}, Recursive: {Recursive}",
             settings.ScanDirectories.Count, settings.RecursiveScan);
         foreach (var d in settings.ScanDirectories)
-            _logger.LogInformation("  扫描目录: {Dir}", d);
+            _logger.LogInformation("  Scan directory: {Dir}", d);
 
         if (settings.ScanDirectories.Count == 0)
         {
-            _logger.LogInformation("未配置任何扫描目录，清除所有照片记录。");
+            _logger.LogInformation("No scan directories configured. Clearing all photo records.");
             // No directories → treat every existing photo as stale and remove it.
             await _db.DeleteStalePhotosAsync([], ct).ConfigureAwait(false);
             await _db.DeleteEmptyAlbumsAsync(ct).ConfigureAwait(false);
@@ -183,18 +183,18 @@ public sealed class ScanService : IDisposable
         foreach (var dir in settings.ScanDirectories)
         {
             if (!Directory.Exists(dir))
-                _logger.LogWarning("扫描目录不存在，将跳过: {Dir}", dir);
+                _logger.LogWarning("Scan directory not found. Skipping: {Dir}", dir);
         }
 
         // ── 1. Pre-fetch all known photo metadata from DB (single query) ───────
         //    Using an in-memory dictionary eliminates one DB round-trip per file.
         var knownPhotos = await _db.GetAllPhotoMetadataAsync(ct).ConfigureAwait(false);
-        _logger.LogInformation("数据库中已有照片记录: {N} 张", knownPhotos.Count);
+        _logger.LogInformation("Existing photo records in database: {N}", knownPhotos.Count);
 
         // ── 3. Enumerate files on a background thread ─────────────────────────
         var allFiles = await Task.Run(() => EnumerateFiles(settings), ct).ConfigureAwait(false);
         int total    = allFiles.Count;
-        _logger.LogInformation("磁盘上共找到支持格式的文件: {Total} 个", total);
+        _logger.LogInformation("Supported files found on disk: {Total}", total);
 
         // ── 4. Start periodic UI-flush task ───────────────────────────────────
         using var flushCts  = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -229,7 +229,7 @@ public sealed class ScanService : IDisposable
                 // Skip files whose parent scan directory was removed after enumeration
                 if (!BelongsToAnyScanDir(path, settings))
                 {
-                    _logger.LogDebug("跳过已移除目录中的文件: {Path}", path);
+                    _logger.LogDebug("Skipping file from removed directory: {Path}", path);
                     Interlocked.Increment(ref processed);
                     continue;
                 }
@@ -277,7 +277,7 @@ public sealed class ScanService : IDisposable
             force: true);
 
         _logger.LogInformation(
-            "═══ 扫描完成 ═══  合计: {Total}  新增: {New}  更新: {Updated}  跳过(未变化): {Skipped}",
+            "=== Scan completed === Total: {Total}, New: {New}, Updated: {Updated}, Skipped (unchanged): {Skipped}",
             total, _countNew, _countUpdated, _countSkipped);
 
         Dispatch(dispatcher, () => ScanCompleted?.Invoke());
@@ -424,7 +424,7 @@ public sealed class ScanService : IDisposable
         photo.Id = id;
 
         _pendingDiscovered.Enqueue(photo);
-        _logger.LogDebug("[新增] {File}  AlbumId={AlbumId}  Id={Id}", photo.FileName, photo.AlbumId, photo.Id);
+        _logger.LogDebug("[NEW] {File} AlbumId={AlbumId} Id={Id}", photo.FileName, photo.AlbumId, photo.Id);
     }
 
     private async Task UpdateExistingPhotoAsync(
@@ -452,7 +452,7 @@ public sealed class ScanService : IDisposable
         await _db.UpdatePhotoAsync(existing, ct).ConfigureAwait(false);
 
         _pendingUpdated.Enqueue(existing);
-        _logger.LogDebug("[更新] {File}  AlbumId={AlbumId}  Id={Id}", existing.FileName, existing.AlbumId, existing.Id);
+        _logger.LogDebug("[UPDATED] {File} AlbumId={AlbumId} Id={Id}", existing.FileName, existing.AlbumId, existing.Id);
     }
 
     // ── Album resolution (per-file parent directory) ──────────────────────────

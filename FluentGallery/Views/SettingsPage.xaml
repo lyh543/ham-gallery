@@ -43,7 +43,15 @@
                 IsClosable="True"
                 Margin="0,0,0,4"
                 Visibility="{x:Bind ViewModel.IsWarningStatus, Converter={StaticResource BoolToVis}, Mode=OneWay}"
-                Closed="StatusBar_Closed" />
+                Closed="StatusBar_Closed">
+                <InfoBar.ActionButton>
+                    <Button
+                        x:Uid="SettingsPage_RestartNowAction"
+                        Content="立即重启"
+                        Command="{x:Bind ViewModel.RestartAppCommand}"
+                        Visibility="{x:Bind ViewModel.ShowRestartNowAction, Converter={StaticResource BoolToVis}, Mode=OneWay}" />
+                </InfoBar.ActionButton>
+            </InfoBar>
 
             <!-- ══════════════════════════════════════════════════════════
                  1. 扫描目录

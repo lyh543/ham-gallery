@@ -182,7 +182,7 @@ public sealed class DatabaseService
         }
 
         if (repaired > 0)
-            _logger.LogInformation("已为 {N} 张孤立照片补齐 AlbumId", repaired);
+            _logger.LogInformation("Repaired missing AlbumId for {N} orphan photos", repaired);
     }
 
     /// <summary>Inserts a new album and returns the generated Id.</summary>
