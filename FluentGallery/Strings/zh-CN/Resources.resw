@@ -433,4 +433,163 @@
     <value>加入并索引</value>
   </data>
 
+  <!-- ==================== 动态文案 / Toast ==================== -->
+  <data name="MainWindow_Context_Unpin" xml:space="preserve"><value>取消固定</value></data>
+  <data name="AlbumList_CreateAlbum_Placeholder" xml:space="preserve"><value>相册名称</value></data>
+  <data name="AlbumList_CreateAlbum_Title" xml:space="preserve"><value>新建相册</value></data>
+  <data name="AlbumList_CreateAlbum_Confirm" xml:space="preserve"><value>创建</value></data>
+  <data name="AlbumList_Context_Rename" xml:space="preserve"><value>重命名</value></data>
+  <data name="AlbumList_Context_Unpin" xml:space="preserve"><value>取消固定</value></data>
+  <data name="AlbumList_Context_Pin" xml:space="preserve"><value>固定到导航栏</value></data>
+  <data name="AlbumList_Context_Delete" xml:space="preserve"><value>删除</value></data>
+  <data name="AlbumList_DeleteConfirm_Title" xml:space="preserve"><value>删除相册</value></data>
+  <data name="AlbumList_DeleteConfirm_Content" xml:space="preserve"><value>确定要删除这个相册吗？相册内的照片不会被删除。</value></data>
+  <data name="AlbumList_DeleteConfirm_Confirm" xml:space="preserve"><value>删除</value></data>
+  <data name="AllPhotos_DeleteConfirm_Title" xml:space="preserve"><value>删除照片</value></data>
+  <data name="AllPhotos_DeleteConfirm_Content" xml:space="preserve"><value>确定要将选中的 {0} 张照片移入回收站吗？</value></data>
+  <data name="AllPhotos_DeleteConfirm_Confirm" xml:space="preserve"><value>移入回收站</value></data>
+  <data name="AllPhotos_MoveToAlbum_Empty" xml:space="preserve"><value>没有相册</value></data>
+  <data name="PhotoList_DeleteConfirm_Title" xml:space="preserve"><value>删除照片</value></data>
+  <data name="PhotoList_DeleteConfirm_Content" xml:space="preserve"><value>确定要将选中的 {0} 张照片移入回收站吗？</value></data>
+  <data name="PhotoList_DeleteConfirm_Confirm" xml:space="preserve"><value>移入回收站</value></data>
+  <data name="PhotoList_MoveToAlbum_Empty" xml:space="preserve"><value>没有其他相册</value></data>
+  <data name="Search_ScopeHint" xml:space="preserve"><value>搜索范围：相册「{0}」</value></data>
+  <data name="Search_ResultCount_AlbumScope" xml:space="preserve"><value>「{0}」相册中</value></data>
+  <data name="Search_ResultCount_AllScope" xml:space="preserve"><value>全库</value></data>
+  <data name="Search_ResultCount_Text" xml:space="preserve"><value>在{0}找到 {1} 张照片</value></data>
+  <data name="Search_Header_Album" xml:space="preserve"><value>搜索 · {0}</value></data>
+  <data name="Search_Header_Default" xml:space="preserve"><value>搜索</value></data>
+  <data name="Settings_ClearThumb_Title" xml:space="preserve"><value>清除缩略图缓存</value></data>
+  <data name="Settings_ClearThumb_Content" xml:space="preserve"><value>这将删除所有缓存的缩略图文件。下次查看照片时将重新生成，可能需要一些时间。
+
+确定要继续吗？</value></data>
+  <data name="Settings_ClearThumb_Confirm" xml:space="preserve"><value>清除</value></data>
+  <data name="Settings_ClearDb_Title" xml:space="preserve"><value>清除数据库缓存</value></data>
+  <data name="Settings_ClearDb_Content" xml:space="preserve"><value>这将清空所有照片和缩略图的数据库记录，相册结构和设置将保留。
+
+再次扫描目录后照片将重新出现。确定要继续吗？</value></data>
+  <data name="Settings_ClearDb_Confirm" xml:space="preserve"><value>清除</value></data>
+  <data name="Settings_ClearAll_Title" xml:space="preserve"><value>清除全部数据</value></data>
+  <data name="Settings_ClearAll_Content" xml:space="preserve"><value>这将删除所有照片记录、相册、缩略图文件和应用设置，应用将恢复出厂状态。
+
+此操作不可撤销，确定要继续吗？</value></data>
+  <data name="Settings_ClearAll_Confirm" xml:space="preserve"><value>清除全部数据</value></data>
+  <data name="Settings_DoneSub_AllExist" xml:space="preserve"><value>所有照片均已有缩略图，无需生成</value></data>
+  <data name="Settings_DoneSub_Generated" xml:space="preserve"><value>共生成了 {0} 张缩略图</value></data>
+  <data name="PhotoDetail_Delete_DontAsk" xml:space="preserve"><value>下次不再提示</value></data>
+  <data name="PhotoDetail_Delete_ConfirmText" xml:space="preserve"><value>将「{0}」移入回收站？</value></data>
+  <data name="PhotoDetail_Delete_DialogTitle" xml:space="preserve"><value>删除照片</value></data>
+  <data name="PhotoDetail_Delete_DialogConfirm" xml:space="preserve"><value>删除</value></data>
+  <data name="PhotoDetail_Toast_DisableConfirm" xml:space="preserve"><value>已关闭删除确认弹窗，可在设置中重新开启</value></data>
+  <data name="PhotoDetail_Toast_DeleteFailed" xml:space="preserve"><value>删除失败，请检查文件权限</value></data>
+  <data name="PhotoDetail_Toast_Deleted" xml:space="preserve"><value>照片「{0}」已删除</value></data>
+  <data name="PhotoDetail_Toast_UndoFailed" xml:space="preserve"><value>恢复失败，文件可能已被移动或删除</value></data>
+  <data name="PhotoDetail_Toast_Restored" xml:space="preserve"><value>照片「{0}」已恢复</value></data>
+  <data name="PhotoDetail_IndexPrompt_Title" xml:space="preserve"><value>加入相册</value></data>
+  <data name="PhotoDetail_IndexPrompt_Message" xml:space="preserve"><value>当前图片所在目录尚未加入扫描范围。是否将该目录加入相册并在后台建立索引？建立完成后将自动启用胶片栏。</value></data>
+  <data name="PhotoDetail_IndexPrompt_Confirm" xml:space="preserve"><value>加入并索引</value></data>
+  <data name="PhotoDetail_IndexPrompt_Cancel" xml:space="preserve"><value>暂不加入</value></data>
+  <data name="PhotoDetail_Toast_Indexing" xml:space="preserve"><value>已加入扫描范围，正在建立索引…</value></data>
+  <data name="PhotoDetail_Toast_IndexDone" xml:space="preserve"><value>索引完成，胶片栏已可用</value></data>
+  <data name="PhotoDetail_Toast_FirstPhoto" xml:space="preserve"><value>已经是第一张照片了</value></data>
+  <data name="PhotoDetail_Toast_LastPhoto" xml:space="preserve"><value>已经是最后一张照片了</value></data>
+  <data name="Settings_ThumbnailCacheSize_Computing" xml:space="preserve"><value>计算中…</value></data>
+  <data name="Settings_ThumbnailCacheSize_Unknown" xml:space="preserve"><value>未知</value></data>
+  <data name="Settings_ThumbnailExpanderDescription" xml:space="preserve"><value>共 {0} 张缩略图，大小 {1}</value></data>
+  <data name="Settings_ThumbProgress_Generated" xml:space="preserve"><value>已生成 {0} / {1} 张</value></data>
+  <data name="Settings_ThumbProgress_Querying" xml:space="preserve"><value>正在查询…</value></data>
+  <data name="Settings_ThumbStats" xml:space="preserve"><value>速度：{0:F1} 张/秒　{1}</value></data>
+  <data name="Settings_Status_LanguageRestart" xml:space="preserve"><value>语言将在下次启动应用时生效</value></data>
+  <data name="Settings_Status_FileAssocRegistered" xml:space="preserve"><value>文件关联已注册</value></data>
+  <data name="Settings_Status_FileAssocUnregistered" xml:space="preserve"><value>文件关联已取消注册</value></data>
+  <data name="Settings_Status_FileAssocFailed" xml:space="preserve"><value>注册文件关联失败：{0}</value></data>
+  <data name="Settings_Status_ThumbCacheCleared" xml:space="preserve"><value>缩略图缓存已清除</value></data>
+  <data name="Settings_Status_ClearFailed" xml:space="preserve"><value>清除失败：{0}</value></data>
+  <data name="Settings_Status_DbCacheCleared" xml:space="preserve"><value>数据库缓存已清除，正在重新扫描…</value></data>
+  <data name="Settings_Status_AllDataCleared" xml:space="preserve"><value>所有数据已清除，应用已恢复出厂状态</value></data>
+  <data name="Settings_Status_OpenThumbFolder_Failed" xml:space="preserve"><value>无法打开缩略图目录：{0}</value></data>
+  <data name="Settings_Status_OpenLogsFolder_Failed" xml:space="preserve"><value>无法打开日志目录：{0}</value></data>
+  <data name="Settings_Status_GenerateThumbFailed" xml:space="preserve"><value>生成缩略图失败：{0}</value></data>
+  <data name="Settings_FormatEta_Sec" xml:space="preserve"><value>预计剩余 {0} 秒</value></data>
+  <data name="Settings_FormatEta_Min" xml:space="preserve"><value>预计剩余 {0} 分 {1} 秒</value></data>
+  <data name="Settings_FormatEta_Hour" xml:space="preserve"><value>预计剩余 {0} 小时 {1} 分</value></data>
+
+  <!-- ==================== SettingsPage Static XAML ==================== -->
+  <data name="SettingsPage_ScanSectionTitle.Text" xml:space="preserve"><value>扫描目录</value></data>
+  <data name="SettingsPage_ScanExpander.Header" xml:space="preserve"><value>扫描目录</value></data>
+  <data name="SettingsPage_ScanExpander.Description" xml:space="preserve"><value>应用启动后将扫描这些目录中的照片</value></data>
+  <data name="SettingsPage_AddScanDirButton.Content" xml:space="preserve"><value>＋ 添加目录</value></data>
+  <data name="SettingsPage_RemoveScanDirButton.ToolTipService.ToolTip" xml:space="preserve"><value>删除此目录</value></data>
+  <data name="SettingsPage_ExcludeExpander.Header" xml:space="preserve"><value>排除目录</value></data>
+  <data name="SettingsPage_ExcludeExpander.Description" xml:space="preserve"><value>扫描时跳过这些目录（支持绝对路径）</value></data>
+  <data name="SettingsPage_AddExcludeDirButton.Content" xml:space="preserve"><value>＋ 添加排除目录</value></data>
+  <data name="SettingsPage_RemoveExcludeDirButton.ToolTipService.ToolTip" xml:space="preserve"><value>删除此目录</value></data>
+  <data name="SettingsPage_AppearanceSectionTitle.Text" xml:space="preserve"><value>外观</value></data>
+  <data name="SettingsPage_LanguageCard.Header" xml:space="preserve"><value>语言</value></data>
+  <data name="SettingsPage_LanguageCard.Description" xml:space="preserve"><value>切换语言后需要重新启动应用</value></data>
+  <data name="SettingsPage_Language_System.Content" xml:space="preserve"><value>跟随系统</value></data>
+  <data name="SettingsPage_Language_English.Content" xml:space="preserve"><value>English</value></data>
+  <data name="SettingsPage_Language_ZhHans.Content" xml:space="preserve"><value>中文（简体）</value></data>
+  <data name="SettingsPage_ThemeCard.Header" xml:space="preserve"><value>应用主题</value></data>
+  <data name="SettingsPage_ThemeCard.Description" xml:space="preserve"><value>立即生效，无需重启</value></data>
+  <data name="SettingsPage_Theme_System.Content" xml:space="preserve"><value>跟随系统</value></data>
+  <data name="SettingsPage_Theme_Light.Content" xml:space="preserve"><value>浅色</value></data>
+  <data name="SettingsPage_Theme_Dark.Content" xml:space="preserve"><value>深色</value></data>
+  <data name="SettingsPage_AcrylicCard.Header" xml:space="preserve"><value>亚克力材料</value></data>
+  <data name="SettingsPage_AcrylicCard.Description" xml:space="preserve"><value>使用亚克力效果替代 Mica，立即生效</value></data>
+  <data name="SettingsPage_BehaviorSectionTitle.Text" xml:space="preserve"><value>行为</value></data>
+  <data name="SettingsPage_ConfirmDeleteCard.Header" xml:space="preserve"><value>删除前确认</value></data>
+  <data name="SettingsPage_ConfirmDeleteCard.Description" xml:space="preserve"><value>将照片移入回收站前弹出确认对话框</value></data>
+  <data name="SettingsPage_FileAssocCard.Header" xml:space="preserve"><value>添加文件关联</value></data>
+  <data name="SettingsPage_FileAssocCard.Description" xml:space="preserve"><value>为 JPG、PNG、HEIC 等图片格式注册文件关联（仅对当前用户生效，无需管理员权限，并尽量保留资源管理器缩略图）</value></data>
+  <data name="SettingsPage_CacheSectionTitle.Text" xml:space="preserve"><value>缓存与数据</value></data>
+  <data name="SettingsPage_ThumbnailExpander.Header" xml:space="preserve"><value>缩略图</value></data>
+  <data name="SettingsPage_OpenThumbFolderCard.Header" xml:space="preserve"><value>打开缩略图目录</value></data>
+  <data name="SettingsPage_OpenFolderButton.Content" xml:space="preserve"><value>打开目录</value></data>
+  <data name="SettingsPage_RegenerateThumbCard.Header" xml:space="preserve"><value>重新生成缩略图</value></data>
+  <data name="SettingsPage_RegenerateThumbCard.Description" xml:space="preserve"><value>为所有缺失缩略图的照片生成缩略图</value></data>
+  <data name="SettingsPage_GenerateNowButton.Content" xml:space="preserve"><value>立即生成</value></data>
+  <data name="SettingsPage_ClearThumbCard.Header" xml:space="preserve"><value>清除缩略图缓存</value></data>
+  <data name="SettingsPage_ClearThumbCard.Description" xml:space="preserve"><value>下次查看照片时将重新生成</value></data>
+  <data name="SettingsPage_ClearThumbButton.Content" xml:space="preserve"><value>清除缓存</value></data>
+  <data name="SettingsPage_CancelThumbBuildButton.Content" xml:space="preserve"><value>取消</value></data>
+  <data name="SettingsPage_ThumbDoneTitle.Text" xml:space="preserve"><value>全部完成！</value></data>
+  <data name="SettingsPage_ClearDbCard.Header" xml:space="preserve"><value>清除数据库索引</value></data>
+  <data name="SettingsPage_ClearDbCard.Description" xml:space="preserve"><value>清空照片索引和缩略图记录，照片文件和设置将保留</value></data>
+  <data name="SettingsPage_ClearDbButton.Content" xml:space="preserve"><value>清除索引</value></data>
+  <data name="SettingsPage_LogsCard.Header" xml:space="preserve"><value>应用日志</value></data>
+  <data name="SettingsPage_LogsCard.Description" xml:space="preserve"><value>在文件管理器中打开日志目录（每天一个文件，保留最近 7 天）</value></data>
+  <data name="SettingsPage_OpenLogsButton.Content" xml:space="preserve"><value>打开日志目录</value></data>
+  <data name="SettingsPage_ClearAllCard.Header" xml:space="preserve"><value>清除全部数据</value></data>
+  <data name="SettingsPage_ClearAllCard.Description" xml:space="preserve"><value>删除所有应用数据（照片索引、缩略图、设置），恢复出厂状态，照片文件将安全保留</value></data>
+  <data name="SettingsPage_ClearAllButton.Content" xml:space="preserve"><value>清除全部数据</value></data>
+  <data name="SettingsPage_PerfSectionTitle.Text" xml:space="preserve"><value>性能</value></data>
+  <data name="SettingsPage_PreloadExpander.Header" xml:space="preserve"><value>预加载张数</value></data>
+  <data name="SettingsPage_PreloadExpander.Description" xml:space="preserve"><value>预加载更多张数，快速翻看时更流畅，但会占用更多内存</value></data>
+  <data name="SettingsPage_PreloadBackCard.Header" xml:space="preserve"><value>向前预加载张数</value></data>
+  <data name="SettingsPage_PreloadBackCard.Description" xml:space="preserve"><value>额外预加载前方图片</value></data>
+  <data name="SettingsPage_PreloadForwardCard.Header" xml:space="preserve"><value>向后预加载张数</value></data>
+  <data name="SettingsPage_PreloadForwardCard.Description" xml:space="preserve"><value>额外预加载后方图片</value></data>
+  <data name="SettingsPage_ThumbSizeCard.Header" xml:space="preserve"><value>缩略图尺寸</value></data>
+  <data name="SettingsPage_ThumbSizeCard.Description" xml:space="preserve"><value>尺寸越大，缩略图越清晰，但会占用更多存储空间，生成速度也更慢</value></data>
+  <data name="SettingsPage_ThumbSizeUnit.Text" xml:space="preserve"><value> px</value></data>
+  <data name="SettingsPage_ThumbSizeHint.Title" xml:space="preserve"><value>缩略图尺寸已更改</value></data>
+  <data name="SettingsPage_ThumbSizeHint.Message" xml:space="preserve"><value>历史缩略图将继续以旧尺寸展示，清理缓存后才会按新尺寸重新生成</value></data>
+  <data name="SettingsPage_ThumbSizeHintAction.Content" xml:space="preserve"><value>立即清理</value></data>
+  <data name="SettingsPage_DebugSectionTitle.Text" xml:space="preserve"><value>调试</value></data>
+  <data name="SettingsPage_ForceGcCard.Header" xml:space="preserve"><value>强制 GC</value></data>
+  <data name="SettingsPage_ForceGcCard.Description" xml:space="preserve"><value>释放非托管内存（WIC 解码面、COM 对象）。切换页面后内存未及时回收时使用。</value></data>
+  <data name="SettingsPage_ForceGcButton.Content" xml:space="preserve"><value>立即回收</value></data>
+  <data name="SettingsPage_ShowCardSizeToastCard.Header" xml:space="preserve"><value>相册缩放时显示尺寸</value></data>
+  <data name="SettingsPage_ShowPreloadStatusCard.Header" xml:space="preserve"><value>显示预加载状态</value></data>
+  <data name="SettingsPage_ShowPreloadStatusCard.Description" xml:space="preserve"><value>在照片详情页胶片栏缩略图右上角显示预加载进度角标</value></data>
+  <data name="SettingsPage_DebugKeepChromeCard.Header" xml:space="preserve"><value>图片详情页工具栏常亮</value></data>
+  <data name="SettingsPage_DebugKeepChromeCard.Description" xml:space="preserve"><value>调试选项。开启后，图片详情页顶部工具栏、底部工具栏和缩放条会始终显示，不再响应鼠标移入/移出触发的自动隐藏逻辑。</value></data>
+  <data name="SettingsPage_AboutSectionTitle.Text" xml:space="preserve"><value>关于</value></data>
+  <data name="SettingsPage_AppInfoCard.Description" xml:space="preserve"><value>版本 1.0.0</value></data>
+  <data name="SettingsPage_RepoCard.Header" xml:space="preserve"><value>开源仓库</value></data>
+  <data name="SettingsPage_RepoCard.Description" xml:space="preserve"><value>在 GitHub 上查看源代码、提交 Issue 或贡献代码</value></data>
+  <data name="SettingsPage_RepoLink.Content" xml:space="preserve"><value>在 GitHub 上查看</value></data>
+  <data name="SettingsPage_LicenseCard.Header" xml:space="preserve"><value>第三方许可证</value></data>
+
 </root>

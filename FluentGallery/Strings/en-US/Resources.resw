@@ -433,4 +433,163 @@
     <value>Add and Index</value>
   </data>
 
+  <!-- ==================== Dynamic Text / Toasts ==================== -->
+  <data name="MainWindow_Context_Unpin" xml:space="preserve"><value>Unpin</value></data>
+  <data name="AlbumList_CreateAlbum_Placeholder" xml:space="preserve"><value>Album name</value></data>
+  <data name="AlbumList_CreateAlbum_Title" xml:space="preserve"><value>New Album</value></data>
+  <data name="AlbumList_CreateAlbum_Confirm" xml:space="preserve"><value>Create</value></data>
+  <data name="AlbumList_Context_Rename" xml:space="preserve"><value>Rename</value></data>
+  <data name="AlbumList_Context_Unpin" xml:space="preserve"><value>Unpin</value></data>
+  <data name="AlbumList_Context_Pin" xml:space="preserve"><value>Pin to Navigation</value></data>
+  <data name="AlbumList_Context_Delete" xml:space="preserve"><value>Delete</value></data>
+  <data name="AlbumList_DeleteConfirm_Title" xml:space="preserve"><value>Delete Album</value></data>
+  <data name="AlbumList_DeleteConfirm_Content" xml:space="preserve"><value>Are you sure you want to delete this album? The photos inside will not be deleted.</value></data>
+  <data name="AlbumList_DeleteConfirm_Confirm" xml:space="preserve"><value>Delete</value></data>
+  <data name="AllPhotos_DeleteConfirm_Title" xml:space="preserve"><value>Delete Photos</value></data>
+  <data name="AllPhotos_DeleteConfirm_Content" xml:space="preserve"><value>Move {0} selected photos to Recycle Bin?</value></data>
+  <data name="AllPhotos_DeleteConfirm_Confirm" xml:space="preserve"><value>Move to Recycle Bin</value></data>
+  <data name="AllPhotos_MoveToAlbum_Empty" xml:space="preserve"><value>No albums</value></data>
+  <data name="PhotoList_DeleteConfirm_Title" xml:space="preserve"><value>Delete Photos</value></data>
+  <data name="PhotoList_DeleteConfirm_Content" xml:space="preserve"><value>Move {0} selected photos to Recycle Bin?</value></data>
+  <data name="PhotoList_DeleteConfirm_Confirm" xml:space="preserve"><value>Move to Recycle Bin</value></data>
+  <data name="PhotoList_MoveToAlbum_Empty" xml:space="preserve"><value>No other albums</value></data>
+  <data name="Search_ScopeHint" xml:space="preserve"><value>Search scope: album "{0}"</value></data>
+  <data name="Search_ResultCount_AlbumScope" xml:space="preserve"><value>album "{0}"</value></data>
+  <data name="Search_ResultCount_AllScope" xml:space="preserve"><value>all photos</value></data>
+  <data name="Search_ResultCount_Text" xml:space="preserve"><value>Found {1} photos in {0}</value></data>
+  <data name="Search_Header_Album" xml:space="preserve"><value>Search · {0}</value></data>
+  <data name="Search_Header_Default" xml:space="preserve"><value>Search</value></data>
+  <data name="Settings_ClearThumb_Title" xml:space="preserve"><value>Clear Thumbnail Cache</value></data>
+  <data name="Settings_ClearThumb_Content" xml:space="preserve"><value>This will delete all cached thumbnail files. They will be regenerated when viewed next time and may take a while.
+
+Continue?</value></data>
+  <data name="Settings_ClearThumb_Confirm" xml:space="preserve"><value>Clear</value></data>
+  <data name="Settings_ClearDb_Title" xml:space="preserve"><value>Clear Database Cache</value></data>
+  <data name="Settings_ClearDb_Content" xml:space="preserve"><value>This clears all photo/thumbnail database records while keeping album structure and settings.
+
+Photos will reappear after re-scan. Continue?</value></data>
+  <data name="Settings_ClearDb_Confirm" xml:space="preserve"><value>Clear</value></data>
+  <data name="Settings_ClearAll_Title" xml:space="preserve"><value>Clear All Data</value></data>
+  <data name="Settings_ClearAll_Content" xml:space="preserve"><value>This will delete all photo records, albums, thumbnail files, and app settings, restoring factory defaults.
+
+This action cannot be undone. Continue?</value></data>
+  <data name="Settings_ClearAll_Confirm" xml:space="preserve"><value>Clear All Data</value></data>
+  <data name="Settings_DoneSub_AllExist" xml:space="preserve"><value>All photos already have thumbnails</value></data>
+  <data name="Settings_DoneSub_Generated" xml:space="preserve"><value>Generated {0} thumbnails in total</value></data>
+  <data name="PhotoDetail_Delete_DontAsk" xml:space="preserve"><value>Don't ask again</value></data>
+  <data name="PhotoDetail_Delete_ConfirmText" xml:space="preserve"><value>Move "{0}" to Recycle Bin?</value></data>
+  <data name="PhotoDetail_Delete_DialogTitle" xml:space="preserve"><value>Delete Photo</value></data>
+  <data name="PhotoDetail_Delete_DialogConfirm" xml:space="preserve"><value>Delete</value></data>
+  <data name="PhotoDetail_Toast_DisableConfirm" xml:space="preserve"><value>Delete confirmation disabled. You can re-enable it in Settings.</value></data>
+  <data name="PhotoDetail_Toast_DeleteFailed" xml:space="preserve"><value>Delete failed. Please check file permissions.</value></data>
+  <data name="PhotoDetail_Toast_Deleted" xml:space="preserve"><value>Photo "{0}" deleted</value></data>
+  <data name="PhotoDetail_Toast_UndoFailed" xml:space="preserve"><value>Restore failed. File may have been moved or deleted.</value></data>
+  <data name="PhotoDetail_Toast_Restored" xml:space="preserve"><value>Photo "{0}" restored</value></data>
+  <data name="PhotoDetail_IndexPrompt_Title" xml:space="preserve"><value>Add to albums</value></data>
+  <data name="PhotoDetail_IndexPrompt_Message" xml:space="preserve"><value>The current photo directory is not in scan scope yet. Add this directory and build index in background? Filmstrip will be enabled automatically after indexing completes.</value></data>
+  <data name="PhotoDetail_IndexPrompt_Confirm" xml:space="preserve"><value>Add and Index</value></data>
+  <data name="PhotoDetail_IndexPrompt_Cancel" xml:space="preserve"><value>Not Now</value></data>
+  <data name="PhotoDetail_Toast_Indexing" xml:space="preserve"><value>Directory added to scan scope. Building index…</value></data>
+  <data name="PhotoDetail_Toast_IndexDone" xml:space="preserve"><value>Index complete. Filmstrip is now available.</value></data>
+  <data name="PhotoDetail_Toast_FirstPhoto" xml:space="preserve"><value>Already at the first photo</value></data>
+  <data name="PhotoDetail_Toast_LastPhoto" xml:space="preserve"><value>Already at the last photo</value></data>
+  <data name="Settings_ThumbnailCacheSize_Computing" xml:space="preserve"><value>Calculating…</value></data>
+  <data name="Settings_ThumbnailCacheSize_Unknown" xml:space="preserve"><value>Unknown</value></data>
+  <data name="Settings_ThumbnailExpanderDescription" xml:space="preserve"><value>{0} thumbnails, size {1}</value></data>
+  <data name="Settings_ThumbProgress_Generated" xml:space="preserve"><value>Generated {0} / {1}</value></data>
+  <data name="Settings_ThumbProgress_Querying" xml:space="preserve"><value>Querying…</value></data>
+  <data name="Settings_ThumbStats" xml:space="preserve"><value>Speed: {0:F1}/s  {1}</value></data>
+  <data name="Settings_Status_LanguageRestart" xml:space="preserve"><value>Language will take effect on next app launch</value></data>
+  <data name="Settings_Status_FileAssocRegistered" xml:space="preserve"><value>File associations registered</value></data>
+  <data name="Settings_Status_FileAssocUnregistered" xml:space="preserve"><value>File associations unregistered</value></data>
+  <data name="Settings_Status_FileAssocFailed" xml:space="preserve"><value>Failed to update file associations: {0}</value></data>
+  <data name="Settings_Status_ThumbCacheCleared" xml:space="preserve"><value>Thumbnail cache cleared</value></data>
+  <data name="Settings_Status_ClearFailed" xml:space="preserve"><value>Clear failed: {0}</value></data>
+  <data name="Settings_Status_DbCacheCleared" xml:space="preserve"><value>Database cache cleared. Re-scanning…</value></data>
+  <data name="Settings_Status_AllDataCleared" xml:space="preserve"><value>All data cleared. App restored to factory state.</value></data>
+  <data name="Settings_Status_OpenThumbFolder_Failed" xml:space="preserve"><value>Unable to open thumbnail folder: {0}</value></data>
+  <data name="Settings_Status_OpenLogsFolder_Failed" xml:space="preserve"><value>Unable to open logs folder: {0}</value></data>
+  <data name="Settings_Status_GenerateThumbFailed" xml:space="preserve"><value>Generate thumbnails failed: {0}</value></data>
+  <data name="Settings_FormatEta_Sec" xml:space="preserve"><value>ETA {0} s</value></data>
+  <data name="Settings_FormatEta_Min" xml:space="preserve"><value>ETA {0} m {1} s</value></data>
+  <data name="Settings_FormatEta_Hour" xml:space="preserve"><value>ETA {0} h {1} m</value></data>
+
+  <!-- ==================== SettingsPage Static XAML ==================== -->
+  <data name="SettingsPage_ScanSectionTitle.Text" xml:space="preserve"><value>Scan Directories</value></data>
+  <data name="SettingsPage_ScanExpander.Header" xml:space="preserve"><value>Scan Directories</value></data>
+  <data name="SettingsPage_ScanExpander.Description" xml:space="preserve"><value>Photos from these directories will be scanned after app startup</value></data>
+  <data name="SettingsPage_AddScanDirButton.Content" xml:space="preserve"><value>+ Add Directory</value></data>
+  <data name="SettingsPage_RemoveScanDirButton.ToolTipService.ToolTip" xml:space="preserve"><value>Remove this directory</value></data>
+  <data name="SettingsPage_ExcludeExpander.Header" xml:space="preserve"><value>Excluded Directories</value></data>
+  <data name="SettingsPage_ExcludeExpander.Description" xml:space="preserve"><value>Skip these directories during scan (absolute paths supported)</value></data>
+  <data name="SettingsPage_AddExcludeDirButton.Content" xml:space="preserve"><value>+ Add Excluded Directory</value></data>
+  <data name="SettingsPage_RemoveExcludeDirButton.ToolTipService.ToolTip" xml:space="preserve"><value>Remove this directory</value></data>
+  <data name="SettingsPage_AppearanceSectionTitle.Text" xml:space="preserve"><value>Appearance</value></data>
+  <data name="SettingsPage_LanguageCard.Header" xml:space="preserve"><value>Language</value></data>
+  <data name="SettingsPage_LanguageCard.Description" xml:space="preserve"><value>App restart required after language change</value></data>
+  <data name="SettingsPage_Language_System.Content" xml:space="preserve"><value>Follow system</value></data>
+  <data name="SettingsPage_Language_English.Content" xml:space="preserve"><value>English</value></data>
+  <data name="SettingsPage_Language_ZhHans.Content" xml:space="preserve"><value>Chinese (Simplified)</value></data>
+  <data name="SettingsPage_ThemeCard.Header" xml:space="preserve"><value>App Theme</value></data>
+  <data name="SettingsPage_ThemeCard.Description" xml:space="preserve"><value>Takes effect immediately, no restart needed</value></data>
+  <data name="SettingsPage_Theme_System.Content" xml:space="preserve"><value>Follow system</value></data>
+  <data name="SettingsPage_Theme_Light.Content" xml:space="preserve"><value>Light</value></data>
+  <data name="SettingsPage_Theme_Dark.Content" xml:space="preserve"><value>Dark</value></data>
+  <data name="SettingsPage_AcrylicCard.Header" xml:space="preserve"><value>Acrylic Material</value></data>
+  <data name="SettingsPage_AcrylicCard.Description" xml:space="preserve"><value>Use Acrylic instead of Mica, effective immediately</value></data>
+  <data name="SettingsPage_BehaviorSectionTitle.Text" xml:space="preserve"><value>Behavior</value></data>
+  <data name="SettingsPage_ConfirmDeleteCard.Header" xml:space="preserve"><value>Confirm Before Delete</value></data>
+  <data name="SettingsPage_ConfirmDeleteCard.Description" xml:space="preserve"><value>Show confirmation dialog before moving photos to Recycle Bin</value></data>
+  <data name="SettingsPage_FileAssocCard.Header" xml:space="preserve"><value>Register File Associations</value></data>
+  <data name="SettingsPage_FileAssocCard.Description" xml:space="preserve"><value>Register JPG, PNG, HEIC and other image formats for current user without admin rights, while preserving Explorer thumbnails when possible</value></data>
+  <data name="SettingsPage_CacheSectionTitle.Text" xml:space="preserve"><value>Cache &amp; Data</value></data>
+  <data name="SettingsPage_ThumbnailExpander.Header" xml:space="preserve"><value>Thumbnails</value></data>
+  <data name="SettingsPage_OpenThumbFolderCard.Header" xml:space="preserve"><value>Open Thumbnail Folder</value></data>
+  <data name="SettingsPage_OpenFolderButton.Content" xml:space="preserve"><value>Open Folder</value></data>
+  <data name="SettingsPage_RegenerateThumbCard.Header" xml:space="preserve"><value>Regenerate Thumbnails</value></data>
+  <data name="SettingsPage_RegenerateThumbCard.Description" xml:space="preserve"><value>Generate thumbnails for all photos missing them</value></data>
+  <data name="SettingsPage_GenerateNowButton.Content" xml:space="preserve"><value>Generate Now</value></data>
+  <data name="SettingsPage_ClearThumbCard.Header" xml:space="preserve"><value>Clear Thumbnail Cache</value></data>
+  <data name="SettingsPage_ClearThumbCard.Description" xml:space="preserve"><value>Thumbnails will be regenerated next time photos are viewed</value></data>
+  <data name="SettingsPage_ClearThumbButton.Content" xml:space="preserve"><value>Clear Cache</value></data>
+  <data name="SettingsPage_CancelThumbBuildButton.Content" xml:space="preserve"><value>Cancel</value></data>
+  <data name="SettingsPage_ThumbDoneTitle.Text" xml:space="preserve"><value>All Done!</value></data>
+  <data name="SettingsPage_ClearDbCard.Header" xml:space="preserve"><value>Clear Database Index</value></data>
+  <data name="SettingsPage_ClearDbCard.Description" xml:space="preserve"><value>Clear photo index and thumbnail records, keep photo files and settings</value></data>
+  <data name="SettingsPage_ClearDbButton.Content" xml:space="preserve"><value>Clear Index</value></data>
+  <data name="SettingsPage_LogsCard.Header" xml:space="preserve"><value>App Logs</value></data>
+  <data name="SettingsPage_LogsCard.Description" xml:space="preserve"><value>Open logs folder in File Explorer (one file per day, keep last 7 days)</value></data>
+  <data name="SettingsPage_OpenLogsButton.Content" xml:space="preserve"><value>Open Logs Folder</value></data>
+  <data name="SettingsPage_ClearAllCard.Header" xml:space="preserve"><value>Clear All Data</value></data>
+  <data name="SettingsPage_ClearAllCard.Description" xml:space="preserve"><value>Delete all app data (photo index, thumbnails, settings) and restore factory state while keeping photo files safe</value></data>
+  <data name="SettingsPage_ClearAllButton.Content" xml:space="preserve"><value>Clear All Data</value></data>
+  <data name="SettingsPage_PerfSectionTitle.Text" xml:space="preserve"><value>Performance</value></data>
+  <data name="SettingsPage_PreloadExpander.Header" xml:space="preserve"><value>Preload Count</value></data>
+  <data name="SettingsPage_PreloadExpander.Description" xml:space="preserve"><value>Higher preload improves browsing smoothness but uses more memory</value></data>
+  <data name="SettingsPage_PreloadBackCard.Header" xml:space="preserve"><value>Backward Preload Count</value></data>
+  <data name="SettingsPage_PreloadBackCard.Description" xml:space="preserve"><value>Extra photos to preload behind current</value></data>
+  <data name="SettingsPage_PreloadForwardCard.Header" xml:space="preserve"><value>Forward Preload Count</value></data>
+  <data name="SettingsPage_PreloadForwardCard.Description" xml:space="preserve"><value>Extra photos to preload ahead of current</value></data>
+  <data name="SettingsPage_ThumbSizeCard.Header" xml:space="preserve"><value>Thumbnail Size</value></data>
+  <data name="SettingsPage_ThumbSizeCard.Description" xml:space="preserve"><value>Larger size gives clearer thumbnails, but uses more storage and generates slower</value></data>
+  <data name="SettingsPage_ThumbSizeUnit.Text" xml:space="preserve"><value> px</value></data>
+  <data name="SettingsPage_ThumbSizeHint.Title" xml:space="preserve"><value>Thumbnail Size Changed</value></data>
+  <data name="SettingsPage_ThumbSizeHint.Message" xml:space="preserve"><value>Existing thumbnails remain at old size. Clear cache to regenerate at new size.</value></data>
+  <data name="SettingsPage_ThumbSizeHintAction.Content" xml:space="preserve"><value>Clear Now</value></data>
+  <data name="SettingsPage_DebugSectionTitle.Text" xml:space="preserve"><value>Debug</value></data>
+  <data name="SettingsPage_ForceGcCard.Header" xml:space="preserve"><value>Force GC</value></data>
+  <data name="SettingsPage_ForceGcCard.Description" xml:space="preserve"><value>Release unmanaged memory (WIC decode surfaces, COM objects). Use when memory is not reclaimed promptly after page switches.</value></data>
+  <data name="SettingsPage_ForceGcButton.Content" xml:space="preserve"><value>Collect Now</value></data>
+  <data name="SettingsPage_ShowCardSizeToastCard.Header" xml:space="preserve"><value>Show Size While Zooming</value></data>
+  <data name="SettingsPage_ShowPreloadStatusCard.Header" xml:space="preserve"><value>Show Preload Status</value></data>
+  <data name="SettingsPage_ShowPreloadStatusCard.Description" xml:space="preserve"><value>Show preload progress badges at top-right of filmstrip thumbnails in photo detail</value></data>
+  <data name="SettingsPage_DebugKeepChromeCard.Header" xml:space="preserve"><value>Keep Photo Detail Chrome Visible</value></data>
+  <data name="SettingsPage_DebugKeepChromeCard.Description" xml:space="preserve"><value>Debug option. Keep top/bottom toolbars and zoom slider always visible on photo detail page, disabling hover-triggered auto hide.</value></data>
+  <data name="SettingsPage_AboutSectionTitle.Text" xml:space="preserve"><value>About</value></data>
+  <data name="SettingsPage_AppInfoCard.Description" xml:space="preserve"><value>Version 1.0.0</value></data>
+  <data name="SettingsPage_RepoCard.Header" xml:space="preserve"><value>Open-source Repository</value></data>
+  <data name="SettingsPage_RepoCard.Description" xml:space="preserve"><value>View source code, submit issues, or contribute on GitHub</value></data>
+  <data name="SettingsPage_RepoLink.Content" xml:space="preserve"><value>View on GitHub</value></data>
+  <data name="SettingsPage_LicenseCard.Header" xml:space="preserve"><value>Third-party Licenses</value></data>
+
 </root>

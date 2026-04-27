@@ -137,23 +137,23 @@ public sealed partial class PhotoDetailPage
             // Build the checkbox「下次不再提示」
             var dontAskCheck = new CheckBox
             {
-                Content = "下次不再提示",
+                Content = L10n.Get("PhotoDetail_Delete_DontAsk"),
                 Margin = new Thickness(0, 12, 0, 0),
             };
 
             var panel = new StackPanel { Spacing = 0 };
             panel.Children.Add(new TextBlock
             {
-                Text = $"将「{ViewModel.CurrentPhoto.FileName}」移入回收站？",
+                Text = L10n.Format("PhotoDetail_Delete_ConfirmText", ViewModel.CurrentPhoto.FileName),
                 TextWrapping = TextWrapping.Wrap,
             });
             panel.Children.Add(dontAskCheck);
 
             bool confirmed = await ConfirmDialogHelper.ShowAsync(
                 XamlRoot,
-                "删除照片",
+                L10n.Get("PhotoDetail_Delete_DialogTitle"),
                 panel,
-                "删除",
+                L10n.Get("PhotoDetail_Delete_DialogConfirm"),
                 confirmStyle: DialogButtonStyle.Danger);
 
             if (!confirmed) return;
@@ -161,7 +161,7 @@ public sealed partial class PhotoDetailPage
             if (dontAskCheck.IsChecked == true)
             {
                 await ViewModel.DisableDeleteConfirmAsync(_cts.Token);
-                ShowToast("已关闭删除确认弹窗，可在设置中重新开启", ToastKind.Normal, showUndo: false);
+                ShowToast(L10n.Get("PhotoDetail_Toast_DisableConfirm"), ToastKind.Normal, showUndo: false);
             }
         }
 
@@ -169,11 +169,11 @@ public sealed partial class PhotoDetailPage
 
         if (deletedName is null)
         {
-            ShowToast("删除失败，请检查文件权限", ToastKind.Error, showUndo: false);
+            ShowToast(L10n.Get("PhotoDetail_Toast_DeleteFailed"), ToastKind.Error, showUndo: false);
             return;
         }
 
-        ShowToast($"照片「{deletedName}」已删除", ToastKind.Normal, showUndo: true);
+        ShowToast(L10n.Format("PhotoDetail_Toast_Deleted", deletedName), ToastKind.Normal, showUndo: true);
 
         if (ViewModel.CurrentImagePath is null)
         {
@@ -195,9 +195,9 @@ public sealed partial class PhotoDetailPage
         var restoredName = await ViewModel.UndoDeleteAsync(_cts.Token);
 
         if (restoredName is null)
-            ShowToast("恢复失败，文件可能已被移动或删除", ToastKind.Error, showUndo: false);
+            ShowToast(L10n.Get("PhotoDetail_Toast_UndoFailed"), ToastKind.Error, showUndo: false);
         else
-            ShowToast($"照片「{restoredName}」已恢复", ToastKind.Normal, showUndo: false);
+            ShowToast(L10n.Format("PhotoDetail_Toast_Restored", restoredName), ToastKind.Normal, showUndo: false);
     }
 
     // ── Toast undo button handler ─────────────────────────────────────────────

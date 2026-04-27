@@ -79,13 +79,13 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] public partial bool ShowThumbnailSizeHint { get; set; }
 
     // ── Cache display ───────────────────────────────────────────────────
-    [ObservableProperty] public partial string ThumbnailCacheSizeText  { get; set; } = "计算中…";
+    [ObservableProperty] public partial string ThumbnailCacheSizeText  { get; set; } = L10n.Get("Settings_ThumbnailCacheSize_Computing");
     [ObservableProperty] public partial int    ThumbnailCacheCount     { get; set; }
     [ObservableProperty] public partial bool   IsLoading               { get; set; }
 
     /// <summary>Shown as the SettingsExpander description, merges cache size with hint.</summary>
     public string ThumbnailExpanderDescription
-        => $"共 {ThumbnailCacheCount} 张缩略图，大小 {ThumbnailCacheSizeText}";
+        => L10n.Format("Settings_ThumbnailExpanderDescription", ThumbnailCacheCount, ThumbnailCacheSizeText);
 
     partial void OnThumbnailCacheSizeTextChanged(string value)
         => OnPropertyChanged(nameof(ThumbnailExpanderDescription));
@@ -122,12 +122,12 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public string ThumbnailBuildProgressText
         => ThumbnailBuildTotal > 0
-            ? $"已生成 {ThumbnailBuildCompleted} / {ThumbnailBuildTotal} 张"
-            : (IsBuildingThumbnails ? "正在查询…" : "");
+            ? L10n.Format("Settings_ThumbProgress_Generated", ThumbnailBuildCompleted, ThumbnailBuildTotal)
+            : (IsBuildingThumbnails ? L10n.Get("Settings_ThumbProgress_Querying") : "");
 
     public string ThumbnailBuildStatsText
         => IsBuildingThumbnails && ThumbnailBuildSpeed > 0
-            ? $"速度：{ThumbnailBuildSpeed:F1} 张/秒　{ThumbnailBuildEtaText}"
+            ? L10n.Format("Settings_ThumbStats", ThumbnailBuildSpeed, ThumbnailBuildEtaText)
             : "";
 
     partial void OnIsBuildingThumbnailsChanged(bool value)
@@ -374,7 +374,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         if (!_isInitialized) return;
         _ = SaveAsync();
         IsWarningStatus = true;
-        StatusMessage   = "语言将在下次启动应用时生效";
+        StatusMessage   = L10n.Get("Settings_Status_LanguageRestart");
     }
 
     partial void OnConfirmBeforeDeleteChanged(bool value)
@@ -394,14 +394,16 @@ public sealed partial class SettingsViewModel : ObservableObject
                 FileAssociationHelper.Unregister();
 
             IsFileAssociationWarning     = false;
-            FileAssociationStatusMessage = value ? "文件关联已注册" : "文件关联已取消注册";
+            FileAssociationStatusMessage = value
+                ? L10n.Get("Settings_Status_FileAssocRegistered")
+                : L10n.Get("Settings_Status_FileAssocUnregistered");
             HasFileAssociationStatus     = true;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to update file associations");
             IsFileAssociationWarning     = true;
-            FileAssociationStatusMessage = $"注册文件关联失败：{ex.Message}";
+            FileAssociationStatusMessage = L10n.Format("Settings_Status_FileAssocFailed", ex.Message);
             HasFileAssociationStatus     = true;
             // Revert the toggle to reflect actual state
             RegisterFileAssociations = !value;
@@ -476,7 +478,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to compute thumbnail cache size");
-            ThumbnailCacheSizeText = "未知";
+            ThumbnailCacheSizeText = L10n.Get("Settings_ThumbnailCacheSize_Unknown");
         }
     }
 
@@ -499,14 +501,14 @@ public sealed partial class SettingsViewModel : ObservableObject
             }, ct);
             await RefreshThumbnailCacheSizeAsync(ct);
             IsWarningStatus = false;
-            StatusMessage   = "缩略图缓存已清除";
+            StatusMessage   = L10n.Get("Settings_Status_ThumbCacheCleared");
             _logger.LogInformation("Thumbnail cache cleared");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to clear thumbnail cache");
             IsWarningStatus = true;
-            StatusMessage   = $"清除失败：{ex.Message}";
+            StatusMessage   = L10n.Format("Settings_Status_ClearFailed", ex.Message);
         }
     }
 
@@ -517,7 +519,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         {
             await _db.ClearPhotoCacheAsync(ct);
             IsWarningStatus = false;
-            StatusMessage   = "数据库缓存已清除，正在重新扫描…";
+            StatusMessage   = L10n.Get("Settings_Status_DbCacheCleared");
             _logger.LogInformation("Database photo cache cleared");
 
             // Immediately kick off a rescan so the gallery repopulates without
@@ -528,7 +530,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         {
             _logger.LogError(ex, "Failed to clear database cache");
             IsWarningStatus = true;
-            StatusMessage   = $"清除失败：{ex.Message}";
+            StatusMessage   = L10n.Format("Settings_Status_ClearFailed", ex.Message);
         }
     }
 
@@ -555,14 +557,14 @@ public sealed partial class SettingsViewModel : ObservableObject
             ScanDirectories.Clear();
             ExcludeDirectories.Clear();
             IsWarningStatus = false;
-            StatusMessage   = "所有数据已清除，应用已恢复出厂状态";
+            StatusMessage   = L10n.Get("Settings_Status_AllDataCleared");
             _logger.LogInformation("All application data cleared");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to clear all data");
             IsWarningStatus = true;
-            StatusMessage   = $"清除失败：{ex.Message}";
+            StatusMessage   = L10n.Format("Settings_Status_ClearFailed", ex.Message);
         }
     }
 
@@ -589,7 +591,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         {
             _logger.LogError(ex, "无法打开缩略图目录");
             IsWarningStatus = true;
-            StatusMessage   = $"无法打开缩略图目录：{ex.Message}";
+            StatusMessage   = L10n.Format("Settings_Status_OpenThumbFolder_Failed", ex.Message);
         }
     }
 
@@ -612,7 +614,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         {
             _logger.LogError(ex, "无法打开日志目录");
             IsWarningStatus = true;
-            StatusMessage   = $"无法打开日志目录：{ex.Message}";
+            StatusMessage   = L10n.Format("Settings_Status_OpenLogsFolder_Failed", ex.Message);
         }
     }
 
@@ -691,7 +693,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         {
             _logger.LogError(ex, "批量生成缩略图失败");
             IsWarningStatus = true;
-            StatusMessage   = $"生成缩略图失败：{ex.Message}";
+            StatusMessage   = L10n.Format("Settings_Status_GenerateThumbFailed", ex.Message);
         }
         finally
         {
@@ -717,8 +719,8 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     private static string FormatEta(TimeSpan eta)
     {
-        if (eta.TotalSeconds < 60)  return $"预计剩余 {(int)eta.TotalSeconds} 秒";
-        if (eta.TotalMinutes < 60)  return $"预计剩余 {(int)eta.TotalMinutes} 分 {eta.Seconds} 秒";
-        return $"预计剩余 {(int)eta.TotalHours} 小时 {eta.Minutes} 分";
+        if (eta.TotalSeconds < 60)  return L10n.Format("Settings_FormatEta_Sec", (int)eta.TotalSeconds);
+        if (eta.TotalMinutes < 60)  return L10n.Format("Settings_FormatEta_Min", (int)eta.TotalMinutes, eta.Seconds);
+        return L10n.Format("Settings_FormatEta_Hour", (int)eta.TotalHours, eta.Minutes);
     }
 }

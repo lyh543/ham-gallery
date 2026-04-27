@@ -95,9 +95,9 @@ public sealed partial class SettingsPage : Page
     {
         if (await ConfirmDialogHelper.ShowAsync(
                 XamlRoot,
-                "清除缩略图缓存",
-                "这将删除所有缓存的缩略图文件。下次查看照片时将重新生成，可能需要一些时间。\n\n确定要继续吗？",
-                "清除"))
+            L10n.Get("Settings_ClearThumb_Title"),
+            L10n.Get("Settings_ClearThumb_Content"),
+            L10n.Get("Settings_ClearThumb_Confirm")))
             await ViewModel.ClearThumbnailCacheAsync();
     }
 
@@ -111,9 +111,9 @@ public sealed partial class SettingsPage : Page
     {
         if (await ConfirmDialogHelper.ShowAsync(
                 XamlRoot,
-                "清除数据库缓存",
-                "这将清空所有照片和缩略图的数据库记录，相册结构和设置将保留。\n\n再次扫描目录后照片将重新出现。确定要继续吗？",
-                "清除"))
+            L10n.Get("Settings_ClearDb_Title"),
+            L10n.Get("Settings_ClearDb_Content"),
+            L10n.Get("Settings_ClearDb_Confirm")))
             await ViewModel.ClearDatabaseCacheAsync();
     }
 
@@ -121,9 +121,9 @@ public sealed partial class SettingsPage : Page
     {
         if (await ConfirmDialogHelper.ShowAsync(
                 XamlRoot,
-                "清除全部数据",
-                "这将删除所有照片记录、相册、缩略图文件和应用设置，应用将恢复出厂状态。\n\n此操作不可撤销，确定要继续吗？",
-                "清除全部数据",
+            L10n.Get("Settings_ClearAll_Title"),
+            L10n.Get("Settings_ClearAll_Content"),
+            L10n.Get("Settings_ClearAll_Confirm"),
                 confirmStyle: DialogButtonStyle.Danger))
             await ViewModel.ClearAllDataAsync();
     }
@@ -160,8 +160,8 @@ public sealed partial class SettingsPage : Page
                 if (ViewModel.IsThumbnailBuildDone)
                 {
                     ThumbDoneSubText.Text = ViewModel.ThumbnailBuildTotal == 0
-                        ? "所有照片均已有缩略图，无需生成"
-                        : $"共生成了 {ViewModel.ThumbnailBuildTotal} 张缩略图";
+                        ? L10n.Get("Settings_DoneSub_AllExist")
+                        : L10n.Format("Settings_DoneSub_Generated", ViewModel.ThumbnailBuildTotal);
                     ShowAndAnimateThumbDone();
                 }
                 else

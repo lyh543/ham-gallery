@@ -49,6 +49,7 @@
                  1. 扫描目录
             ═══════════════════════════════════════════════════════════ -->
             <TextBlock
+                x:Uid="SettingsPage_ScanSectionTitle"
                 Text="扫描目录"
                 Style="{ThemeResource SubtitleTextBlockStyle}"
                 Margin="4,8,0,6" />
@@ -59,6 +60,7 @@
                 automatically, so adding/removing items updates the UI immediately.
             -->
             <ctk:SettingsExpander
+                x:Uid="SettingsPage_ScanExpander"
                 Header="扫描目录"
                 Description="应用启动后将扫描这些目录中的照片"
                 IsExpanded="True"
@@ -69,7 +71,7 @@
                 </ctk:SettingsExpander.HeaderIcon>
 
                 <!-- Right side of the header row -->
-                <Button Content="＋ 添加目录" Click="AddScanDir_Click" />
+                <Button x:Uid="SettingsPage_AddScanDirButton" Content="＋ 添加目录" Click="AddScanDir_Click" />
 
                 <ctk:SettingsExpander.ItemTemplate>
                     <DataTemplate x:DataType="x:String">
@@ -77,6 +79,7 @@
                             <Button
                                 Tag="{x:Bind}"
                                 Click="RemoveScanDir_Click"
+                                x:Uid="SettingsPage_RemoveScanDirButton"
                                 ToolTipService.ToolTip="删除此目录">
                                 <FontIcon
                                     FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
@@ -90,6 +93,7 @@
 
             <!-- Exclude dirs -->
             <ctk:SettingsExpander
+                x:Uid="SettingsPage_ExcludeExpander"
                 Header="排除目录"
                 Description="扫描时跳过这些目录（支持绝对路径）"
                 IsExpanded="False"
@@ -99,7 +103,7 @@
                     <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE711;" />
                 </ctk:SettingsExpander.HeaderIcon>
 
-                <Button Content="＋ 添加排除目录" Click="AddExcludeDir_Click" />
+                <Button x:Uid="SettingsPage_AddExcludeDirButton" Content="＋ 添加排除目录" Click="AddExcludeDir_Click" />
 
                 <ctk:SettingsExpander.ItemTemplate>
                     <DataTemplate x:DataType="x:String">
@@ -107,6 +111,7 @@
                             <Button
                                 Tag="{x:Bind}"
                                 Click="RemoveExcludeDir_Click"
+                                x:Uid="SettingsPage_RemoveExcludeDirButton"
                                 ToolTipService.ToolTip="删除此目录">
                                 <FontIcon
                                     FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
@@ -122,12 +127,14 @@
                  2. 外观
             ═══════════════════════════════════════════════════════════ -->
             <TextBlock
+                x:Uid="SettingsPage_AppearanceSectionTitle"
                 Text="外观"
                 Style="{ThemeResource SubtitleTextBlockStyle}"
                 Margin="4,16,0,6" />
 
             <!-- Language -->
             <ctk:SettingsCard
+                x:Uid="SettingsPage_LanguageCard"
                 Header="语言"
                 Description="切换语言后需要重新启动应用">
                 <ctk:SettingsCard.HeaderIcon>
@@ -136,14 +143,15 @@
                 <ComboBox
                     SelectedIndex="{x:Bind ViewModel.SelectedLanguageIndex, Mode=TwoWay}"
                     MinWidth="180">
-                    <ComboBoxItem Content="跟随系统" />
-                    <ComboBoxItem Content="English" />
-                    <ComboBoxItem Content="中文（简体）" />
+                    <ComboBoxItem x:Uid="SettingsPage_Language_System" Content="跟随系统" />
+                    <ComboBoxItem x:Uid="SettingsPage_Language_English" Content="English" />
+                    <ComboBoxItem x:Uid="SettingsPage_Language_ZhHans" Content="中文（简体）" />
                 </ComboBox>
             </ctk:SettingsCard>
 
             <!-- Theme -->
             <ctk:SettingsCard
+                x:Uid="SettingsPage_ThemeCard"
                 Header="应用主题"
                 Description="立即生效，无需重启">
                 <ctk:SettingsCard.HeaderIcon>
@@ -152,14 +160,15 @@
                 <ComboBox
                     SelectedIndex="{x:Bind ViewModel.Theme, Mode=TwoWay}"
                     MinWidth="180">
-                    <ComboBoxItem Content="跟随系统" />
-                    <ComboBoxItem Content="浅色" />
-                    <ComboBoxItem Content="深色" />
+                    <ComboBoxItem x:Uid="SettingsPage_Theme_System" Content="跟随系统" />
+                    <ComboBoxItem x:Uid="SettingsPage_Theme_Light" Content="浅色" />
+                    <ComboBoxItem x:Uid="SettingsPage_Theme_Dark" Content="深色" />
                 </ComboBox>
             </ctk:SettingsCard>
 
             <!-- Acrylic backdrop -->
             <ctk:SettingsCard
+                x:Uid="SettingsPage_AcrylicCard"
                 Header="亚克力材料"
                 Description="使用亚克力效果替代 Mica，立即生效">
                 <ctk:SettingsCard.HeaderIcon>
@@ -175,12 +184,14 @@
                  3. 行为
             ═══════════════════════════════════════════════════════════ -->
             <TextBlock
+                x:Uid="SettingsPage_BehaviorSectionTitle"
                 Text="行为"
                 Style="{ThemeResource SubtitleTextBlockStyle}"
                 Margin="4,16,0,6" />
 
             <!-- Confirm before delete -->
             <ctk:SettingsCard
+                x:Uid="SettingsPage_ConfirmDeleteCard"
                 Header="删除前确认"
                 Description="将照片移入回收站前弹出确认对话框">
                 <ctk:SettingsCard.HeaderIcon>
@@ -194,6 +205,7 @@
 
             <!-- File associations -->
             <ctk:SettingsCard
+                x:Uid="SettingsPage_FileAssocCard"
                 Header="添加文件关联"
                 Description="为 JPG、PNG、HEIC 等图片格式注册文件关联（仅对当前用户生效，无需管理员权限，并尽量保留资源管理器缩略图）">
                 <ctk:SettingsCard.HeaderIcon>
@@ -223,12 +235,14 @@
                  4. 缓存与数据
             ═══════════════════════════════════════════════════════════ -->
             <TextBlock
+                x:Uid="SettingsPage_CacheSectionTitle"
                 Text="缓存与数据"
                 Style="{ThemeResource SubtitleTextBlockStyle}"
                 Margin="4,16,0,6" />
 
             <!-- 缩略图：展开后 第1行打开目录 / 第2行重新生成 / 第3行清除缓存 -->
             <ctk:SettingsExpander
+                x:Uid="SettingsPage_ThumbnailExpander"
                 Header="缩略图"
                 Description="{x:Bind ViewModel.ThumbnailExpanderDescription, Mode=OneWay}"
                 IsExpanded="False">
@@ -240,25 +254,30 @@
                 <ctk:SettingsExpander.Items>
 
                     <ctk:SettingsCard
+                        x:Uid="SettingsPage_OpenThumbFolderCard"
                         Header="打开缩略图目录">
                         <Button
+                            x:Uid="SettingsPage_OpenFolderButton"
                             Content="打开目录"
                             Command="{x:Bind ViewModel.OpenThumbnailsFolderCommand}" />
                     </ctk:SettingsCard>
 
                     <ctk:SettingsCard
+                        x:Uid="SettingsPage_RegenerateThumbCard"
                         Header="重新生成缩略图"
                         Description="为所有缺失缩略图的照片生成缩略图">
                         <Button
+                            x:Uid="SettingsPage_GenerateNowButton"
                             Content="立即生成"
                             IsEnabled="{x:Bind ViewModel.ShowGenerateButton, Mode=OneWay}"
                             Command="{x:Bind ViewModel.GenerateMissingThumbnailsCommand}" />
                     </ctk:SettingsCard>
 
                     <ctk:SettingsCard
+                        x:Uid="SettingsPage_ClearThumbCard"
                         Header="清除缩略图缓存"
                         Description="下次查看照片时将重新生成">
-                        <Button Content="清除缓存" Click="ClearThumbnails_Click" />
+                        <Button x:Uid="SettingsPage_ClearThumbButton" Content="清除缓存" Click="ClearThumbnails_Click" />
                     </ctk:SettingsCard>
 
                 </ctk:SettingsExpander.Items>
@@ -298,6 +317,7 @@
                             </StackPanel>
                             <Button
                                 Grid.Column="1"
+                                x:Uid="SettingsPage_CancelThumbBuildButton"
                                 Content="取消"
                                 VerticalAlignment="Center"
                                 Margin="12,0,0,0"
@@ -347,6 +367,7 @@
                                     <TranslateTransform x:Name="ThumbDoneTextTranslate" X="20" />
                                 </StackPanel.RenderTransform>
                                 <TextBlock
+                                    x:Uid="SettingsPage_ThumbDoneTitle"
                                     Text="全部完成！"
                                     Style="{ThemeResource BodyStrongTextBlockStyle}"
                                     FontSize="15" />
@@ -365,34 +386,39 @@
 
             <!-- Clear database cache -->
             <ctk:SettingsCard
+                x:Uid="SettingsPage_ClearDbCard"
                 Header="清除数据库索引"
                 Description="清空照片索引和缩略图记录，照片文件和设置将保留">
                 <ctk:SettingsCard.HeaderIcon>
                     <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8E6;" />
                 </ctk:SettingsCard.HeaderIcon>
-                <Button Content="清除索引" Click="ClearDbCache_Click" />
+                <Button x:Uid="SettingsPage_ClearDbButton" Content="清除索引" Click="ClearDbCache_Click" />
             </ctk:SettingsCard>
 
             <!-- View logs -->
             <ctk:SettingsCard
+                x:Uid="SettingsPage_LogsCard"
                 Header="应用日志"
                 Description="在文件管理器中打开日志目录（每天一个文件，保留最近 7 天）">
                 <ctk:SettingsCard.HeaderIcon>
                     <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE9F9;" />
                 </ctk:SettingsCard.HeaderIcon>
                 <Button
+                    x:Uid="SettingsPage_OpenLogsButton"
                     Content="打开日志目录"
                     Command="{x:Bind ViewModel.OpenLogsFolderCommand}" />
             </ctk:SettingsCard>
 
             <!-- Clear all data -->
             <ctk:SettingsCard
+                x:Uid="SettingsPage_ClearAllCard"
                 Header="清除全部数据"
                 Description="删除所有应用数据（照片索引、缩略图、设置），恢复出厂状态，照片文件将安全保留">
                 <ctk:SettingsCard.HeaderIcon>
                     <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE894;" />
                 </ctk:SettingsCard.HeaderIcon>
                 <Button
+                    x:Uid="SettingsPage_ClearAllButton"
                     Content="清除全部数据"
                     Click="ClearAll_Click"
                     Foreground="White">
@@ -412,12 +438,14 @@
                  5. 性能
             ═══════════════════════════════════════════════════════════ -->
             <TextBlock
+                x:Uid="SettingsPage_PerfSectionTitle"
                 Text="性能"
                 Style="{ThemeResource SubtitleTextBlockStyle}"
                 Margin="4,16,0,6" />
 
             <!-- Preload count -->
             <ctk:SettingsExpander
+                x:Uid="SettingsPage_PreloadExpander"
                 Header="预加载张数"
                 Description="预加载更多张数，快速翻看时更流畅，但会占用更多内存"
                 IsExpanded="False">
@@ -425,7 +453,7 @@
                     <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8C8;" />
                 </ctk:SettingsExpander.HeaderIcon>
                 <ctk:SettingsExpander.Items>
-                    <ctk:SettingsCard Header="向前预加载张数" Description="额外预加载前方图片">
+                    <ctk:SettingsCard x:Uid="SettingsPage_PreloadBackCard" Header="向前预加载张数" Description="额外预加载前方图片">
                         <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                             <Slider
                                 Value="{x:Bind ViewModel.PreloadCountBack, Mode=TwoWay}"
@@ -440,7 +468,7 @@
                                 MinWidth="20" />
                         </StackPanel>
                     </ctk:SettingsCard>
-                    <ctk:SettingsCard Header="向后预加载张数" Description="额外预加载后方图片">
+                    <ctk:SettingsCard x:Uid="SettingsPage_PreloadForwardCard" Header="向后预加载张数" Description="额外预加载后方图片">
                         <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                             <Slider
                                 Value="{x:Bind ViewModel.PreloadCountForward, Mode=TwoWay}"
@@ -460,6 +488,7 @@
 
             <!-- Thumbnail size -->
             <ctk:SettingsCard
+                x:Uid="SettingsPage_ThumbSizeCard"
                 Header="缩略图尺寸"
                 Description="尺寸越大，缩略图越清晰，但会占用更多存储空间，生成速度也更慢">
                 <ctk:SettingsCard.HeaderIcon>
@@ -478,13 +507,14 @@
                         Style="{ThemeResource BodyStrongTextBlockStyle}"
                         MinWidth="56">
                         <Run Text="{x:Bind ViewModel.ThumbnailSizePixels, Mode=OneWay}" />
-                        <Run Text=" px" />
+                        <Run x:Uid="SettingsPage_ThumbSizeUnit" Text=" px" />
                     </TextBlock>
                 </StackPanel>
             </ctk:SettingsCard>
 
             <!-- 尺寸变更提示（debounce 后出现）-->
             <InfoBar
+                x:Uid="SettingsPage_ThumbSizeHint"
                 IsOpen="{x:Bind ViewModel.ShowThumbnailSizeHint, Mode=TwoWay}"
                 Title="缩略图尺寸已更改"
                 Message="历史缩略图将继续以旧尺寸展示，清理缓存后才会按新尺寸重新生成"
@@ -492,7 +522,7 @@
                 IsClosable="True"
                 Margin="0,4,0,0">
                 <InfoBar.ActionButton>
-                    <Button Content="立即清理" Click="ClearThumbnailsFromHint_Click" />
+                    <Button x:Uid="SettingsPage_ThumbSizeHintAction" Content="立即清理" Click="ClearThumbnailsFromHint_Click" />
                 </InfoBar.ActionButton>
             </InfoBar>
 
@@ -500,22 +530,25 @@
                  6. 调试
             ═══════════════════════════════════════════════════════════ -->
             <TextBlock
+                x:Uid="SettingsPage_DebugSectionTitle"
                 Text="调试"
                 Style="{ThemeResource SubtitleTextBlockStyle}"
                 Margin="4,16,0,6" />
 
             <!-- Force GC -->
             <ctk:SettingsCard
+                x:Uid="SettingsPage_ForceGcCard"
                 Header="强制 GC"
                 Description="释放非托管内存（WIC 解码面、COM 对象）。切换页面后内存未及时回收时使用。">
                 <ctk:SettingsCard.HeaderIcon>
                     <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE74D;" />
                 </ctk:SettingsCard.HeaderIcon>
-                <Button Content="立即回收" Click="ForceGC_Click" />
+                <Button x:Uid="SettingsPage_ForceGcButton" Content="立即回收" Click="ForceGC_Click" />
             </ctk:SettingsCard>
 
             <!-- Show card size toast -->
             <ctk:SettingsCard
+                x:Uid="SettingsPage_ShowCardSizeToastCard"
                 Header="相册缩放时显示尺寸">
                 <ctk:SettingsCard.HeaderIcon>
                     <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8A3;" />
@@ -528,6 +561,7 @@
 
             <!-- Show preload status badges on filmstrip -->
             <ctk:SettingsCard
+                x:Uid="SettingsPage_ShowPreloadStatusCard"
                 Header="显示预加载状态"
                 Description="在照片详情页胶片栏缩略图右上角显示预加载进度角标">
                 <ctk:SettingsCard.HeaderIcon>
@@ -541,6 +575,7 @@
 
             <!-- Debug: keep photo-detail chrome visible -->
             <ctk:SettingsCard
+                x:Uid="SettingsPage_DebugKeepChromeCard"
                 Header="图片详情页工具栏常亮"
                 Description="调试选项。开启后，图片详情页顶部工具栏、底部工具栏和缩放条会始终显示，不再响应鼠标移入/移出触发的自动隐藏逻辑。">
                 <ctk:SettingsCard.HeaderIcon>
@@ -556,12 +591,14 @@
                  7. 关于
             ═══════════════════════════════════════════════════════════ -->
             <TextBlock
+                x:Uid="SettingsPage_AboutSectionTitle"
                 Text="关于"
                 Style="{ThemeResource SubtitleTextBlockStyle}"
                 Margin="4,16,0,6" />
 
             <!-- App version -->
             <ctk:SettingsCard
+                x:Uid="SettingsPage_AppInfoCard"
                 Header="Fluent Gallery"
                 Description="版本 1.0.0">
                 <ctk:SettingsCard.HeaderIcon>
@@ -571,18 +608,21 @@
 
             <!-- Open-source repository -->
             <ctk:SettingsCard
+                x:Uid="SettingsPage_RepoCard"
                 Header="开源仓库"
                 Description="在 GitHub 上查看源代码、提交 Issue 或贡献代码">
                 <ctk:SettingsCard.HeaderIcon>
                     <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8A7;" />
                 </ctk:SettingsCard.HeaderIcon>
                 <HyperlinkButton
+                    x:Uid="SettingsPage_RepoLink"
                     Content="在 GitHub 上查看"
                     NavigateUri="https://github.com/lyh54/ham-gallery" />
             </ctk:SettingsCard>
 
             <!-- Third-party licenses -->
             <ctk:SettingsCard
+                x:Uid="SettingsPage_LicenseCard"
                 Header="第三方许可证"
                 Description="CommunityToolkit.Mvvm · CommunityToolkit.WinUI · EF Core · MetadataExtractor">
                 <ctk:SettingsCard.HeaderIcon>

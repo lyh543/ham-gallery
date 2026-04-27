@@ -1,5 +1,6 @@
 using FluentGallery.Controls;
 using FluentGallery.Data;
+using FluentGallery.Helpers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.UI.Dispatching;
@@ -62,10 +63,10 @@ public sealed partial class PhotoDetailPage
         _indexPromptShown = true;
         _pendingPromptDirectory = directoryPath;
 
-        _indexPromptContent.Title = "加入相册";
-        _indexPromptContent.Message = "当前图片所在目录尚未加入扫描范围。是否将该目录加入相册并在后台建立索引？建立完成后将自动启用胶片栏。";
-        _indexPromptContent.ConfirmText = "加入并索引";
-        _indexPromptContent.CancelText = "暂不加入";
+        _indexPromptContent.Title = L10n.Get("PhotoDetail_IndexPrompt_Title");
+        _indexPromptContent.Message = L10n.Get("PhotoDetail_IndexPrompt_Message");
+        _indexPromptContent.ConfirmText = L10n.Get("PhotoDetail_IndexPrompt_Confirm");
+        _indexPromptContent.CancelText = L10n.Get("PhotoDetail_IndexPrompt_Cancel");
         ShowIndexPrompt();
     }
 
@@ -80,7 +81,7 @@ public sealed partial class PhotoDetailPage
 
         _pendingIndexDirectory = directoryPath;
         await ViewModel.EnsureDirectoryIndexedAsync(directoryPath, DispatcherQueue, _cts.Token);
-        ShowToast("已加入扫描范围，正在建立索引…", ToastKind.Normal, showUndo: false);
+        ShowToast(L10n.Get("PhotoDetail_Toast_Indexing"), ToastKind.Normal, showUndo: false);
     }
 
     private async void IndexPrompt_CancelClicked(object sender, RoutedEventArgs e)
@@ -219,7 +220,7 @@ public sealed partial class PhotoDetailPage
 
             ApplyFilmStripPinState();
             Bindings.Update();
-            ShowToast("索引完成，胶片栏已可用", ToastKind.Normal, showUndo: false);
+            ShowToast(L10n.Get("PhotoDetail_Toast_IndexDone"), ToastKind.Normal, showUndo: false);
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)

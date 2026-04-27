@@ -201,10 +201,13 @@ public sealed partial class AlbumListPage : Page
 
     private async void CreateAlbumButton_Click(object sender, RoutedEventArgs e)
     {
-        var nameBox = new TextBox { PlaceholderText = "相册名称", MinWidth = 280 };
+        var nameBox = new TextBox { PlaceholderText = L10n.Get("AlbumList_CreateAlbum_Placeholder"), MinWidth = 280 };
 
         if (!await ConfirmDialogHelper.ShowAsync(
-                XamlRoot, "新建相册", nameBox, "创建")) return;
+            XamlRoot,
+            L10n.Get("AlbumList_CreateAlbum_Title"),
+            nameBox,
+            L10n.Get("AlbumList_CreateAlbum_Confirm"))) return;
         var name = nameBox.Text.Trim();
         if (string.IsNullOrEmpty(name)) return;
 
@@ -273,7 +276,7 @@ public sealed partial class AlbumListPage : Page
 
     private void ShowContextMenu(AlbumItemViewModel vm, FrameworkElement anchor, Windows.Foundation.Point point)
     {
-        var rename = new MenuFlyoutItem { Text = "重命名" };
+        var rename = new MenuFlyoutItem { Text = L10n.Get("AlbumList_Context_Rename") };
         rename.Click += (_, _) =>
         {
             vm.BeginEdit();
@@ -286,13 +289,13 @@ public sealed partial class AlbumListPage : Page
             });
         };
 
-        var pinText = vm.IsPinned ? "取消固定" : "固定到导航栏";
+        var pinText = vm.IsPinned ? L10n.Get("AlbumList_Context_Unpin") : L10n.Get("AlbumList_Context_Pin");
         var pinItem = new MenuFlyoutItem { Text = pinText };
         pinItem.Click += async (_, _) => await ViewModel.SetPinnedAsync(vm, !vm.IsPinned);
 
         var delete = new MenuFlyoutItem
         {
-            Text       = "删除",
+            Text       = L10n.Get("AlbumList_Context_Delete"),
             Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorCriticalBrush"],
         };
         delete.Click += async (_, _) => await ConfirmDeleteAsync(vm);
@@ -313,9 +316,9 @@ public sealed partial class AlbumListPage : Page
     {
         if (!await ConfirmDialogHelper.ShowAsync(
                 XamlRoot,
-                "删除相册",
-                "确定要删除这个相册吗？相册内的照片不会被删除。",
-                "删除",
+            L10n.Get("AlbumList_DeleteConfirm_Title"),
+            L10n.Get("AlbumList_DeleteConfirm_Content"),
+            L10n.Get("AlbumList_DeleteConfirm_Confirm"),
                 confirmStyle: DialogButtonStyle.Danger)) return;
         await ViewModel.DeleteAlbumAsync(vm);
         UpdateEmptyState();

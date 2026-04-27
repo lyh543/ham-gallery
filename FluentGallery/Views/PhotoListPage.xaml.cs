@@ -242,9 +242,9 @@ public sealed partial class PhotoListPage : Page
         {
             if (!await ConfirmDialogHelper.ShowAsync(
                     XamlRoot,
-                    "删除照片",
-                    $"确定要将选中的 {selected.Count} 张照片移入回收站吗？",
-                    "移入回收站",
+                    L10n.Get("PhotoList_DeleteConfirm_Title"),
+                    L10n.Format("PhotoList_DeleteConfirm_Content", selected.Count),
+                    L10n.Get("PhotoList_DeleteConfirm_Confirm"),
                     confirmStyle: DialogButtonStyle.Danger)) return;
         }
 
@@ -284,7 +284,7 @@ public sealed partial class PhotoListPage : Page
         }
 
         if (flyout.Items.Count == 0)
-            flyout.Items.Add(new MenuFlyoutItem { Text = "没有其他相册", IsEnabled = false });
+            flyout.Items.Add(new MenuFlyoutItem { Text = L10n.Get("PhotoList_MoveToAlbum_Empty"), IsEnabled = false });
 
         flyout.ShowAt(MoveToAlbumButton);
     }

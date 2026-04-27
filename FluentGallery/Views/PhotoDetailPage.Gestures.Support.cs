@@ -1,4 +1,5 @@
 using FluentGallery.Controls;
+using FluentGallery.Helpers;
 using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -170,7 +171,7 @@ public sealed partial class PhotoDetailPage
         if (_edgeBoundaryThrottleActive)
             return;
 
-        ShowToast(isFirst ? "已经是第一张照片了" : "已经是最后一张照片了", ToastKind.Normal, showUndo: false);
+        ShowToast(isFirst ? L10n.Get("PhotoDetail_Toast_FirstPhoto") : L10n.Get("PhotoDetail_Toast_LastPhoto"), ToastKind.Normal, showUndo: false);
         _edgeBoundaryThrottleActive = true;
         _edgeBoundaryThrottle.Stop();
         _edgeBoundaryThrottle.Start();

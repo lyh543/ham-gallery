@@ -223,7 +223,7 @@ public sealed partial class MainWindow : Window
         int insertAt = 1; // slot 0 = AlbumsNavItem
         foreach (var album in _vm.PinnedAlbums)
         {
-            var unpinItem = new MenuFlyoutItem { Text = "取消固定" };
+            var unpinItem = new MenuFlyoutItem { Text = L10n.Get("MainWindow_Context_Unpin") };
             long capturedId = album.Id;
             unpinItem.Click += (_, _) => _ = _vm.UnpinAlbumAsync(capturedId);
 

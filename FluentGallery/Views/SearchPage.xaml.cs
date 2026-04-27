@@ -78,7 +78,7 @@ public sealed partial class SearchPage : Page
         // Show/hide scope hint
         if (ViewModel.AlbumId.HasValue && !string.IsNullOrEmpty(ViewModel.AlbumName))
         {
-            ScopeHintText.Text       = $"搜索范围：相册「{ViewModel.AlbumName}」";
+            ScopeHintText.Text       = L10n.Format("Search_ScopeHint", ViewModel.AlbumName!);
             ScopeHintText.Visibility = Visibility.Visible;
         }
         else
@@ -245,17 +245,17 @@ public sealed partial class SearchPage : Page
         if (searched && !loading)
         {
             var scope = ViewModel.AlbumId.HasValue
-                ? $"「{ViewModel.AlbumName}」相册中"
-                : "全库";
-            ResultCountText.Text = $"在{scope}找到 {count} 张照片";
+                ? L10n.Format("Search_ResultCount_AlbumScope", ViewModel.AlbumName!)
+                : L10n.Get("Search_ResultCount_AllScope");
+            ResultCountText.Text = L10n.Format("Search_ResultCount_Text", scope, count);
         }
     }
 
     private void UpdateNavHeader()
     {
         var header = ViewModel.AlbumId.HasValue
-            ? $"搜索 · {ViewModel.AlbumName}"
-            : "搜索";
+            ? L10n.Format("Search_Header_Album", ViewModel.AlbumName!)
+            : L10n.Get("Search_Header_Default");
 
         if (App.Current.MainWindow is MainWindow mw)
             mw.SetNavHeader(header);
