@@ -672,12 +672,6 @@ public sealed partial class ZoomableImage : UserControl
         bool enablePanning = !IsAtFitZoom;
         Scroll.HorizontalScrollMode = enablePanning ? ScrollMode.Enabled : ScrollMode.Disabled;
         Scroll.VerticalScrollMode = enablePanning ? ScrollMode.Enabled : ScrollMode.Disabled;
-        _logger.LogDebug(
-            "Scroll modes updated: enabled={Enabled}, zoom={Zoom:F3}, fit={Fit:F3}, slider={Slider}",
-            enablePanning,
-            Scroll.ZoomFactor,
-            _fitZoom,
-            _sliderValue);
     }
 
     private void EndMouseDrag(uint pointerId)

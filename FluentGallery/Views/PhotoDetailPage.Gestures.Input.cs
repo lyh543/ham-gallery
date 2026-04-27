@@ -166,9 +166,6 @@ public sealed partial class PhotoDetailPage
         {
             if (_mouseOverlayDragging)
             {
-                if (_mouseOverlayPreviewActive)
-                    OnZoomImageSwipePreviewCompleted();
-
                 double totalDx = point.X - _mouseOverlayStart.X;
                 double totalDy = point.Y - _mouseOverlayStart.Y;
                 bool mouseHadPreview = _mouseOverlayPreviewActive;
@@ -182,10 +179,16 @@ public sealed partial class PhotoDetailPage
                     const double MouseMinSwipe = 60.0;
                     if (Math.Abs(totalDx) >= MouseMinSwipe && Math.Abs(totalDx) >= Math.Abs(totalDy) * 1.5)
                     {
+                        TryPrepareSwipeCommitVisual(totalDx);
+
                         if (totalDx < 0)
                             await NavigateRelativeAsync(1);
                         else
                             await NavigateRelativeAsync(-1);
+                    }
+                    else
+                    {
+                        OnZoomImageSwipePreviewCompleted();
                     }
                 }
                 else if (!_mouseOverlayMoved)
@@ -239,9 +242,12 @@ public sealed partial class PhotoDetailPage
         if (Math.Abs(dx) < MinSwipe || Math.Abs(dx) < Math.Abs(dy) * 1.5)
         {
             _logger.LogDebug("Touch overlay swipe rejected by threshold");
+            OnZoomImageSwipePreviewCompleted();
             e.Handled = true;
             return;
         }
+
+        TryPrepareSwipeCommitVisual(dx);
 
         if (dx < 0)
             await NavigateRelativeAsync(1);

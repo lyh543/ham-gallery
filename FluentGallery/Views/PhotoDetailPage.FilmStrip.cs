@@ -81,7 +81,6 @@ public sealed partial class PhotoDetailPage
             _loadedFilmstripIndices.Add(index);
         }
 
-        _logger.LogInformation("Filmstrip lazy-loading started for index {Index}", index);
         _ = LoadFilmstripThumbnailAsync(index);
     }
 
@@ -118,7 +117,6 @@ public sealed partial class PhotoDetailPage
                     if (index < ViewModel.FilmStripItems.Count)
                     {
                         ViewModel.FilmStripItems[index].ThumbPath = thumbPath;
-                        _logger.LogDebug("Filmstrip lazy-loading completed for index {Index}", index);
                     }
                 });
             }

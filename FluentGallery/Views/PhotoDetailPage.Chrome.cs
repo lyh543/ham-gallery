@@ -91,7 +91,6 @@ public sealed partial class PhotoDetailPage
 
         _hideTimer.Stop();
         _hideTimer.Start();
-        _logger.LogDebug("Chrome: Hide timer restarted (1s interval)");
     }
 
     private void HideChrome()

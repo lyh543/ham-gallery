@@ -55,8 +55,14 @@ public sealed partial class PhotoDetailPage
         var path = ViewModel.CurrentImagePath;
         if (string.IsNullOrEmpty(path)) return;
 
+        bool keepSwipePreviewDuringLoad = _swipeCommitPending &&
+                                          string.Equals(_swipeCommitTargetPath, path, StringComparison.OrdinalIgnoreCase) &&
+                                          SwipePreviewImage.Source is not null;
+
         _logger.LogDebug("LoadCurrentImage: {Path}", path);
-        ZoomImage.SetLoading();
+        if (!keepSwipePreviewDuringLoad)
+            ZoomImage.SetLoading();
+
         if (_touchSwipeDragging)
         {
             _logger.LogDebug("LoadCurrentImage reset touch swipe state");
@@ -66,12 +72,20 @@ public sealed partial class PhotoDetailPage
         _touchPinching = false;
         _touchPinchStartDistance = 0;
         _touchPinchStartZoom = 1;
-        ResetSwipePreviewTransforms();
+        if (!keepSwipePreviewDuringLoad)
+            ResetSwipePreviewTransforms();
         try
         {
             var loader = GetLoader(path);
             var loaded = await loader.LoadAsync(path, _cts.Token);
-            if (loaded is null) return;
+            if (loaded is null)
+            {
+                if (keepSwipePreviewDuringLoad)
+                    ResetSwipePreviewTransforms();
+                else
+                    CancelSwipeCommit();
+                return;
+            }
 
             if (gen != _loadGeneration)
             {
@@ -84,12 +98,20 @@ public sealed partial class PhotoDetailPage
 
             ZoomImage.SetSource(loaded, _cts.Token);
 
+            if (keepSwipePreviewDuringLoad || ConsumeSwipeCommitForPath(path))
+                ResetSwipePreviewTransforms();
+
             var loadedItem = FindFilmStripItem(path);
             if (loadedItem is not null)
                 loadedItem.PreloadState = PreloadState.Loaded;
         }
         catch (OperationCanceledException) { }
-        catch (Exception ex) { _logger.LogWarning(ex, "LoadCurrentImage failed: {Path}", path); }
+        catch (Exception ex)
+        {
+            CancelSwipeCommit();
+            ResetSwipePreviewTransforms();
+            _logger.LogWarning(ex, "LoadCurrentImage failed: {Path}", path);
+        }
     }
 
     private void UpdatePreloadTasks(int newIndex)

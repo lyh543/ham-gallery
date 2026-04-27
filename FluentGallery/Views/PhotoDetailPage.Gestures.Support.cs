@@ -14,6 +14,11 @@ namespace FluentGallery.Views;
 public sealed partial class PhotoDetailPage
 {
     private string? _swipePreviewPath;
+    private string? _swipePreviewRequestedPath;
+    private int _swipePreviewLoadGeneration = 0;
+    private IDisposable? _swipePreviewDisposable;
+    private bool _swipeCommitPending = false;
+    private string? _swipeCommitTargetPath;
     private DateTime _lastTouchTapTime = DateTime.MinValue;
     private Point _lastTouchTapPosition;
     private DateTime _lastMouseTapTime = DateTime.MinValue;
@@ -210,27 +215,146 @@ public sealed partial class PhotoDetailPage
     private void EnsureSwipePreviewImage(int targetIndex)
     {
         string targetPath = ViewModel.FilmStripItems[targetIndex].Photo.FilePath;
-        if (string.Equals(_swipePreviewPath, targetPath, StringComparison.OrdinalIgnoreCase))
+        _swipePreviewRequestedPath = targetPath;
+
+        if (string.Equals(_swipePreviewPath, targetPath, StringComparison.OrdinalIgnoreCase)
+            && SwipePreviewImage.Source is not null)
         {
             SwipePreviewImage.Visibility = Visibility.Visible;
             return;
         }
 
-        _logger.LogDebug("Loading swipe preview image for target index {TargetIndex}: {Path}", targetIndex, targetPath);
-        _swipePreviewPath = targetPath;
-        SwipePreviewImage.Source = _imageSourceConverter.Convert(targetPath, typeof(ImageSource), string.Empty, string.Empty) as ImageSource;
-        SwipePreviewImage.Visibility = SwipePreviewImage.Source is null ? Visibility.Collapsed : Visibility.Visible;
-        _logger.LogDebug("Swipe preview image source resolved: hasSource={HasSource}", SwipePreviewImage.Source is not null);
+        _ = EnsureSwipePreviewImageAsync(targetPath, targetIndex);
+    }
+
+    private async Task EnsureSwipePreviewImageAsync(string targetPath, int targetIndex)
+    {
+        int generation = ++_swipePreviewLoadGeneration;
+
+        try
+        {
+            var loader = GetLoader(targetPath);
+            var loaded = await loader.LoadAsync(targetPath, _cts.Token);
+            if (loaded is null)
+            {
+                if (generation == _swipePreviewLoadGeneration &&
+                    string.Equals(_swipePreviewRequestedPath, targetPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    SwipePreviewImage.Source = null;
+                    SwipePreviewImage.Visibility = Visibility.Collapsed;
+                }
+                _logger.LogDebug("Swipe preview image load returned null: target index {TargetIndex}, path={Path}", targetIndex, targetPath);
+                return;
+            }
+
+            bool staleRequest = generation != _swipePreviewLoadGeneration ||
+                                !string.Equals(_swipePreviewRequestedPath, targetPath, StringComparison.OrdinalIgnoreCase);
+            if (staleRequest)
+            {
+                DeferDisposeSwipePreview(loaded.Source as IDisposable);
+                return;
+            }
+
+            ReplaceSwipePreviewSource(loaded.Source, targetPath);
+            _logger.LogDebug("Swipe preview image source resolved via loader: target index {TargetIndex}, hasSource={HasSource}, path={Path}",
+                targetIndex,
+                SwipePreviewImage.Source is not null,
+                targetPath);
+        }
+        catch (OperationCanceledException)
+        {
+            // Ignore navigation cancellation.
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to load swipe preview image: {Path}", targetPath);
+        }
+    }
+
+    private void ReplaceSwipePreviewSource(ImageSource source, string path)
+    {
+        // Detach old source before disposing to avoid compositor using freed native surface.
+        SwipePreviewImage.Source = null;
+        DeferDisposeSwipePreview(_swipePreviewDisposable);
+
+        _swipePreviewDisposable = source as IDisposable;
+        _swipePreviewPath = path;
+
+        SwipePreviewImage.Source = source;
+        SwipePreviewImage.Visibility = Visibility.Visible;
+    }
+
+    private void DeferDisposeSwipePreview(IDisposable? disposable)
+    {
+        if (disposable is null) return;
+
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            {
+                try { disposable.Dispose(); }
+                catch { }
+            }));
+    }
+
+    private bool TryPrepareSwipeCommitVisual(double dx)
+    {
+        if (Math.Abs(dx) < double.Epsilon)
+            return false;
+
+        int direction = dx < 0 ? 1 : -1;
+        int targetIndex = ViewModel.CurrentIndex + direction;
+        if (targetIndex < 0 || targetIndex >= ViewModel.FilmStripItems.Count)
+            return false;
+
+        string targetPath = ViewModel.FilmStripItems[targetIndex].Photo.FilePath;
+        if (SwipePreviewImage.Source is null ||
+            !string.Equals(_swipePreviewPath, targetPath, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        double viewportWidth = ImageViewport.ActualWidth;
+        if (viewportWidth <= 0)
+            return false;
+
+        _swipeCommitPending = true;
+        _swipeCommitTargetPath = targetPath;
+
+        SwipePreviewImage.Opacity = 1.0;
+        SwipePreviewTransform.X = 0;
+        ZoomImageTransform.X = dx < 0 ? -viewportWidth : viewportWidth;
+
+        _logger.LogDebug("Swipe commit visual prepared: target={TargetPath}, direction={Direction}", targetPath, direction);
+        return true;
+    }
+
+    private bool ConsumeSwipeCommitForPath(string path)
+    {
+        if (!_swipeCommitPending ||
+            !string.Equals(_swipeCommitTargetPath, path, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        _swipeCommitPending = false;
+        _swipeCommitTargetPath = null;
+        return true;
+    }
+
+    private void CancelSwipeCommit()
+    {
+        _swipeCommitPending = false;
+        _swipeCommitTargetPath = null;
     }
 
     private void ResetSwipePreviewTransforms()
     {
+        CancelSwipeCommit();
+        _swipePreviewRequestedPath = null;
         _swipePreviewPath = null;
         ZoomImageTransform.X = 0;
         SwipePreviewTransform.X = 0;
         SwipePreviewImage.Opacity = 0;
         SwipePreviewImage.Source = null;
         SwipePreviewImage.Visibility = Visibility.Collapsed;
+        DeferDisposeSwipePreview(_swipePreviewDisposable);
+        _swipePreviewDisposable = null;
     }
 
     private T? FindVisualChild<T>(DependencyObject parent, string elementName) where T : DependencyObject

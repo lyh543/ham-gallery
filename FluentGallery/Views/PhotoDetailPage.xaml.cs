@@ -4,7 +4,6 @@ using FluentGallery.Loaders;
 using FluentGallery.Models;
 using FluentGallery.Controls;
 using FluentGallery.ViewModels;
-using FluentGallery.Converters;
 using Microsoft.UI.Input;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -47,7 +46,6 @@ public sealed partial class PhotoDetailPage : Page
 
     private readonly WicImageLoader    _wicLoader;
     private readonly MagickImageLoader _magickLoader;
-    private readonly StringToImageSourceConverter _imageSourceConverter = new();
 
     private readonly ILogger<PhotoDetailPage> _logger =
         App.Current.Services.GetRequiredService<ILogger<PhotoDetailPage>>();
