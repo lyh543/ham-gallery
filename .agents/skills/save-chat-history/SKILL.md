@@ -129,3 +129,6 @@ Before confirmation, perform an end-of-file integrity check:
 - Do not finish until EOF is consumed and last user chunk is included.
 
 Confirm the file path to the user when done.
+
+
+**You must not modify the original transcript file or other files in the project.**

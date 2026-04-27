@@ -531,6 +531,11 @@ This action cannot be undone. Continue?</value></data>
   <data name="SettingsPage_Language_System.Content" xml:space="preserve"><value>Follow system</value></data>
   <data name="SettingsPage_Language_English.Content" xml:space="preserve"><value>English</value></data>
   <data name="SettingsPage_Language_ZhHans.Content" xml:space="preserve"><value>Chinese (Simplified)</value></data>
+  <data name="SettingsPage_Language_JaJp.Content" xml:space="preserve"><value>Japanese</value></data>
+  <data name="SettingsPage_Language_KoKr.Content" xml:space="preserve"><value>Korean</value></data>
+  <data name="SettingsPage_Language_DeDe.Content" xml:space="preserve"><value>German</value></data>
+  <data name="SettingsPage_Language_FrFr.Content" xml:space="preserve"><value>French</value></data>
+  <data name="SettingsPage_Language_EsEs.Content" xml:space="preserve"><value>Spanish</value></data>
   <data name="SettingsPage_ThemeCard.Header" xml:space="preserve"><value>App Theme</value></data>
   <data name="SettingsPage_ThemeCard.Description" xml:space="preserve"><value>Takes effect immediately, no restart needed</value></data>
   <data name="SettingsPage_Theme_System.Content" xml:space="preserve"><value>Follow system</value></data>

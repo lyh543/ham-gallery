@@ -1,0 +1,338 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name='AllPhotos_ZoomOutButton.Label' xml:space='preserve'><value>縮小</value></data>
+  <data name='AllPhotos_SearchToggle.Label' xml:space='preserve'><value>検索</value></data>
+  <data name='AllPhotos_KeywordLabel.Text' xml:space='preserve'><value>ファイル名</value></data>
+  <data name='AllPhotos_KeywordBox.PlaceholderText' xml:space='preserve'><value>キーワードを入力...</value></data>
+  <data name='AllPhotos_DateFromLabel.Text' xml:space='preserve'><value>開始日</value></data>
+  <data name='AllPhotos_DateToLabel.Text' xml:space='preserve'><value>終了日</value></data>
+  <data name='AllPhotos_SearchButton.Content' xml:space='preserve'><value>検索</value></data>
+  <data name='AllPhotos_ClearButton.Content' xml:space='preserve'><value>クリア</value></data>
+  <data name='AllPhotos_EmptyTitle.Text' xml:space='preserve'><value>写真がありません</value></data>
+  <data name='AllPhotos_EmptySubtitle.Text' xml:space='preserve'><value>一致する写真が見つかりませんでした</value></data>
+  <data name='PhotoList_AddPhotosButton.Label' xml:space='preserve'><value>写真を追加</value></data>
+  <data name='PhotoList_DeleteButton.Label' xml:space='preserve'><value>削除</value></data>
+  <data name='PhotoList_MoveToAlbumButton.Label' xml:space='preserve'><value>アルバムへ移動</value></data>
+  <data name='PhotoList_RenameAlbumButton.Label' xml:space='preserve'><value>名前の変更</value></data>
+  <data name='PhotoList_SortButton.Label' xml:space='preserve'><value>並べ替え</value></data>
+  <data name='PhotoList_SortByName.Text' xml:space='preserve'><value>ファイル名</value></data>
+  <data name='PhotoList_SortBySize.Text' xml:space='preserve'><value>ファイルサイズ</value></data>
+  <data name='PhotoList_SortByCreated.Text' xml:space='preserve'><value>作成日時</value></data>
+  <data name='PhotoList_SortByModified.Text' xml:space='preserve'><value>更新日時</value></data>
+  <data name='PhotoList_SortByTakenAt.Text' xml:space='preserve'><value>撮影日時</value></data>
+  <data name='PhotoList_SortDescToggle.Text' xml:space='preserve'><value>昇順</value></data>
+  <data name='PhotoList_MultiSelectToggle.Label' xml:space='preserve'><value>複数選択</value></data>
+  <data name='PhotoList_ZoomInButton.Label' xml:space='preserve'><value>拡大</value></data>
+  <data name='PhotoList_ZoomOutButton.Label' xml:space='preserve'><value>縮小</value></data>
+  <data name='PhotoList_SearchButton.Label' xml:space='preserve'><value>検索</value></data>
+  <data name='PhotoList_EmptyTitle.Text' xml:space='preserve'><value>アルバム内に写真がありません</value></data>
+  <data name='PhotoList_EmptySubtitle.Text' xml:space='preserve'><value>「写真を追加」をクリックして追加してください</value></data>
+  <data name='PhotoDetail_FileNotFound' xml:space='preserve'><value>ファイルが移動または削除されています。</value></data>
+  <data name='PhotoDetail_HeicNotSupported' xml:space='preserve'><value>HEIC 形式を表示するには HEVC ビデオ拡張機能が必要です。クリックして Microsoft Store からインストールしてください。</value></data>
+  <data name='PhotoDetail_ToastUndoText.Text' xml:space='preserve'><value>元に戻す</value></data>
+  <data name='PhotoDetail_InfoTitle.Text' xml:space='preserve'><value>写真の情報</value></data>
+  <data name='PhotoDetail_FileNameLabel.Text' xml:space='preserve'><value>ファイル名</value></data>
+  <data name='PhotoDetail_PathLabel.Text' xml:space='preserve'><value>パス</value></data>
+  <data name='PhotoDetail_FileSizeLabel.Text' xml:space='preserve'><value>ファイルサイズ</value></data>
+  <data name='PhotoDetail_ResolutionLabel.Text' xml:space='preserve'><value>解像度</value></data>
+  <data name='PhotoDetail_CreatedAtLabel.Text' xml:space='preserve'><value>作成日時</value></data>
+  <data name='PhotoDetail_ModifiedAtLabel.Text' xml:space='preserve'><value>更新日時</value></data>
+  <data name='PhotoDetail_TakenAtLabel.Text' xml:space='preserve'><value>撮影日時</value></data>
+  <data name='PhotoDetail_CameraLabel.Text' xml:space='preserve'><value>カメラ</value></data>
+  <data name='PhotoDetail_LensLabel.Text' xml:space='preserve'><value>レンズ</value></data>
+  <data name='PhotoDetail_ApertureLabel.Text' xml:space='preserve'><value>絞り値</value></data>
+  <data name='PhotoDetail_ShutterLabel.Text' xml:space='preserve'><value>シャッタースピード</value></data>
+  <data name='PhotoDetail_IsoLabel.Text' xml:space='preserve'><value>ISO 感度</value></data>
+  <data name='PhotoDetail_FocalLengthLabel.Text' xml:space='preserve'><value>焦点距離</value></data>
+  <data name='PhotoDetail_ColorSpaceLabel.Text' xml:space='preserve'><value>色空間</value></data>
+  <data name='PhotoDetail_BitDepthLabel.Text' xml:space='preserve'><value>ビット深度</value></data>
+  <data name='PhotoDetail_OrientationLabel.Text' xml:space='preserve'><value>回転</value></data>
+  <data name='PhotoDetail_GpsLabel.Text' xml:space='preserve'><value>GPS 座標</value></data>
+  <data name='PhotoDetail_GifDurationFramesLabel.Text' xml:space='preserve'><value>再生時間 / フレーム数</value></data>
+  <data name='PhotoDetail_GifFrameRateLabel.Text' xml:space='preserve'><value>フレームレート</value></data>
+  <data name='AllPhotos_Title' xml:space='preserve'><value>すべての写真</value></data>
+  <data name='AllPhotos_SearchPlaceholder' xml:space='preserve'><value>名前で検索…</value></data>
+  <data name='Search_KeywordLabel.Text' xml:space='preserve'><value>ファイル名</value></data>
+  <data name='Search_KeywordBox.PlaceholderText' xml:space='preserve'><value>キーワード (曖昧検索対応)</value></data>
+  <data name='Search_DateFieldLabel.Text' xml:space='preserve'><value>日付項目</value></data>
+  <data name='Search_DateFieldTakenAt.Content' xml:space='preserve'><value>撮影日時</value></data>
+  <data name='Search_DateFieldModifiedAt.Content' xml:space='preserve'><value>更新日時</value></data>
+  <data name='Search_DateFieldCreatedAt.Content' xml:space='preserve'><value>作成日時</value></data>
+  <data name='Search_DateFromLabel.Text' xml:space='preserve'><value>開始</value></data>
+  <data name='Search_DateFromPicker.PlaceholderText' xml:space='preserve'><value>開始日</value></data>
+  <data name='Search_DateToLabel.Text' xml:space='preserve'><value>終了</value></data>
+  <data name='Search_DateToPicker.PlaceholderText' xml:space='preserve'><value>終了日</value></data>
+  <data name='Search_ClearDatesButton.Content' xml:space='preserve'><value>日付をクリア</value></data>
+  <data name='Search_SearchButton.Content' xml:space='preserve'><value>検索</value></data>
+  <data name='Search_EmptyTitle.Text' xml:space='preserve'><value>写真が見つかりません</value></data>
+  <data name='Search_EmptySubtitle.Text' xml:space='preserve'><value>キーワードを変えるか期間を調整してください</value></data>
+  <data name='Search_PromptText.Text' xml:space='preserve'><value>キーワードまたは期間を入力して「検索」を押してください</value></data>
+  <data name='Settings_Title' xml:space='preserve'><value>設定</value></data>
+  <data name='Settings_ScanDirectories_Header' xml:space='preserve'><value>スキャンディレクトリ</value></data>
+  <data name='Settings_Appearance_Header' xml:space='preserve'><value>外観</value></data>
+  <data name='Settings_Behavior_Header' xml:space='preserve'><value>動作</value></data>
+  <data name='Settings_CacheData_Header' xml:space='preserve'><value>キャッシュとデータ</value></data>
+  <data name='Settings_About_Header' xml:space='preserve'><value>バージョン情報</value></data>
+  <data name='Common_OK' xml:space='preserve'><value>OK</value></data>
+  <data name='Common_Cancel' xml:space='preserve'><value>キャンセル</value></data>
+  <data name='Common_Delete' xml:space='preserve'><value>削除</value></data>
+  <data name='Common_Rename' xml:space='preserve'><value>名前の変更</value></data>
+  <data name='Common_Scanning' xml:space='preserve'><value>スキャン中…</value></data>
+  <data name='IndexPrompt_TitleTextBlock.Text' xml:space='preserve'><value>このフォルダをインデックスしますか？</value></data>
+  <data name='IndexPrompt_CancelButton.Content' xml:space='preserve'><value>後で</value></data>
+  <data name='IndexPrompt_ConfirmButton.Content' xml:space='preserve'><value>追加してインデックス</value></data>
+  <data name='MainWindow_Context_Unpin' xml:space='preserve'><value>ナビゲーションから外す</value></data>
+  <data name='AlbumList_CreateAlbum_Placeholder' xml:space='preserve'><value>アルバム名</value></data>
+  <data name='AlbumList_CreateAlbum_Title' xml:space='preserve'><value>新規アルバム</value></data>
+  <data name='AlbumList_CreateAlbum_Confirm' xml:space='preserve'><value>作成</value></data>
+  <data name='AlbumList_Context_Rename' xml:space='preserve'><value>名前の変更</value></data>
+  <data name='AlbumList_Context_Unpin' xml:space='preserve'><value>ナビゲーションから外す</value></data>
+  <data name='AlbumList_Context_Pin' xml:space='preserve'><value>ナビゲーションにピン留め</value></data>
+  <data name='AlbumList_Context_Delete' xml:space='preserve'><value>削除</value></data>
+  <data name='AlbumList_DeleteConfirm_Title' xml:space='preserve'><value>アルバムの削除</value></data>
+  <data name='AlbumList_DeleteConfirm_Content' xml:space='preserve'><value>このアルバムを削除してもよろしいですか？ 写真自体は削除されません。</value></data>
+  <data name='AlbumList_DeleteConfirm_Confirm' xml:space='preserve'><value>削除</value></data>
+  <data name='AllPhotos_DeleteConfirm_Title' xml:space='preserve'><value>写真を削除</value></data>
+  <data name='AllPhotos_DeleteConfirm_Content' xml:space='preserve'><value>選択した {0} 枚の写真をゴミ箱に移動しますか？</value></data>
+  <data name='AllPhotos_DeleteConfirm_Confirm' xml:space='preserve'><value>ゴミ箱へ</value></data>
+  <data name='AllPhotos_MoveToAlbum_Empty' xml:space='preserve'><value>アルバムがありません</value></data>
+  <data name='PhotoList_DeleteConfirm_Title' xml:space='preserve'><value>写真を削除</value></data>
+  <data name='PhotoList_DeleteConfirm_Content' xml:space='preserve'><value>選択した {0} 枚の写真をゴミ箱に移動しますか？</value></data>
+  <data name='PhotoList_DeleteConfirm_Confirm' xml:space='preserve'><value>ゴミ箱へ</value></data>
+  <data name='PhotoList_MoveToAlbum_Empty' xml:space='preserve'><value>他のアルバムがありません</value></data>
+  <data name='Search_ScopeHint' xml:space='preserve'><value>範囲: アルバム「{0}」</value></data>
+  <data name='Search_ResultCount_AlbumScope' xml:space='preserve'><value>アルバム「{0}」</value></data>
+  <data name='Search_ResultCount_AllScope' xml:space='preserve'><value>すべての写真</value></data>
+  <data name='Search_ResultCount_Text' xml:space='preserve'><value>{0} から {1} 枚の写真が見つかりました</value></data>
+  <data name='Search_Header_Album' xml:space='preserve'><value>検索 · {0}</value></data>
+  <data name='Search_Header_Default' xml:space='preserve'><value>検索</value></data>
+  <data name='Settings_ClearThumb_Title' xml:space='preserve'><value>サムネイルキャッシュのクリア</value></data>
+  <data name='Settings_ClearThumb_Content' xml:space='preserve'><value>すべてのサムネイルを削除します。必要に応じて再生成されます。</value></data>
+  <data name='Settings_ClearThumb_Confirm' xml:space='preserve'><value>クリア</value></data>
+  <data name='Settings_ClearDb_Title' xml:space='preserve'><value>データベースのクリア</value></data>
+  <data name='Settings_ClearDb_Content' xml:space='preserve'><value>これにより写真とサムネイルのデータベース記録がすべて削除されますが、アルバム構成と設定は保持されます。再スキャン後に写真が再表示されます。続行しますか？</value></data>
+  <data name='Settings_ClearDb_Confirm' xml:space='preserve'><value>クリア</value></data>
+  <data name='Settings_ClearAll_Title' xml:space='preserve'><value>全データの削除</value></data>
+  <data name='Settings_ClearAll_Content' xml:space='preserve'><value>すべて（インデックス、アルバム、サムネイル、設定）を削除し、アプリをリセットします。</value></data>
+  <data name='Settings_ClearAll_Confirm' xml:space='preserve'><value>リセット</value></data>
+  <data name='Settings_DoneSub_AllExist' xml:space='preserve'><value>すべての写真にサムネイルがあります</value></data>
+  <data name='Settings_DoneSub_Generated' xml:space='preserve'><value>合計 {0} 枚のサムネイルを生成しました</value></data>
+  <data name='PhotoDetail_Delete_DontAsk' xml:space='preserve'><value>次回から確認しない</value></data>
+  <data name='PhotoDetail_Delete_ConfirmText' xml:space='preserve'><value>「{0}」をゴミ箱に移動しますか？</value></data>
+  <data name='PhotoDetail_Delete_DialogTitle' xml:space='preserve'><value>写真の削除</value></data>
+  <data name='PhotoDetail_Delete_DialogConfirm' xml:space='preserve'><value>削除</value></data>
+  <data name='PhotoDetail_Toast_DisableConfirm' xml:space='preserve'><value>削除の確認を無効にしました。設定から再度有効にできます。</value></data>
+  <data name='PhotoDetail_Toast_DeleteFailed' xml:space='preserve'><value>削除に失敗しました。権限を確認してください。</value></data>
+  <data name='PhotoDetail_Toast_Deleted' xml:space='preserve'><value>写真「{0}」を削除しました</value></data>
+  <data name='PhotoDetail_Toast_UndoFailed' xml:space='preserve'><value>元に戻せませんでした。ファイルが移動された可能性があります。</value></data>
+  <data name='PhotoDetail_Toast_Restored' xml:space='preserve'><value>写真「{0}」を復元しました</value></data>
+  <data name='PhotoDetail_IndexPrompt_Title' xml:space='preserve'><value>アルバムに追加</value></data>
+  <data name='PhotoDetail_IndexPrompt_Message' xml:space='preserve'><value>現在のフォルダはスキャン対象外です。追加しますか？ インデックス後にナビゲーションが利用可能になります。</value></data>
+  <data name='PhotoDetail_IndexPrompt_Confirm' xml:space='preserve'><value>追加してインデックス</value></data>
+  <data name='PhotoDetail_IndexPrompt_Cancel' xml:space='preserve'><value>今はしない</value></data>
+  <data name='PhotoDetail_Toast_Indexing' xml:space='preserve'><value>フォルダを追加しました。インデックス中…</value></data>
+  <data name='PhotoDetail_Toast_IndexDone' xml:space='preserve'><value>インデックスが完了しました。ナビゲーションが利用可能です。</value></data>
+  <data name='PhotoDetail_Toast_FirstPhoto' xml:space='preserve'><value>最初の写真です</value></data>
+  <data name='PhotoDetail_Toast_LastPhoto' xml:space='preserve'><value>最後の写真です</value></data>
+  <data name='Settings_ThumbnailCacheSize_Computing' xml:space='preserve'><value>計算中…</value></data>
+  <data name='Settings_ThumbnailCacheSize_Unknown' xml:space='preserve'><value>不明</value></data>
+  <data name='Settings_ThumbnailExpanderDescription' xml:space='preserve'><value>{0} 枚のサムネイル、サイズ {1}</value></data>
+  <data name='Settings_ThumbProgress_Generated' xml:space='preserve'><value>{0} / {1} 生成済み</value></data>
+  <data name='Settings_ThumbProgress_Querying' xml:space='preserve'><value>照会中…</value></data>
+  <data name='Settings_ThumbStats' xml:space='preserve'><value>速度: {0:F1} 枚/秒  {1}</value></data>
+  <data name='Settings_Status_LanguageRestart' xml:space='preserve'><value>言語設定は再起動後に反映されます</value></data>
+  <data name='Settings_Status_FileAssocRegistered' xml:space='preserve'><value>ファイルの関連付けを登録しました</value></data>
+  <data name='Settings_Status_FileAssocUnregistered' xml:space='preserve'><value>ファイルの関連付けを解除しました</value></data>
+  <data name='Settings_Status_FileAssocFailed' xml:space='preserve'><value>関連付けに失敗しました: {0}</value></data>
+  <data name='Settings_Status_ThumbCacheCleared' xml:space='preserve'><value>サムネイルキャッシュをクリアしました</value></data>
+  <data name='Settings_Status_ClearFailed' xml:space='preserve'><value>クリアに失敗しました: {0}</value></data>
+  <data name='Settings_Status_DbCacheCleared' xml:space='preserve'><value>データベースをクリアしました。スキャン中…</value></data>
+  <data name='Settings_Status_AllDataCleared' xml:space='preserve'><value>すべてのデータを削除しました。</value></data>
+  <data name='Settings_Status_OpenThumbFolder_Failed' xml:space='preserve'><value>フォルダを開けませんでした: {0}</value></data>
+  <data name='Settings_Status_OpenLogsFolder_Failed' xml:space='preserve'><value>ログを表示できませんでした: {0}</value></data>
+  <data name='Settings_Status_GenerateThumbFailed' xml:space='preserve'><value>生成に失敗しました: {0}</value></data>
+  <data name='Settings_Status_RestartFailed' xml:space='preserve'><value>再起動できませんでした: {0}</value></data>
+  <data name='Settings_FormatEta_Sec' xml:space='preserve'><value>残り約 {0} 秒</value></data>
+  <data name='Settings_FormatEta_Min' xml:space='preserve'><value>約 {0} 分 {1} 秒</value></data>
+  <data name='Settings_FormatEta_Hour' xml:space='preserve'><value>約 {0} 時間 {1} 分</value></data>
+  <data name='SettingsPage_ScanSectionTitle.Text' xml:space='preserve'><value>スキャンフォルダ</value></data>
+  <data name='SettingsPage_ScanExpander.Header' xml:space='preserve'><value>スキャンフォルダ</value></data>
+  <data name='SettingsPage_ScanExpander.Description' xml:space='preserve'><value>アプリ起動時にスキャンされるフォルダ</value></data>
+  <data name='SettingsPage_AddScanDirButton.Content' xml:space='preserve'><value>+ フォルダを追加</value></data>
+  <data name='SettingsPage_RemoveScanDirButton.ToolTipService.ToolTip' xml:space='preserve'><value>このフォルダを削除</value></data>
+  <data name='SettingsPage_ExcludeExpander.Header' xml:space='preserve'><value>除外フォルダ</value></data>
+  <data name='SettingsPage_ExcludeExpander.Description' xml:space='preserve'><value>スキャン時に無視されるフォルダ</value></data>
+  <data name='SettingsPage_AddExcludeDirButton.Content' xml:space='preserve'><value>+ フォルダを除外</value></data>
+  <data name='SettingsPage_RemoveExcludeDirButton.ToolTipService.ToolTip' xml:space='preserve'><value>除外を解除</value></data>
+  <data name='SettingsPage_AppearanceSectionTitle.Text' xml:space='preserve'><value>外観</value></data>
+  <data name='SettingsPage_LanguageCard.Header' xml:space='preserve'><value>言語</value></data>
+  <data name='SettingsPage_LanguageCard.Description' xml:space='preserve'><value>変更を適用するには再起動が必要です</value></data>
+  <data name='SettingsPage_Language_System.Content' xml:space='preserve'><value>システム設定を使用</value></data>
+  <data name='SettingsPage_Language_English.Content' xml:space='preserve'><value>English</value></data>
+  <data name='SettingsPage_Language_ZhHans.Content' xml:space='preserve'><value>简体中文 (中国語)</value></data>
+  <data name='SettingsPage_Language_JaJp.Content' xml:space='preserve'><value>日本語</value></data>
+  <data name='SettingsPage_Language_KoKr.Content' xml:space='preserve'><value>한국어 (韓国語)</value></data>
+  <data name='SettingsPage_Language_DeDe.Content' xml:space='preserve'><value>Deutsch (ドイツ語)</value></data>
+  <data name='SettingsPage_Language_FrFr.Content' xml:space='preserve'><value>Français (フランス語)</value></data>
+  <data name='SettingsPage_Language_EsEs.Content' xml:space='preserve'><value>Español (スペイン語)</value></data>
+  <data name='SettingsPage_ThemeCard.Header' xml:space='preserve'><value>テーマ</value></data>
+  <data name='SettingsPage_ThemeCard.Description' xml:space='preserve'><value>即座に適用されます</value></data>
+  <data name='SettingsPage_Theme_System.Content' xml:space='preserve'><value>システム設定を使用</value></data>
+  <data name='SettingsPage_Theme_Light.Content' xml:space='preserve'><value>ライト</value></data>
+  <data name='SettingsPage_Theme_Dark.Content' xml:space='preserve'><value>ダーク</value></data>
+  <data name='SettingsPage_AcrylicCard.Header' xml:space='preserve'><value>Acrylic 素材を使用</value></data>
+  <data name='SettingsPage_AcrylicCard.Description' xml:space='preserve'><value>Mica の代わりに Acrylic を使用します</value></data>
+  <data name='SettingsPage_BehaviorSectionTitle.Text' xml:space='preserve'><value>動作</value></data>
+  <data name='SettingsPage_ConfirmDeleteCard.Header' xml:space='preserve'><value>削除の確認</value></data>
+  <data name='SettingsPage_ConfirmDeleteCard.Description' xml:space='preserve'><value>ゴミ箱に移動する前に確認を表示します</value></data>
+  <data name='SettingsPage_FileAssocCard.Header' xml:space='preserve'><value>ファイルの関連付け</value></data>
+  <data name='SettingsPage_FileAssocCard.Description' xml:space='preserve'><value>JPG, PNG, HEIC などをこのユーザーに関連付けます</value></data>
+  <data name='SettingsPage_CacheSectionTitle.Text' xml:space='preserve'><value>キャッシュとデータ</value></data>
+  <data name='SettingsPage_ThumbnailExpander.Header' xml:space='preserve'><value>サムネイル</value></data>
+  <data name='SettingsPage_OpenThumbFolderCard.Header' xml:space='preserve'><value>サムネイルフォルダを開く</value></data>
+  <data name='SettingsPage_OpenFolderButton.Content' xml:space='preserve'><value>フォルダを開く</value></data>
+  <data name='SettingsPage_RegenerateThumbCard.Header' xml:space='preserve'><value>サムネイルの再生成</value></data>
+  <data name='SettingsPage_RegenerateThumbCard.Description' xml:space='preserve'><value>不足しているサムネイルを生成します</value></data>
+  <data name='SettingsPage_GenerateNowButton.Content' xml:space='preserve'><value>今すぐ生成</value></data>
+  <data name='SettingsPage_CancelThumbBuildButton.Content' xml:space='preserve'><value>キャンセル</value></data>
+  <data name='SettingsPage_ThumbDoneTitle.Text' xml:space='preserve'><value>完了！</value></data>
+  <data name='SettingsPage_ClearThumbCard.Header' xml:space='preserve'><value>キャッシュをクリア</value></data>
+  <data name='SettingsPage_ClearThumbButton.Content' xml:space='preserve'><value>クリア</value></data>
+  <data name='SettingsPage_ClearDbCard.Header' xml:space='preserve'><value>インデックスをクリア</value></data>
+  <data name='SettingsPage_ClearDbButton.Content' xml:space='preserve'><value>インデックスをクリア</value></data>
+  <data name='SettingsPage_OpenLogsFolderCard.Header' xml:space='preserve'><value>ログ</value></data>
+  <data name='SettingsPage_OpenLogsButton.Content' xml:space='preserve'><value>ログを表示</value></data>
+  <data name='SettingsPage_ClearAllCard.Header' xml:space='preserve'><value>すべて削除</value></data>
+  <data name='SettingsPage_ClearAllButton.Content' xml:space='preserve'><value>すべて削除</value></data>
+  <data name='SettingsPage_PerfSectionTitle.Text' xml:space='preserve'><value>パフォーマンス</value></data>
+  <data name='SettingsPage_PreloadExpander.Header' xml:space='preserve'><value>プリロード</value></data>
+  <data name='SettingsPage_PreloadBackCard.Header' xml:space='preserve'><value>前の写真をプリロード</value></data>
+  <data name='SettingsPage_PreloadForwardCard.Header' xml:space='preserve'><value>次の写真をプリロード</value></data>
+  <data name='SettingsPage_ThumbSizeCard.Header' xml:space='preserve'><value>サムネイルのサイズ</value></data>
+  <data name='SettingsPage_ThumbSizeUnit.Text' xml:space='preserve'><value> px</value></data>
+  <data name='SettingsPage_ThumbSizeHint.Title' xml:space='preserve'><value>サイズが変更されました</value></data>
+  <data name='SettingsPage_ThumbSizeHintAction.Content' xml:space='preserve'><value>今すぐクリア</value></data>
+  <data name='SettingsPage_RestartNowAction.Content' xml:space='preserve'><value>再起動</value></data>
+  <data name='SettingsPage_DebugSectionTitle.Text' xml:space='preserve'><value>デバッグ</value></data>
+  <data name='SettingsPage_ForceGcCard.Header' xml:space='preserve'><value>メモリ解放 (GC)</value></data>
+  <data name='SettingsPage_ForceGcButton.Content' xml:space='preserve'><value>今すぐ実行</value></data>
+  <data name='SettingsPage_ShowCardSizeToastCard.Header' xml:space='preserve'><value>ズーム時にサイズを表示</value></data>
+  <data name='SettingsPage_ShowPreloadStatusCard.Header' xml:space='preserve'><value>プリロード状況を表示</value></data>
+  <data name='SettingsPage_DebugKeepChromeCard.Header' xml:space='preserve'><value>バーを常に表示</value></data>
+  <data name='SettingsPage_AboutSectionTitle.Text' xml:space='preserve'><value>バージョン情報</value></data>
+  <data name='SettingsPage_RepoCard.Header' xml:space='preserve'><value>オープンソース リポジトリ</value></data>
+  <data name='SettingsPage_RepoLink.Content' xml:space='preserve'><value>GitHub で表示</value></data>
+  <data name='SettingsPage_LicenseCard.Header' xml:space='preserve'><value>サードパーティ ライセンス</value></data>
+  <data name='NavItem_Albums.Content' xml:space='preserve'><value>アルバム</value></data>
+  <data name='NavItem_AllPhotos.Content' xml:space='preserve'><value>すべての写真</value></data>
+  <data name='NavItem_Settings.Content' xml:space='preserve'><value>設定</value></data>
+  <data name='MainWindow_AlbumsNavItem.Content' xml:space='preserve'><value>アルバム</value></data>
+  <data name='MainWindow_AllPhotosNavItem.Content' xml:space='preserve'><value>すべての写真</value></data>
+  <data name='MainWindow_SearchNavItem.Content' xml:space='preserve'><value>検索</value></data>
+  <data name='MainWindow_SettingsNavItem.Content' xml:space='preserve'><value>設定</value></data>
+  <data name='MainWindow_DevWarnMuteButton.Content' xml:space='preserve'><value>このセッションでは表示しない</value></data>
+  <data name='AlbumList_Title' xml:space='preserve'><value>アルバム</value></data>
+  <data name='AlbumList_CreateButton_Text' xml:space='preserve'><value>新しいアルバム</value></data>
+  <data name='AlbumList_DeleteDialog_Title' xml:space='preserve'><value>アルバムの削除</value></data>
+  <data name='AlbumList_DeleteDialog_Content' xml:space='preserve'><value>このアルバムを削除しますか？ 中の写真は削除されません。</value></data>
+  <data name='AlbumCard_PhotoCountSuffix.Text' xml:space='preserve'><value> 枚の写真</value></data>
+  <data name='AlbumList_CreateAlbumButton.Label' xml:space='preserve'><value>新しいアルバム</value></data>
+  <data name='AlbumList_SortButton.Label' xml:space='preserve'><value>並べ替え</value></data>
+  <data name='AlbumList_SortByName.Text' xml:space='preserve'><value>名前</value></data>
+  <data name='AlbumList_SortByCreated.Text' xml:space='preserve'><value>作成日時</value></data>
+  <data name='AlbumList_SortByModified.Text' xml:space='preserve'><value>更新日時</value></data>
+  <data name='AlbumList_SortByTakenAt.Text' xml:space='preserve'><value>撮影日時</value></data>
+  <data name='AlbumList_SortByPhotoCount.Text' xml:space='preserve'><value>写真数</value></data>
+  <data name='AlbumList_SortDescToggle.Text' xml:space='preserve'><value>昇順</value></data>
+  <data name='AlbumList_ZoomInButton.Label' xml:space='preserve'><value>拡大</value></data>
+  <data name='AlbumList_ZoomOutButton.Label' xml:space='preserve'><value>縮小</value></data>
+  <data name='AlbumList_EmptyTitle.Text' xml:space='preserve'><value>まだアルバムがありません</value></data>
+  <data name='AlbumList_EmptySubtitle.Text' xml:space='preserve'><value>「新しいアルバム」をクリックして最初のアルバムを作成してください</value></data>
+  <data name='PhotoList_AddPhotos_Text' xml:space='preserve'><value>写真を追加</value></data>
+  <data name='PhotoList_Delete_Text' xml:space='preserve'><value>削除</value></data>
+  <data name='PhotoList_MoveToAlbum_Text' xml:space='preserve'><value>アルバムへ移動</value></data>
+  <data name='AllPhotos_MultiSelectToggle.Label' xml:space='preserve'><value>複数選択</value></data>
+  <data name='AllPhotos_DeleteButton.Label' xml:space='preserve'><value>削除</value></data>
+  <data name='AllPhotos_MoveToAlbumButton.Label' xml:space='preserve'><value>アルバムへ移動</value></data>
+  <data name='AllPhotos_SortButton.Label' xml:space='preserve'><value>並べ替え</value></data>
+  <data name='AllPhotos_SortByName.Text' xml:space='preserve'><value>ファイル名</value></data>
+  <data name='AllPhotos_SortBySize.Text' xml:space='preserve'><value>ファイルサイズ</value></data>
+  <data name='AllPhotos_SortByCreated.Text' xml:space='preserve'><value>作成日時</value></data>
+  <data name='AllPhotos_SortByModified.Text' xml:space='preserve'><value>更新日時</value></data>
+  <data name='AllPhotos_SortByTakenAt.Text' xml:space='preserve'><value>撮影日時</value></data>
+  <data name='AllPhotos_SortDescToggle.Text' xml:space='preserve'><value>昇順</value></data>
+  <data name='AllPhotos_ZoomInButton.Label' xml:space='preserve'><value>拡大</value></data>
+  <data name='SettingsPage_ClearThumbCard.Description' xml:space='preserve'><value>キャッシュされたサムネイルをすべて削除します</value></data>
+  <data name='SettingsPage_ClearDbCard.Description' xml:space='preserve'><value>写真とサムネイルのデータベース記録をすべて削除します</value></data>
+  <data name='SettingsPage_LogsCard.Header' xml:space='preserve'><value>ログ</value></data>
+  <data name='SettingsPage_LogsCard.Description' xml:space='preserve'><value>アプリのログを開くか管理します</value></data>
+  <data name='SettingsPage_ClearAllCard.Description' xml:space='preserve'><value>データ、アルバム、サムネイル、設定をすべて削除します</value></data>
+  <data name='SettingsPage_PreloadExpander.Description' xml:space='preserve'><value>フィルムストリップを先読みしてプレビューを高速化します</value></data>
+  <data name='SettingsPage_PreloadBackCard.Description' xml:space='preserve'><value>前の写真をバックグラウンドで先読みします</value></data>
+  <data name='SettingsPage_PreloadForwardCard.Description' xml:space='preserve'><value>次の写真をバックグラウンドで先読みします</value></data>
+  <data name='SettingsPage_ThumbSizeCard.Description' xml:space='preserve'><value>サムネイルのサイズを調整します</value></data>
+  <data name='SettingsPage_ThumbSizeHint.Message' xml:space='preserve'><value>大きいサムネイルは、より多くのメモリと読み込み時間を必要とする場合があります。</value></data>
+  <data name='SettingsPage_ForceGcCard.Description' xml:space='preserve'><value>メモリを解放するために GC を強制します</value></data>
+  <data name='SettingsPage_ShowPreloadStatusCard.Description' xml:space='preserve'><value>プリロード状態を UI に表示します</value></data>
+  <data name='SettingsPage_DebugKeepChromeCard.Description' xml:space='preserve'><value>解析用に Chromium のデバッグデータを保持します</value></data>
+  <data name='SettingsPage_AppInfoCard.Description' xml:space='preserve'><value>バージョン、ランタイム、アプリ情報を表示します</value></data>
+  <data name='SettingsPage_RepoCard.Description' xml:space='preserve'><value>プロジェクトのソースコードとリポジトリを開きます</value></data>
+</root>

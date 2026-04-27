@@ -125,6 +125,10 @@ make install INSTALL_DIR="C:\Apps\FluentGallery"
 
 ## TODO
 
+
+[] 触屏拖动图片又失效了。触屏逻辑和鼠标拖动图片逻辑没有一起处理吗
+[] 鼠标拖动 heic 图片会掉帧
+
 图片旋转还有 bug
 
 [] 支持多种格式 mp4 mov heic heif gif bmp 透明底

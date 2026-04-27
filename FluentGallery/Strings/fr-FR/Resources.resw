@@ -1,0 +1,338 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name='AllPhotos_SearchToggle.Label' xml:space='preserve'><value>Recherche</value></data>
+  <data name='AllPhotos_KeywordLabel.Text' xml:space='preserve'><value>Nom du fichier</value></data>
+  <data name='AllPhotos_KeywordBox.PlaceholderText' xml:space='preserve'><value>Entrer des mots-clés...</value></data>
+  <data name='AllPhotos_DateFromLabel.Text' xml:space='preserve'><value>Date de début</value></data>
+  <data name='AllPhotos_DateToLabel.Text' xml:space='preserve'><value>Date de fin</value></data>
+  <data name='AllPhotos_SearchButton.Content' xml:space='preserve'><value>Chercher</value></data>
+  <data name='AllPhotos_ClearButton.Content' xml:space='preserve'><value>Effacer</value></data>
+  <data name='AllPhotos_EmptyTitle.Text' xml:space='preserve'><value>Aucune photo</value></data>
+  <data name='AllPhotos_EmptySubtitle.Text' xml:space='preserve'><value>Aucune photo correspondante trouvée</value></data>
+  <data name='PhotoList_AddPhotosButton.Label' xml:space='preserve'><value>Ajouter des photos</value></data>
+  <data name='PhotoList_DeleteButton.Label' xml:space='preserve'><value>Supprimer</value></data>
+  <data name='PhotoList_MoveToAlbumButton.Label' xml:space='preserve'><value>Déplacer vers l'album</value></data>
+  <data name='PhotoList_RenameAlbumButton.Label' xml:space='preserve'><value>Renommer</value></data>
+  <data name='PhotoList_SortButton.Label' xml:space='preserve'><value>Trier</value></data>
+  <data name='PhotoList_SortByName.Text' xml:space='preserve'><value>Nom du fichier</value></data>
+  <data name='PhotoList_SortBySize.Text' xml:space='preserve'><value>Taille du fichier</value></data>
+  <data name='PhotoList_SortByCreated.Text' xml:space='preserve'><value>Date de création</value></data>
+  <data name='PhotoList_SortByModified.Text' xml:space='preserve'><value>Date de modification</value></data>
+  <data name='PhotoList_SortByTakenAt.Text' xml:space='preserve'><value>Date de prise de vue</value></data>
+  <data name='PhotoList_SortDescToggle.Text' xml:space='preserve'><value>Ordre croissant</value></data>
+  <data name='PhotoList_MultiSelectToggle.Label' xml:space='preserve'><value>Sélection multiple</value></data>
+  <data name='PhotoList_ZoomInButton.Label' xml:space='preserve'><value>Agrandir</value></data>
+  <data name='PhotoList_ZoomOutButton.Label' xml:space='preserve'><value>Réduire</value></data>
+  <data name='PhotoList_SearchButton.Label' xml:space='preserve'><value>Recherche</value></data>
+  <data name='PhotoList_EmptyTitle.Text' xml:space='preserve'><value>Aucune photo dans l'album</value></data>
+  <data name='PhotoList_EmptySubtitle.Text' xml:space='preserve'><value>Cliquez sur "Ajouter des photos" pour remplir cet album</value></data>
+  <data name='PhotoDetail_FileNotFound' xml:space='preserve'><value>Le fichier a été déplacé ou supprimé.</value></data>
+  <data name='PhotoDetail_HeicNotSupported' xml:space='preserve'><value>Le format HEIC nécessite les extensions vidéo HEVC. Cliquez ici pour les installer depuis le Microsoft Store.</value></data>
+  <data name='PhotoDetail_ToastUndoText.Text' xml:space='preserve'><value>Annuler</value></data>
+  <data name='PhotoDetail_InfoTitle.Text' xml:space='preserve'><value>Informations sur la photo</value></data>
+  <data name='PhotoDetail_FileNameLabel.Text' xml:space='preserve'><value>Nom du fichier</value></data>
+  <data name='PhotoDetail_PathLabel.Text' xml:space='preserve'><value>Chemin</value></data>
+  <data name='PhotoDetail_FileSizeLabel.Text' xml:space='preserve'><value>Taille du fichier</value></data>
+  <data name='PhotoDetail_ResolutionLabel.Text' xml:space='preserve'><value>Résolution</value></data>
+  <data name='PhotoDetail_CreatedAtLabel.Text' xml:space='preserve'><value>Date de création</value></data>
+  <data name='PhotoDetail_ModifiedAtLabel.Text' xml:space='preserve'><value>Date de modification</value></data>
+  <data name='PhotoDetail_TakenAtLabel.Text' xml:space='preserve'><value>Date de prise de vue</value></data>
+  <data name='PhotoDetail_CameraLabel.Text' xml:space='preserve'><value>Appareil photo</value></data>
+  <data name='PhotoDetail_LensLabel.Text' xml:space='preserve'><value>Objectif</value></data>
+  <data name='PhotoDetail_ApertureLabel.Text' xml:space='preserve'><value>Ouverture</value></data>
+  <data name='PhotoDetail_ShutterLabel.Text' xml:space='preserve'><value>Vitesse d'obturation</value></data>
+  <data name='PhotoDetail_IsoLabel.Text' xml:space='preserve'><value>ISO</value></data>
+  <data name='PhotoDetail_FocalLengthLabel.Text' xml:space='preserve'><value>Distance focale</value></data>
+  <data name='PhotoDetail_ColorSpaceLabel.Text' xml:space='preserve'><value>Espace colorimétrique</value></data>
+  <data name='PhotoDetail_BitDepthLabel.Text' xml:space='preserve'><value>Profondeur de bits</value></data>
+  <data name='PhotoDetail_OrientationLabel.Text' xml:space='preserve'><value>Orientation</value></data>
+  <data name='PhotoDetail_GpsLabel.Text' xml:space='preserve'><value>Coordonnées GPS</value></data>
+  <data name='PhotoDetail_GifDurationFramesLabel.Text' xml:space='preserve'><value>Durée / Images</value></data>
+  <data name='PhotoDetail_GifFrameRateLabel.Text' xml:space='preserve'><value>Fréquence d'images</value></data>
+  <data name='AllPhotos_Title' xml:space='preserve'><value>Toutes les photos</value></data>
+  <data name='AllPhotos_SearchPlaceholder' xml:space='preserve'><value>Rechercher par nom…</value></data>
+  <data name='Search_KeywordLabel.Text' xml:space='preserve'><value>Nom du fichier</value></data>
+  <data name='Search_KeywordBox.PlaceholderText' xml:space='preserve'><value>Mots-clés (recherche floue supportée)</value></data>
+  <data name='Search_DateFieldLabel.Text' xml:space='preserve'><value>Champ de date</value></data>
+  <data name='Search_DateFieldTakenAt.Content' xml:space='preserve'><value>Date de prise</value></data>
+  <data name='Search_DateFieldModifiedAt.Content' xml:space='preserve'><value>Date de modification</value></data>
+  <data name='Search_DateFieldCreatedAt.Content' xml:space='preserve'><value>Date de création</value></data>
+  <data name='Search_DateFromLabel.Text' xml:space='preserve'><value>Du</value></data>
+  <data name='Search_DateFromPicker.PlaceholderText' xml:space='preserve'><value>Date de début</value></data>
+  <data name='Search_DateToLabel.Text' xml:space='preserve'><value>Au</value></data>
+  <data name='Search_DateToPicker.PlaceholderText' xml:space='preserve'><value>Date de fin</value></data>
+  <data name='Search_ClearDatesButton.Content' xml:space='preserve'><value>Effacer les dates</value></data>
+  <data name='Search_SearchButton.Content' xml:space='preserve'><value>Rechercher</value></data>
+  <data name='Search_EmptyTitle.Text' xml:space='preserve'><value>Aucune photo trouvée</value></data>
+  <data name='Search_EmptySubtitle.Text' xml:space='preserve'><value>Essayez d'autres mots-clés ou modifiez la période</value></data>
+  <data name='Search_PromptText.Text' xml:space='preserve'><value>Entrez des mots-clés ou une période et cliquez sur "Rechercher"</value></data>
+  <data name='Settings_Title' xml:space='preserve'><value>Paramètres</value></data>
+  <data name='Settings_ScanDirectories_Header' xml:space='preserve'><value>Répertoires d'analyse</value></data>
+  <data name='Settings_Appearance_Header' xml:space='preserve'><value>Apparence</value></data>
+  <data name='Settings_Behavior_Header' xml:space='preserve'><value>Comportement</value></data>
+  <data name='Settings_CacheData_Header' xml:space='preserve'><value>Cache et données</value></data>
+  <data name='Settings_About_Header' xml:space='preserve'><value>À propos</value></data>
+  <data name='Common_OK' xml:space='preserve'><value>OK</value></data>
+  <data name='Common_Cancel' xml:space='preserve'><value>Annuler</value></data>
+  <data name='Common_Delete' xml:space='preserve'><value>Supprimer</value></data>
+  <data name='Common_Rename' xml:space='preserve'><value>Renommer</value></data>
+  <data name='Common_Scanning' xml:space='preserve'><value>Analyse en cours…</value></data>
+  <data name='IndexPrompt_TitleTextBlock.Text' xml:space='preserve'><value>Indexer ce dossier ?</value></data>
+  <data name='IndexPrompt_CancelButton.Content' xml:space='preserve'><value>Pas maintenant</value></data>
+  <data name='IndexPrompt_ConfirmButton.Content' xml:space='preserve'><value>Ajouter et indexer</value></data>
+  <data name='MainWindow_Context_Unpin' xml:space='preserve'><value>Retirer de la navigation</value></data>
+  <data name='AlbumList_CreateAlbum_Placeholder' xml:space='preserve'><value>Nom de l'album</value></data>
+  <data name='AlbumList_CreateAlbum_Title' xml:space='preserve'><value>Nouvel album</value></data>
+  <data name='AlbumList_CreateAlbum_Confirm' xml:space='preserve'><value>Créer</value></data>
+  <data name='AlbumList_Context_Rename' xml:space='preserve'><value>Renommer</value></data>
+  <data name='AlbumList_Context_Unpin' xml:space='preserve'><value>Retirer de la navigation</value></data>
+  <data name='AlbumList_Context_Pin' xml:space='preserve'><value>Épingler à la navigation</value></data>
+  <data name='AlbumList_Context_Delete' xml:space='preserve'><value>Supprimer</value></data>
+  <data name='AlbumList_DeleteConfirm_Title' xml:space='preserve'><value>Supprimer l'album</value></data>
+  <data name='AlbumList_DeleteConfirm_Content' xml:space='preserve'><value>Voulez-vous vraiment supprimer cet album ? Les photos ne seront pas supprimées.</value></data>
+  <data name='AlbumList_DeleteConfirm_Confirm' xml:space='preserve'><value>Supprimer</value></data>
+  <data name='AllPhotos_DeleteConfirm_Title' xml:space='preserve'><value>Supprimer les photos</value></data>
+  <data name='AllPhotos_DeleteConfirm_Content' xml:space='preserve'><value>Déplacer les {0} photos sélectionnées vers la corbeille ?</value></data>
+  <data name='AllPhotos_DeleteConfirm_Confirm' xml:space='preserve'><value>Corbeille</value></data>
+  <data name='AllPhotos_MoveToAlbum_Empty' xml:space='preserve'><value>Aucun album</value></data>
+  <data name='PhotoList_DeleteConfirm_Title' xml:space='preserve'><value>Supprimer les photos</value></data>
+  <data name='PhotoList_DeleteConfirm_Content' xml:space='preserve'><value>Déplacer les {0} photos sélectionnées vers la corbeille ?</value></data>
+  <data name='PhotoList_DeleteConfirm_Confirm' xml:space='preserve'><value>Corbeille</value></data>
+  <data name='PhotoList_MoveToAlbum_Empty' xml:space='preserve'><value>Aucun autre album</value></data>
+  <data name='Search_ScopeHint' xml:space='preserve'><value>Portée : Album "{0}"</value></data>
+  <data name='Search_ResultCount_AlbumScope' xml:space='preserve'><value>Album "{0}"</value></data>
+  <data name='Search_ResultCount_AllScope' xml:space='preserve'><value>Toutes les photos</value></data>
+  <data name='Search_ResultCount_Text' xml:space='preserve'><value>{1} photos trouvées dans {0}</value></data>
+  <data name='Search_Header_Album' xml:space='preserve'><value>Recherche · {0}</value></data>
+  <data name='Search_Header_Default' xml:space='preserve'><value>Recherche</value></data>
+  <data name='Settings_ClearThumb_Title' xml:space='preserve'><value>Vider le cache des miniatures</value></data>
+  <data name='Settings_ClearThumb_Content' xml:space='preserve'><value>Cela supprimera toutes les miniatures. Elles seront régénérées si nécessaire. Continuer ?</value></data>
+  <data name='Settings_ClearThumb_Confirm' xml:space='preserve'><value>Vider</value></data>
+  <data name='Settings_ClearDb_Title' xml:space='preserve'><value>Vider la base de données</value></data>
+  <data name='Settings_ClearDb_Content' xml:space='preserve'><value>Cela supprimera l'index, mais conservera les albums et les paramètres. Les photos réapparaîtront après une nouvelle analyse. Continuer ?</value></data>
+  <data name='Settings_ClearDb_Confirm' xml:space='preserve'><value>Vider</value></data>
+  <data name='Settings_ClearAll_Title' xml:space='preserve'><value>Supprimer toutes les données</value></data>
+  <data name='Settings_ClearAll_Content' xml:space='preserve'><value>Cela supprimera tout (index, albums, miniatures, paramètres) et réinitialisera l'application. Cette opération est irréversible. Continuer ?</value></data>
+  <data name='Settings_ClearAll_Confirm' xml:space='preserve'><value>Réinitialiser</value></data>
+  <data name='Settings_DoneSub_AllExist' xml:space='preserve'><value>Toutes les photos ont déjà des miniatures</value></data>
+  <data name='Settings_DoneSub_Generated' xml:space='preserve'><value>{0} miniatures générées au total</value></data>
+  <data name='PhotoDetail_Delete_DontAsk' xml:space='preserve'><value>Ne plus demander</value></data>
+  <data name='PhotoDetail_Delete_ConfirmText' xml:space='preserve'><value>Déplacer "{0}" vers la corbeille ?</value></data>
+  <data name='PhotoDetail_Delete_DialogTitle' xml:space='preserve'><value>Supprimer la photo</value></data>
+  <data name='PhotoDetail_Delete_DialogConfirm' xml:space='preserve'><value>Supprimer</value></data>
+  <data name='PhotoDetail_Toast_DisableConfirm' xml:space='preserve'><value>Confirmation de suppression désactivée. Peut être réactivée dans les paramètres.</value></data>
+  <data name='PhotoDetail_Toast_DeleteFailed' xml:space='preserve'><value>Échec de la suppression. Vérifiez les permissions.</value></data>
+  <data name='PhotoDetail_Toast_Deleted' xml:space='preserve'><value>Photo "{0}" supprimée</value></data>
+  <data name='PhotoDetail_Toast_UndoFailed' xml:space='preserve'><value>Échec de la restauration. Le fichier a peut-être été déplacé.</value></data>
+  <data name='PhotoDetail_Toast_Restored' xml:space='preserve'><value>Photo "{0}" restaurée</value></data>
+  <data name='PhotoDetail_IndexPrompt_Title' xml:space='preserve'><value>Ajouter aux albums</value></data>
+  <data name='PhotoDetail_IndexPrompt_Message' xml:space='preserve'><value>Le dossier actuel n'est pas analysé. L'ajouter ? La barre de navigation sera disponible après l'indexation.</value></data>
+  <data name='PhotoDetail_IndexPrompt_Confirm' xml:space='preserve'><value>Ajouter et indexer</value></data>
+  <data name='PhotoDetail_IndexPrompt_Cancel' xml:space='preserve'><value>Pas maintenant</value></data>
+  <data name='PhotoDetail_Toast_Indexing' xml:space='preserve'><value>Dossier ajouté. Indexation…</value></data>
+  <data name='PhotoDetail_Toast_IndexDone' xml:space='preserve'><value>Indexation terminée. Barre disponible.</value></data>
+  <data name='PhotoDetail_Toast_FirstPhoto' xml:space='preserve'><value>C'est déjà la première photo</value></data>
+  <data name='PhotoDetail_Toast_LastPhoto' xml:space='preserve'><value>C'est déjà la dernière photo</value></data>
+  <data name='Settings_ThumbnailCacheSize_Computing' xml:space='preserve'><value>Calcul en cours…</value></data>
+  <data name='Settings_ThumbnailCacheSize_Unknown' xml:space='preserve'><value>Inconnu</value></data>
+  <data name='Settings_ThumbnailExpanderDescription' xml:space='preserve'><value>{0} miniatures, taille {1}</value></data>
+  <data name='Settings_ThumbProgress_Generated' xml:space='preserve'><value>{0} / {1} générées</value></data>
+  <data name='Settings_ThumbProgress_Querying' xml:space='preserve'><value>Recherche…</value></data>
+  <data name='Settings_ThumbStats' xml:space='preserve'><value>Vites. : {0:F1}/s  {1}</value></data>
+  <data name='Settings_Status_LanguageRestart' xml:space='preserve'><value>La langue sera appliquée après le redémarrage</value></data>
+  <data name='Settings_Status_FileAssocRegistered' xml:space='preserve'><value>Associations de fichiers enregistrées</value></data>
+  <data name='Settings_Status_FileAssocUnregistered' xml:space='preserve'><value>Associations de fichiers supprimées</value></data>
+  <data name='Settings_Status_FileAssocFailed' xml:space='preserve'><value>Échec de l'association : {0}</value></data>
+  <data name='Settings_Status_ThumbCacheCleared' xml:space='preserve'><value>Cache des miniatures vidé</value></data>
+  <data name='Settings_Status_ClearFailed' xml:space='preserve'><value>Échec du vidage : {0}</value></data>
+  <data name='Settings_Status_DbCacheCleared' xml:space='preserve'><value>Base de données vidée. Analyse en cours…</value></data>
+  <data name='Settings_Status_AllDataCleared' xml:space='preserve'><value>Toutes les données supprimées.</value></data>
+  <data name='Settings_Status_OpenThumbFolder_Failed' xml:space='preserve'><value>Impossible d'ouvrir le dossier : {0}</value></data>
+  <data name='Settings_Status_OpenLogsFolder_Failed' xml:space='preserve'><value>Impossible d'afficher les logs : {0}</value></data>
+  <data name='Settings_Status_GenerateThumbFailed' xml:space='preserve'><value>Échec de la génération : {0}</value></data>
+  <data name='Settings_Status_RestartFailed' xml:space='preserve'><value>Impossible de redémarrer : {0}</value></data>
+  <data name='Settings_FormatEta_Sec' xml:space='preserve'><value>Environ {0} s restantes</value></data>
+  <data name='Settings_FormatEta_Min' xml:space='preserve'><value>Env. {0} m {1} s</value></data>
+  <data name='Settings_FormatEta_Hour' xml:space='preserve'><value>Env. {0} h {1} m</value></data>
+  <data name='SettingsPage_ScanSectionTitle.Text' xml:space='preserve'><value>Dossiers d'analyse</value></data>
+  <data name='SettingsPage_ScanExpander.Header' xml:space='preserve'><value>Dossiers d'analyse</value></data>
+  <data name='SettingsPage_ScanExpander.Description' xml:space='preserve'><value>Dossiers analysés au démarrage de l'application</value></data>
+  <data name='SettingsPage_AddScanDirButton.Content' xml:space='preserve'><value>+ Ajouter un dossier</value></data>
+  <data name='SettingsPage_RemoveScanDirButton.ToolTipService.ToolTip' xml:space='preserve'><value>Supprimer ce dossier</value></data>
+  <data name='SettingsPage_ExcludeExpander.Header' xml:space='preserve'><value>Dossiers exclus</value></data>
+  <data name='SettingsPage_ExcludeExpander.Description' xml:space='preserve'><value>Ignorer ces dossiers lors de l'analyse</value></data>
+  <data name='SettingsPage_AddExcludeDirButton.Content' xml:space='preserve'><value>+ Exclure un dossier</value></data>
+  <data name='SettingsPage_RemoveExcludeDirButton.ToolTipService.ToolTip' xml:space='preserve'><value>Supprimer l'exclusion</value></data>
+  <data name='SettingsPage_AppearanceSectionTitle.Text' xml:space='preserve'><value>Apparence</value></data>
+  <data name='SettingsPage_LanguageCard.Header' xml:space='preserve'><value>Langue</value></data>
+  <data name='SettingsPage_LanguageCard.Description' xml:space='preserve'><value>Redémarrage requis après modification</value></data>
+  <data name='SettingsPage_Language_System.Content' xml:space='preserve'><value>Système</value></data>
+  <data name='SettingsPage_Language_English.Content' xml:space='preserve'><value>English</value></data>
+  <data name='SettingsPage_Language_ZhHans.Content' xml:space='preserve'><value>简体中文</value></data>
+  <data name='SettingsPage_Language_JaJp.Content' xml:space='preserve'><value>日本語</value></data>
+  <data name='SettingsPage_Language_KoKr.Content' xml:space='preserve'><value>한국어</value></data>
+  <data name='SettingsPage_Language_DeDe.Content' xml:space='preserve'><value>Deutsch</value></data>
+  <data name='SettingsPage_Language_FrFr.Content' xml:space='preserve'><value>Français</value></data>
+  <data name='SettingsPage_Language_EsEs.Content' xml:space='preserve'><value>Español</value></data>
+  <data name='SettingsPage_ThemeCard.Header' xml:space='preserve'><value>Thème</value></data>
+  <data name='SettingsPage_ThemeCard.Description' xml:space='preserve'><value>Appliqué immédiatement</value></data>
+  <data name='SettingsPage_Theme_System.Content' xml:space='preserve'><value>Système</value></data>
+  <data name='SettingsPage_Theme_Light.Content' xml:space='preserve'><value>Clair</value></data>
+  <data name='SettingsPage_Theme_Dark.Content' xml:space='preserve'><value>Sombre</value></data>
+  <data name='SettingsPage_AcrylicCard.Header' xml:space='preserve'><value>Matériau Acrylique</value></data>
+  <data name='SettingsPage_AcrylicCard.Description' xml:space='preserve'><value>Utiliser Acrylique au lieu de Mica</value></data>
+  <data name='SettingsPage_BehaviorSectionTitle.Text' xml:space='preserve'><value>Comportement</value></data>
+  <data name='SettingsPage_ConfirmDeleteCard.Header' xml:space='preserve'><value>Confirmer la suppression</value></data>
+  <data name='SettingsPage_ConfirmDeleteCard.Description' xml:space='preserve'><value>Demander avant de déplacer vers la corbeille</value></data>
+  <data name='SettingsPage_FileAssocCard.Header' xml:space='preserve'><value>Associations de fichiers</value></data>
+  <data name='SettingsPage_FileAssocCard.Description' xml:space='preserve'><value>Enregistrer JPG, PNG, HEIC etc. pour cet utilisateur</value></data>
+  <data name='SettingsPage_CacheSectionTitle.Text' xml:space='preserve'><value>Cache et données</value></data>
+  <data name='SettingsPage_ThumbnailExpander.Header' xml:space='preserve'><value>Miniatures</value></data>
+  <data name='SettingsPage_OpenThumbFolderCard.Header' xml:space='preserve'><value>Ouvrir le dossier des miniatures</value></data>
+  <data name='SettingsPage_OpenFolderButton.Content' xml:space='preserve'><value>Ouvrir le dossier</value></data>
+  <data name='SettingsPage_RegenerateThumbCard.Header' xml:space='preserve'><value>Régénérer les miniatures</value></data>
+  <data name='SettingsPage_RegenerateThumbCard.Description' xml:space='preserve'><value>Générer les miniatures manquantes</value></data>
+  <data name='SettingsPage_GenerateNowButton.Content' xml:space='preserve'><value>Générer maintenant</value></data>
+  <data name='SettingsPage_CancelThumbBuildButton.Content' xml:space='preserve'><value>Annuler</value></data>
+  <data name='SettingsPage_ThumbDoneTitle.Text' xml:space='preserve'><value>Terminé !</value></data>
+  <data name='SettingsPage_ClearThumbCard.Header' xml:space='preserve'><value>Vider le cache</value></data>
+  <data name='SettingsPage_ClearThumbButton.Content' xml:space='preserve'><value>Vider</value></data>
+  <data name='SettingsPage_ClearDbCard.Header' xml:space='preserve'><value>Vider l'index</value></data>
+  <data name='SettingsPage_ClearDbButton.Content' xml:space='preserve'><value>Vider l'index</value></data>
+  <data name='SettingsPage_OpenLogsFolderCard.Header' xml:space='preserve'><value>Logs</value></data>
+  <data name='SettingsPage_OpenLogsButton.Content' xml:space='preserve'><value>Voir les logs</value></data>
+  <data name='SettingsPage_ClearAllCard.Header' xml:space='preserve'><value>Tout supprimer</value></data>
+  <data name='SettingsPage_ClearAllButton.Content' xml:space='preserve'><value>Tout supprimer</value></data>
+  <data name='SettingsPage_PerfSectionTitle.Text' xml:space='preserve'><value>Performance</value></data>
+  <data name='SettingsPage_PreloadExpander.Header' xml:space='preserve'><value>Préchargement</value></data>
+  <data name='SettingsPage_PreloadBackCard.Header' xml:space='preserve'><value>Préchargement arrière</value></data>
+  <data name='SettingsPage_PreloadForwardCard.Header' xml:space='preserve'><value>Préchargement avant</value></data>
+  <data name='SettingsPage_ThumbSizeCard.Header' xml:space='preserve'><value>Taille des miniatures</value></data>
+  <data name='SettingsPage_ThumbSizeUnit.Text' xml:space='preserve'><value> px</value></data>
+  <data name='SettingsPage_ThumbSizeHint.Title' xml:space='preserve'><value>Taille modifiée</value></data>
+  <data name='SettingsPage_ThumbSizeHintAction.Content' xml:space='preserve'><value>Vider maintenant</value></data>
+  <data name='SettingsPage_RestartNowAction.Content' xml:space='preserve'><value>Redémarrer</value></data>
+  <data name='SettingsPage_DebugSectionTitle.Text' xml:space='preserve'><value>Débogage</value></data>
+  <data name='SettingsPage_ForceGcCard.Header' xml:space='preserve'><value>Forcer GC</value></data>
+  <data name='SettingsPage_ForceGcButton.Content' xml:space='preserve'><value>Lancer maintenant</value></data>
+  <data name='SettingsPage_ShowCardSizeToastCard.Header' xml:space='preserve'><value>Afficher la taille au zoom</value></data>
+  <data name='SettingsPage_ShowPreloadStatusCard.Header' xml:space='preserve'><value>Statut du préchargement</value></data>
+  <data name='SettingsPage_DebugKeepChromeCard.Header' xml:space='preserve'><value>Barres toujours visibles</value></data>
+  <data name='SettingsPage_AboutSectionTitle.Text' xml:space='preserve'><value>À propos</value></data>
+  <data name='SettingsPage_RepoCard.Header' xml:space='preserve'><value>Dépôt Open Source</value></data>
+  <data name='SettingsPage_RepoLink.Content' xml:space='preserve'><value>Voir sur GitHub</value></data>
+  <data name='SettingsPage_LicenseCard.Header' xml:space='preserve'><value>Licences tierces</value></data>
+  <data name='NavItem_Albums.Content' xml:space='preserve'><value>Albums</value></data>
+  <data name='NavItem_AllPhotos.Content' xml:space='preserve'><value>Toutes les photos</value></data>
+  <data name='NavItem_Settings.Content' xml:space='preserve'><value>Paramètres</value></data>
+  <data name='MainWindow_AlbumsNavItem.Content' xml:space='preserve'><value>Albums</value></data>
+  <data name='MainWindow_AllPhotosNavItem.Content' xml:space='preserve'><value>Toutes les photos</value></data>
+  <data name='MainWindow_SearchNavItem.Content' xml:space='preserve'><value>Rechercher</value></data>
+  <data name='MainWindow_SettingsNavItem.Content' xml:space='preserve'><value>Paramètres</value></data>
+  <data name='MainWindow_DevWarnMuteButton.Content' xml:space='preserve'><value>Ne plus afficher cette session</value></data>
+  <data name='AlbumList_Title' xml:space='preserve'><value>Albums</value></data>
+  <data name='AlbumList_CreateButton_Text' xml:space='preserve'><value>Nouvel album</value></data>
+  <data name='AlbumList_DeleteDialog_Title' xml:space='preserve'><value>Supprimer l'album</value></data>
+  <data name='AlbumList_DeleteDialog_Content' xml:space='preserve'><value>Voulez-vous vraiment supprimer cet album ? Les photos qu'il contient ne seront pas supprimées.</value></data>
+  <data name='AlbumCard_PhotoCountSuffix.Text' xml:space='preserve'><value> photos</value></data>
+  <data name='AlbumList_CreateAlbumButton.Label' xml:space='preserve'><value>Nouvel album</value></data>
+  <data name='AlbumList_SortButton.Label' xml:space='preserve'><value>Trier</value></data>
+  <data name='AlbumList_SortByName.Text' xml:space='preserve'><value>Nom</value></data>
+  <data name='AlbumList_SortByCreated.Text' xml:space='preserve'><value>Date de création</value></data>
+  <data name='AlbumList_SortByModified.Text' xml:space='preserve'><value>Date de modification</value></data>
+  <data name='AlbumList_SortByTakenAt.Text' xml:space='preserve'><value>Date de prise de vue</value></data>
+  <data name='AlbumList_SortByPhotoCount.Text' xml:space='preserve'><value>Nombre de photos</value></data>
+  <data name='AlbumList_SortDescToggle.Text' xml:space='preserve'><value>Ordre croissant</value></data>
+  <data name='AlbumList_ZoomInButton.Label' xml:space='preserve'><value>Agrandir</value></data>
+  <data name='AlbumList_ZoomOutButton.Label' xml:space='preserve'><value>Réduire</value></data>
+  <data name='AlbumList_EmptyTitle.Text' xml:space='preserve'><value>Pas encore d'albums</value></data>
+  <data name='AlbumList_EmptySubtitle.Text' xml:space='preserve'><value>Cliquez sur "Nouvel album" pour créer votre premier album</value></data>
+  <data name='PhotoList_AddPhotos_Text' xml:space='preserve'><value>Ajouter des photos</value></data>
+  <data name='PhotoList_Delete_Text' xml:space='preserve'><value>Supprimer</value></data>
+  <data name='PhotoList_MoveToAlbum_Text' xml:space='preserve'><value>Déplacer vers l'album</value></data>
+  <data name='AllPhotos_MultiSelectToggle.Label' xml:space='preserve'><value>Sélection multiple</value></data>
+  <data name='AllPhotos_DeleteButton.Label' xml:space='preserve'><value>Supprimer</value></data>
+  <data name='AllPhotos_MoveToAlbumButton.Label' xml:space='preserve'><value>Déplacer vers l'album</value></data>
+  <data name='AllPhotos_SortButton.Label' xml:space='preserve'><value>Trier</value></data>
+  <data name='AllPhotos_SortByName.Text' xml:space='preserve'><value>Nom du fichier</value></data>
+  <data name='AllPhotos_SortBySize.Text' xml:space='preserve'><value>Taille du fichier</value></data>
+  <data name='AllPhotos_SortByCreated.Text' xml:space='preserve'><value>Date de création</value></data>
+  <data name='AllPhotos_SortByModified.Text' xml:space='preserve'><value>Date de modification</value></data>
+  <data name='AllPhotos_SortByTakenAt.Text' xml:space='preserve'><value>Date de prise de vue</value></data>
+  <data name='AllPhotos_SortDescToggle.Text' xml:space='preserve'><value>Ordre croissant</value></data>
+  <data name='AllPhotos_ZoomInButton.Label' xml:space='preserve'><value>Agrandir</value></data>
+  <data name='AllPhotos_ZoomOutButton.Label' xml:space='preserve'><value>Réduire</value></data>
+  <data name='SettingsPage_ClearThumbCard.Description' xml:space='preserve'><value>Supprimer toutes les miniatures en cache</value></data>
+  <data name='SettingsPage_ClearDbCard.Description' xml:space='preserve'><value>Supprimer tous les enregistrements de la base photo/miniatures</value></data>
+  <data name='SettingsPage_LogsCard.Header' xml:space='preserve'><value>Journaux</value></data>
+  <data name='SettingsPage_LogsCard.Description' xml:space='preserve'><value>Ouvrir ou gérer les journaux de l'application</value></data>
+  <data name='SettingsPage_ClearAllCard.Description' xml:space='preserve'><value>Supprimer toutes les données, albums, miniatures et paramètres</value></data>
+  <data name='SettingsPage_PreloadExpander.Description' xml:space='preserve'><value>Précharger la pellicule pour accélérer l'aperçu</value></data>
+  <data name='SettingsPage_PreloadBackCard.Description' xml:space='preserve'><value>Précharger les photos précédentes en arrière-plan</value></data>
+  <data name='SettingsPage_PreloadForwardCard.Description' xml:space='preserve'><value>Précharger les photos suivantes en arrière-plan</value></data>
+  <data name='SettingsPage_ThumbSizeCard.Description' xml:space='preserve'><value>Contrôler la taille des miniatures</value></data>
+  <data name='SettingsPage_ThumbSizeHint.Message' xml:space='preserve'><value>Les miniatures plus grandes peuvent demander plus de mémoire et de temps de chargement.</value></data>
+  <data name='SettingsPage_ForceGcCard.Description' xml:space='preserve'><value>Forcer le GC pour libérer de la mémoire</value></data>
+  <data name='SettingsPage_ShowPreloadStatusCard.Description' xml:space='preserve'><value>Afficher l'état du préchargement dans l'interface</value></data>
+  <data name='SettingsPage_DebugKeepChromeCard.Description' xml:space='preserve'><value>Conserver les données de débogage Chromium pour analyse</value></data>
+  <data name='SettingsPage_AppInfoCard.Description' xml:space='preserve'><value>Afficher la version, le runtime et les informations de l'application</value></data>
+  <data name='SettingsPage_RepoCard.Description' xml:space='preserve'><value>Ouvrir le code source et le dépôt du projet</value></data>
+</root>

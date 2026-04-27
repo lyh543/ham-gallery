@@ -531,6 +531,11 @@
   <data name="SettingsPage_Language_System.Content" xml:space="preserve"><value>跟随系统</value></data>
   <data name="SettingsPage_Language_English.Content" xml:space="preserve"><value>English</value></data>
   <data name="SettingsPage_Language_ZhHans.Content" xml:space="preserve"><value>中文（简体）</value></data>
+  <data name="SettingsPage_Language_JaJp.Content" xml:space="preserve"><value>日语</value></data>
+  <data name="SettingsPage_Language_KoKr.Content" xml:space="preserve"><value>韩语</value></data>
+  <data name="SettingsPage_Language_DeDe.Content" xml:space="preserve"><value>德语</value></data>
+  <data name="SettingsPage_Language_FrFr.Content" xml:space="preserve"><value>法语</value></data>
+  <data name="SettingsPage_Language_EsEs.Content" xml:space="preserve"><value>西班牙语</value></data>
   <data name="SettingsPage_ThemeCard.Header" xml:space="preserve"><value>应用主题</value></data>
   <data name="SettingsPage_ThemeCard.Description" xml:space="preserve"><value>立即生效，无需重启</value></data>
   <data name="SettingsPage_Theme_System.Content" xml:space="preserve"><value>跟随系统</value></data>

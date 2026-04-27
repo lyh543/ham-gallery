@@ -154,6 +154,11 @@
                     <ComboBoxItem x:Uid="SettingsPage_Language_System" Content="跟随系统" />
                     <ComboBoxItem x:Uid="SettingsPage_Language_English" Content="English" />
                     <ComboBoxItem x:Uid="SettingsPage_Language_ZhHans" Content="中文（简体）" />
+                    <ComboBoxItem x:Uid="SettingsPage_Language_JaJp" Content="日本語" />
+                    <ComboBoxItem x:Uid="SettingsPage_Language_KoKr" Content="한국어" />
+                    <ComboBoxItem x:Uid="SettingsPage_Language_DeDe" Content="Deutsch" />
+                    <ComboBoxItem x:Uid="SettingsPage_Language_FrFr" Content="Français" />
+                    <ComboBoxItem x:Uid="SettingsPage_Language_EsEs" Content="Español" />
                 </ComboBox>
             </ctk:SettingsCard>
 

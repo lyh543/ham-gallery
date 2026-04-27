@@ -36,8 +36,8 @@ public sealed partial class SettingsViewModel : ObservableObject
     private CancellationTokenSource? _sizeDebounce;
 
     // ── Language index mapping ──────────────────────────────────────────
-    // Index 0 = follow system, 1 = en-US, 2 = zh-CN
-    private static readonly string[] LanguageTags = ["", "en-US", "zh-CN"];
+    // Index 0 = follow system; others map to explicit UI languages.
+    private static readonly string[] LanguageTags = ["", "en-US", "zh-CN", "ja-JP", "ko-KR", "de-DE", "fr-FR", "es-ES"];
 
     // ── Thumbnail size options ──────────────────────────────────────────
     public static readonly int[] ThumbnailSizeOptions = [128, 256, 384, 512, 768, 1024, 1536, 2048];
