@@ -198,7 +198,7 @@ public sealed partial class PhotoDetailPage
         }
 
         double offset = Math.Clamp(args.HorizontalOffset, -viewportWidth, viewportWidth);
-        ZoomImageTransform.X = offset;
+        ZoomImage.ContentHorizontalOffset = offset;
         SwipePreviewTransform.X = offset < 0 ? viewportWidth + offset : -viewportWidth + offset;
 
         double progress = Math.Clamp(Math.Abs(offset) / viewportWidth, 0.0, 1.0);
@@ -357,7 +357,7 @@ public sealed partial class PhotoDetailPage
 
         SwipePreviewImage.Opacity = 1.0;
         SwipePreviewTransform.X = 0;
-        ZoomImageTransform.X = dx < 0 ? -viewportWidth : viewportWidth;
+        ZoomImage.ContentHorizontalOffset = dx < 0 ? -viewportWidth : viewportWidth;
 
         _logger.LogDebug("Swipe commit visual prepared: target={TargetPath}, direction={Direction}", targetPath, direction);
         return true;
@@ -387,7 +387,7 @@ public sealed partial class PhotoDetailPage
         _swipePreviewPath = null;
         _swipePreviewPixelWidth = 0;
         _swipePreviewPixelHeight = 0;
-        ZoomImageTransform.X = 0;
+        ZoomImage.ContentHorizontalOffset = 0;
         SwipePreviewTransform.X = 0;
         SwipePreviewImage.Opacity = 0;
         SwipePreviewImage.Source = null;

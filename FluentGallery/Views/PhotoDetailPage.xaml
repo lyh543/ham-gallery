@@ -124,11 +124,7 @@
             <controls:ZoomableImage
                 x:Name="ZoomImage"
                 Grid.Column="0"
-                Grid.Row="0">
-                <controls:ZoomableImage.RenderTransform>
-                    <TranslateTransform x:Name="ZoomImageTransform" />
-                </controls:ZoomableImage.RenderTransform>
-            </controls:ZoomableImage>
+                Grid.Row="0" />
 
             <Border
                 x:Name="TouchSwipeOverlay"

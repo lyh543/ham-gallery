@@ -111,6 +111,19 @@ public sealed partial class ZoomableImage : UserControl
 
     // ── RotationAngle dependency property ───────────────────────────────────
 
+    public static readonly DependencyProperty ContentHorizontalOffsetProperty =
+        DependencyProperty.Register(
+            nameof(ContentHorizontalOffset),
+            typeof(double),
+            typeof(ZoomableImage),
+            new PropertyMetadata(0.0));
+
+    public double ContentHorizontalOffset
+    {
+        get => (double)GetValue(ContentHorizontalOffsetProperty);
+        set => SetValue(ContentHorizontalOffsetProperty, value);
+    }
+
     public static readonly DependencyProperty RotationAngleProperty =
         DependencyProperty.Register(
             nameof(RotationAngle),
