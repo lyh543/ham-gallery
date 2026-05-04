@@ -1,5 +1,7 @@
 using FluentGallery.Controls;
 using FluentGallery.Helpers;
+using FluentGallery.Loaders;
+using FluentGallery.ViewModels;
 using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -26,6 +28,20 @@ public sealed partial class PhotoDetailPage
     private Point _lastTouchTapPosition;
     private DateTime _lastMouseTapTime = DateTime.MinValue;
     private Point _lastMouseTapPosition;
+
+    /// <summary>
+    /// Cached preview images for swipe gesture. Keyed by file path.
+    /// Avoids re-decoding when the user drags back and forth between the same two neighbors.
+    /// </summary>
+    private sealed class SwipePreviewEntry
+    {
+        public required ImageSource Source;
+        public IDisposable? Disposable;
+        public int PixelWidth;
+        public int PixelHeight;
+    }
+    private readonly Dictionary<string, SwipePreviewEntry> _swipePreviewCache =
+        new(StringComparer.OrdinalIgnoreCase);
 
     private void TouchSwipeOverlay_PointerCanceled(object sender, PointerRoutedEventArgs e)
     {
@@ -225,6 +241,7 @@ public sealed partial class PhotoDetailPage
         string targetPath = ViewModel.FilmStripItems[targetIndex].Photo.FilePath;
         _swipePreviewRequestedPath = targetPath;
 
+        // Fast path: already showing this preview
         if (string.Equals(_swipePreviewPath, targetPath, StringComparison.OrdinalIgnoreCase)
             && SwipePreviewImage.Source is not null)
         {
@@ -232,7 +249,25 @@ public sealed partial class PhotoDetailPage
             return;
         }
 
+        // Check local swipe cache (covers direction-reversal without re-decode)
+        if (_swipePreviewCache.TryGetValue(targetPath, out var cached))
+        {
+            ApplySwipePreviewFromCache(cached, targetPath);
+            return;
+        }
+
         _ = EnsureSwipePreviewImageAsync(targetPath, targetIndex);
+    }
+
+    private void ApplySwipePreviewFromCache(SwipePreviewEntry entry, string path)
+    {
+        _swipePreviewPath = path;
+        _swipePreviewPixelWidth = entry.PixelWidth;
+        _swipePreviewPixelHeight = entry.PixelHeight;
+        // Don't transfer ownership — cache still owns the disposable
+        _swipePreviewDisposable = null;
+        SwipePreviewImage.Source = entry.Source;
+        SwipePreviewImage.Visibility = Visibility.Visible;
     }
 
     private async Task EnsureSwipePreviewImageAsync(string targetPath, int targetIndex)
@@ -242,7 +277,21 @@ public sealed partial class PhotoDetailPage
         try
         {
             var loader = GetLoader(targetPath);
-            var loaded = await loader.LoadAsync(targetPath, _cts.Token);
+
+            // For expensive decoders (HEIC/RAW via MagickImageLoader), skip preview
+            // if the image isn't already preloaded. This avoids a full decode that
+            // would spike CPU to 100% and cause frame drops during the swipe gesture.
+            if (loader is MagickImageLoader)
+            {
+                var item = FindFilmStripItem(targetPath);
+                if (item is null || item.PreloadState != PreloadState.Loaded)
+                {
+                    _logger.LogDebug("Swipe preview skipped for non-preloaded Magick path: {Path}", targetPath);
+                    return;
+                }
+            }
+
+            var loaded = await loader.LoadForPreviewAsync(targetPath, _cts.Token);
             if (loaded is null)
             {
                 if (generation == _swipePreviewLoadGeneration &&
@@ -259,11 +308,13 @@ public sealed partial class PhotoDetailPage
                                 !string.Equals(_swipePreviewRequestedPath, targetPath, StringComparison.OrdinalIgnoreCase);
             if (staleRequest)
             {
-                DeferDisposeSwipePreview(loaded.Source as IDisposable);
+                // Still cache it — might be needed if user reverses direction
+                AddToSwipePreviewCache(targetPath, loaded);
                 return;
             }
 
-            ReplaceSwipePreviewSource(loaded, targetPath);
+            AddToSwipePreviewCache(targetPath, loaded);
+            ApplySwipePreviewFromCache(_swipePreviewCache[targetPath], targetPath);
             _logger.LogDebug("Swipe preview image source resolved via loader: target index {TargetIndex}, hasSource={HasSource}, path={Path}",
                 targetIndex,
                 SwipePreviewImage.Source is not null,
@@ -271,7 +322,6 @@ public sealed partial class PhotoDetailPage
         }
         catch (OperationCanceledException)
         {
-            // Ignore navigation cancellation.
         }
         catch (Exception ex)
         {
@@ -279,19 +329,26 @@ public sealed partial class PhotoDetailPage
         }
     }
 
-    private void ReplaceSwipePreviewSource(Loaders.LoadedImage loaded, string path)
+    private void AddToSwipePreviewCache(string path, Loaders.LoadedImage loaded)
     {
-        // Detach old source before disposing to avoid compositor using freed native surface.
-        SwipePreviewImage.Source = null;
-        DeferDisposeSwipePreview(_swipePreviewDisposable);
+        // Evict old entries if cache grows beyond 2 (prev + next)
+        if (_swipePreviewCache.Count >= 2 && !_swipePreviewCache.ContainsKey(path))
+        {
+            foreach (var key in _swipePreviewCache.Keys.ToList())
+            {
+                var old = _swipePreviewCache[key];
+                DeferDisposeSwipePreview(old.Disposable);
+                _swipePreviewCache.Remove(key);
+            }
+        }
 
-        _swipePreviewDisposable = loaded.Source as IDisposable;
-        _swipePreviewPath = path;
-        _swipePreviewPixelWidth = loaded.PixelWidth;
-        _swipePreviewPixelHeight = loaded.PixelHeight;
-
-        SwipePreviewImage.Source = loaded.Source;
-        SwipePreviewImage.Visibility = Visibility.Visible;
+        _swipePreviewCache[path] = new SwipePreviewEntry
+        {
+            Source = loaded.Source,
+            Disposable = loaded.Source as IDisposable,
+            PixelWidth = loaded.PixelWidth,
+            PixelHeight = loaded.PixelHeight,
+        };
     }
 
     private bool TryConsumeSwipePreviewLoadedImage(string path, out Loaders.LoadedImage? loaded)
@@ -304,21 +361,34 @@ public sealed partial class PhotoDetailPage
         if (!string.Equals(_swipeCommitTargetPath, path, StringComparison.OrdinalIgnoreCase))
             return false;
 
+        // Try cache first
+        if (_swipePreviewCache.TryGetValue(path, out var cached) && cached.Source is IDisposable disposableSource)
+        {
+            // Transfer ownership from cache to caller
+            _swipePreviewCache.Remove(path);
+            SwipePreviewImage.Source = null;
+            SwipePreviewImage.Visibility = Visibility.Collapsed;
+            _swipePreviewDisposable = null;
+
+            loaded = new Loaders.LoadedImage((ImageSource)disposableSource, cached.PixelWidth, cached.PixelHeight);
+            return true;
+        }
+
+        // Fall back to checking the currently displayed preview
         if (!string.Equals(_swipePreviewPath, path, StringComparison.OrdinalIgnoreCase))
             return false;
 
         if (SwipePreviewImage.Source is null)
             return false;
 
-        if (SwipePreviewImage.Source is not IDisposable disposableSource)
+        if (SwipePreviewImage.Source is not IDisposable ds)
             return false;
 
-        // Transfer ownership of preview source to ZoomImage so it is disposed there.
         SwipePreviewImage.Source = null;
         SwipePreviewImage.Visibility = Visibility.Collapsed;
         _swipePreviewDisposable = null;
 
-        loaded = new Loaders.LoadedImage((ImageSource)disposableSource, _swipePreviewPixelWidth, _swipePreviewPixelHeight);
+        loaded = new Loaders.LoadedImage((ImageSource)ds, _swipePreviewPixelWidth, _swipePreviewPixelHeight);
         return true;
     }
 
@@ -395,6 +465,14 @@ public sealed partial class PhotoDetailPage
         SwipePreviewImage.Visibility = Visibility.Collapsed;
         DeferDisposeSwipePreview(_swipePreviewDisposable);
         _swipePreviewDisposable = null;
+        ClearSwipePreviewCache();
+    }
+
+    private void ClearSwipePreviewCache()
+    {
+        foreach (var entry in _swipePreviewCache.Values)
+            DeferDisposeSwipePreview(entry.Disposable);
+        _swipePreviewCache.Clear();
     }
 
     private T? FindVisualChild<T>(DependencyObject parent, string elementName) where T : DependencyObject
@@ -411,5 +489,22 @@ public sealed partial class PhotoDetailPage
                 return result;
         }
         return null;
+    }
+
+    // ── Cleanup ──────────────────────────────────────────────────────────────
+
+    private void CleanupGestures()
+    {
+        _touchSwipeDragging = false;
+        _touchSwipePreviewActive = false;
+        _touchSwipePointerId = null;
+        _touchPointers.Clear();
+        _touchPinching = false;
+        _touchPinchStartDistance = 0;
+        _touchPinchStartZoom = 1;
+        _mouseOverlayDragging = false;
+        _mouseOverlayPreviewActive = false;
+        ResetSwipePreviewTransforms();
+        ClearSwipePreviewCache();
     }
 }

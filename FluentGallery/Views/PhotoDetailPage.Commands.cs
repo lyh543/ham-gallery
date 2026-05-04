@@ -166,6 +166,7 @@ public sealed partial class PhotoDetailPage
         }
 
         var deletedName = await ViewModel.DeleteAsync(_cts.Token);
+        RebuildFilmStripItemIndex();
 
         if (deletedName is null)
         {
@@ -193,6 +194,7 @@ public sealed partial class PhotoDetailPage
         HideToast();
 
         var restoredName = await ViewModel.UndoDeleteAsync(_cts.Token);
+        RebuildFilmStripItemIndex();
 
         if (restoredName is null)
             ShowToast(L10n.Get("PhotoDetail_Toast_UndoFailed"), ToastKind.Error, showUndo: false);

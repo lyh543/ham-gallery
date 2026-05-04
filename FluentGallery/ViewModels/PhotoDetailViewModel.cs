@@ -99,6 +99,7 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
 
     private IReadOnlyList<Photo>     _photos = Array.Empty<Photo>();
     private CancellationTokenSource? _preloadCts;
+    private CancellationTokenSource? _exifCts;
     private AppSettings              _settings = new();
 
     // ── Undo stack ──────────────────────────────────────────────────────────
@@ -113,6 +114,8 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
     [ObservableProperty] public partial Photo?  CurrentPhoto     { get; set; }
     [ObservableProperty] public partial int     CurrentIndex     { get; set; }
     [ObservableProperty] public partial string? CurrentImagePath { get; set; }
+
+    private int _previousSelectedIndex = -1;
 
     // ── Navigation state ────────────────────────────────────────────────────
 
@@ -229,6 +232,7 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
 
         // Build filmstrip skeleton (thumbnail loaded lazily)
         FilmStripItems.Clear();
+        _previousSelectedIndex = -1;
         for (int i = 0; i < photos.Count; i++)
             FilmStripItems.Add(new PhotoThumbItem(photos[i], null));
 
@@ -520,13 +524,19 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
         CanGoPrevious    = index > 0;
         CanGoNext        = index < _photos.Count - 1;
 
-        // Update filmstrip selection
-        for (int i = 0; i < FilmStripItems.Count; i++)
-            FilmStripItems[i].IsSelected = (i == index);
+        // Update filmstrip selection — only toggle the previous and new items
+        if (_previousSelectedIndex >= 0 && _previousSelectedIndex < FilmStripItems.Count)
+            FilmStripItems[_previousSelectedIndex].IsSelected = false;
+        FilmStripItems[index].IsSelected = true;
+        _previousSelectedIndex = index;
 
         UpdateInfoPanelFast(CurrentPhoto);
         var filePath = CurrentPhoto.FilePath;
-        _ = LoadExtendedExifAsync(filePath, ct);
+        _exifCts?.Cancel();
+        _exifCts?.Dispose();
+        var exifCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        _exifCts = exifCts;
+        _ = LoadExtendedExifAsync(filePath, exifCts.Token);
     }
 
     // ── Info panel ──────────────────────────────────────────────────────────
@@ -956,5 +966,8 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
         _preloadCts?.Cancel();
         _preloadCts?.Dispose();
         _preloadCts = null;
+        _exifCts?.Cancel();
+        _exifCts?.Dispose();
+        _exifCts = null;
     }
 }

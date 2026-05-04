@@ -47,6 +47,14 @@ public interface IImageLoader
     /// </summary>
     Task<LoadedImage?> LoadAsync(string filePath, CancellationToken ct);
 
+    /// <summary>
+    /// Like <see cref="LoadAsync"/> but does not consume the preload cache entry,
+    /// so a subsequent <see cref="LoadAsync"/> call for the same path can still benefit
+    /// from the cached decode. Used for swipe preview images that are displayed
+    /// temporarily without committing a navigation.
+    /// </summary>
+    Task<LoadedImage?> LoadForPreviewAsync(string filePath, CancellationToken ct);
+
     /// <summary>Clears and disposes the internal preload cache.</summary>
     void ClearCache();
 

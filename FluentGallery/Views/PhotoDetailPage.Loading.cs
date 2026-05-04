@@ -16,6 +16,8 @@ public sealed partial class PhotoDetailPage
 {
     private readonly Dictionary<string, CancellationTokenSource> _preloadTasks =
         new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, PhotoThumbItem> _filmStripItemIndex =
+        new(StringComparer.OrdinalIgnoreCase);
     private int _loadGeneration = 0;
 
     private DispatcherTimer _preloadDebounce = null!;
@@ -178,9 +180,42 @@ public sealed partial class PhotoDetailPage
     }
 
     private PhotoThumbItem? FindFilmStripItem(string path) =>
-        ViewModel.FilmStripItems.FirstOrDefault(
-            i => string.Equals(i.Photo.FilePath, path, StringComparison.OrdinalIgnoreCase));
+        _filmStripItemIndex.TryGetValue(path, out var item) ? item : null;
+
+    internal void RebuildFilmStripItemIndex()
+    {
+        var index = new Dictionary<string, PhotoThumbItem>(
+            ViewModel.FilmStripItems.Count, StringComparer.OrdinalIgnoreCase);
+        foreach (var item in ViewModel.FilmStripItems)
+            index.TryAdd(item.Photo.FilePath, item);
+        _filmStripItemIndex = index;
+    }
 
     private IImageLoader GetLoader(string path) =>
         _wicLoader.IsSupported(Path.GetExtension(path)) ? _wicLoader : _magickLoader;
+
+    // ── Cleanup ──────────────────────────────────────────────────────────────
+
+    private void CleanupLoading()
+    {
+        _preloadDebounce.Stop();
+
+        // Signal cancellation on all in-flight preload tasks. Do NOT Dispose here —
+        // each task's ContinueWith callback owns the CTS lifetime and will Dispose it.
+        foreach (var cts in _preloadTasks.Values) cts.Cancel();
+        _preloadTasks.Clear();
+
+        // Release the currently displayed BitmapImage so the WIC decoder surface
+        // (~48 MB per 12 MP HEIC in BGRA8) is freed as soon as GC runs.
+        // Without this, the page stays in Frame's BackStack with MainImage.Source
+        // still set, keeping the COM reference count alive and locking WIC memory.
+        ZoomImage.SetLoading();
+
+        // Loaders are singletons; clear their caches when leaving the page so
+        // BitmapImage objects (and their GPU/WIC memory) are released promptly.
+        _wicLoader.ClearCache();
+        _magickLoader.ClearCache();
+
+        _logger.LogDebug("OnNavigatedFrom: image caches cleared");
+    }
 }

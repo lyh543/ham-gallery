@@ -212,6 +212,7 @@ public sealed partial class PhotoDetailPage
         try
         {
             await ViewModel.ReloadCurrentFileContextAsync(DispatcherQueue, _cts.Token);
+            RebuildFilmStripItemIndex();
             _pendingIndexDirectory = null;
             _pendingPromptDirectory = null;
 
@@ -242,5 +243,15 @@ public sealed partial class PhotoDetailPage
             _indexPromptAutoHideTimer.Stop();
             _indexPromptAutoHideTimer.Start();
         }
+    }
+
+    // ── Cleanup ──────────────────────────────────────────────────────────────
+
+    private void CleanupIndex()
+    {
+        _indexPromptAutoHideTimer.Stop();
+        _indexPromptFlyout.Hide();
+        _scanService.ScanCompleted -= OnScanCompleted;
+        SizeChanged -= PhotoDetailPage_SizeChanged;
     }
 }

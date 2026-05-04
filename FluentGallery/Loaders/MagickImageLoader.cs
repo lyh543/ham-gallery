@@ -150,6 +150,12 @@ public sealed class MagickImageLoader : IImageLoader
     }
 
     /// <inheritdoc/>
+    /// For Magick-decoded formats the preview path already skips non-preloaded images,
+    /// so this delegates to <see cref="LoadAsync"/> (pixel cache is not consumed by load).
+    public Task<LoadedImage?> LoadForPreviewAsync(string filePath, CancellationToken ct)
+        => LoadAsync(filePath, ct);
+
+    /// <inheritdoc/>
     public void ClearCache()
     {
         lock (_cacheLock)

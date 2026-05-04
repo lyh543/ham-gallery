@@ -178,6 +178,7 @@ public sealed partial class PhotoDetailPage : Page
         // LoadCurrentImageAsync / UpdateCounterText / PreloadAdjacent are already
         // triggered by ViewModel_PropertyChanged when CurrentImagePath is set inside
         // InitializeAsync → NavigateToIndexAsync.
+        RebuildFilmStripItemIndex();
         ApplyFilmStripPinState();
         ApplyShowPreloadStatus();
         _chromePointerCount = 0;
@@ -194,45 +195,15 @@ public sealed partial class PhotoDetailPage : Page
     protected override void OnNavigatedFrom(NavigationEventArgs e)
     {
         base.OnNavigatedFrom(e);
-        _hideTimer.Stop();
-        _preloadDebounce.Stop();
-        _toastTimer.Stop();
-        _edgeBoundaryThrottle.Stop();
-        _touchSwipeDragging = false;
-        _touchSwipePreviewActive = false;
-        _touchSwipePointerId = null;
-        _touchPointers.Clear();
-        _touchPinching = false;
-        _touchPinchStartDistance = 0;
-        _touchPinchStartZoom = 1;
-        _mouseOverlayDragging = false;
-        _mouseOverlayPreviewActive = false;
-        ResetSwipePreviewTransforms();
-        _indexPromptAutoHideTimer.Stop();
-        _indexPromptFlyout.Hide();
+        
+        CleanupChrome();
+        CleanupGestures();
+        CleanupIndex();
+        CleanupLoading();
+        
         _cts.Cancel();
         ViewModel.PropertyChanged -= ViewModel_PropertyChanged;
-        _scanService.ScanCompleted -= OnScanCompleted;
-        SizeChanged -= PhotoDetailPage_SizeChanged;
         ViewModel.Dispose();
-
-        // Signal cancellation on all in-flight preload tasks. Do NOT Dispose here —
-        // each task's ContinueWith callback owns the CTS lifetime and will Dispose it.
-        foreach (var cts in _preloadTasks.Values) cts.Cancel();
-        _preloadTasks.Clear();
-
-        // Release the currently displayed BitmapImage so the WIC decoder surface
-        // (~48 MB per 12 MP HEIC in BGRA8) is freed as soon as GC runs.
-        // Without this, the page stays in Frame's BackStack with MainImage.Source
-        // still set, keeping the COM reference count alive and locking WIC memory.
-        ZoomImage.SetLoading();
-
-        // Loaders are singletons; clear their caches when leaving the page so
-        // BitmapImage objects (and their GPU/WIC memory) are released promptly.
-        _wicLoader.ClearCache();
-        _magickLoader.ClearCache();
-
-        _logger.LogDebug("OnNavigatedFrom: image caches cleared");
     }
 
     private void ApplyShowPreloadStatus()

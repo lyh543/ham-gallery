@@ -272,4 +272,13 @@ public sealed partial class PhotoDetailPage
         var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
         return AppWindow.GetFromWindowId(windowId);
     }
+
+    // ── Cleanup ──────────────────────────────────────────────────────────────
+
+    private void CleanupChrome()
+    {
+        _hideTimer.Stop();
+        _toastTimer.Stop();
+        _edgeBoundaryThrottle.Stop();
+    }
 }

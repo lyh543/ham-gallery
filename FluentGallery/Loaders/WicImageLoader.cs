@@ -93,6 +93,19 @@ public sealed class WicImageLoader : IImageLoader
     }
 
     /// <inheritdoc/>
+    public Task<LoadedImage?> LoadForPreviewAsync(string filePath, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        // Non-destructive: create a fresh BitmapImage without touching the preload cache.
+        // XAML framework deduplicates URI-based BitmapImage decodes internally,
+        // so this is cheap even if the image is already preloaded.
+        var bmp = new BitmapImage(new Uri(filePath));
+        return Task.FromResult<LoadedImage?>(
+            new LoadedImage(bmp, bmp.PixelWidth, bmp.PixelHeight));
+    }
+
+    /// <inheritdoc/>
     public void ClearCache()
     {
         // BitmapImage is not IDisposable — just drop the references and let GC handle it.
