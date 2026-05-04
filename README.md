@@ -135,7 +135,6 @@ make install INSTALL_DIR="C:\Apps\FluentGallery"
    - 支持 mvimg 格式（Live Photo）
 [] 旋转模块不是支持每一种图片类型
 [] 编写 README，添加宣传视频
-[] 【低优先级】优化内存问题。预加载图片的内存似乎没有正确被释放掉。相册关闭以后，这些内存才会被释放。
 
 
 -----

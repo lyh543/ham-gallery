@@ -395,6 +395,7 @@ public sealed partial class PhotoDetailPage
     private void DeferDisposeSwipePreview(IDisposable? disposable)
     {
         if (disposable is null) return;
+        _logger.LogDebug("[MEM] DeferDisposeSwipePreview: type={Type}", disposable.GetType().Name);
 
         DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>

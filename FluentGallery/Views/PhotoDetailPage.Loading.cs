@@ -198,24 +198,45 @@ public sealed partial class PhotoDetailPage
 
     private void CleanupLoading()
     {
+        _logger.LogDebug("[MEM] CleanupLoading START: ProcessMB={MB:F0}",
+            System.Diagnostics.Process.GetCurrentProcess().WorkingSet64 / (1024.0 * 1024.0));
+
         _preloadDebounce.Stop();
 
-        // Signal cancellation on all in-flight preload tasks. Do NOT Dispose here —
-        // each task's ContinueWith callback owns the CTS lifetime and will Dispose it.
-        foreach (var cts in _preloadTasks.Values) cts.Cancel();
+        var preloadTokens = _preloadTasks.Values.ToList();
+        foreach (var cts in preloadTokens)
+        {
+            cts.Cancel();
+            cts.Dispose();
+        }
         _preloadTasks.Clear();
 
-        // Release the currently displayed BitmapImage so the WIC decoder surface
-        // (~48 MB per 12 MP HEIC in BGRA8) is freed as soon as GC runs.
-        // Without this, the page stays in Frame's BackStack with MainImage.Source
-        // still set, keeping the COM reference count alive and locking WIC memory.
         ZoomImage.SetLoading();
 
-        // Loaders are singletons; clear their caches when leaving the page so
-        // BitmapImage objects (and their GPU/WIC memory) are released promptly.
         _wicLoader.ClearCache();
         _magickLoader.ClearCache();
 
-        _logger.LogDebug("OnNavigatedFrom: image caches cleared");
+        _logger.LogDebug("[MEM] CleanupLoading after ClearCache: ProcessMB={ProcessMB:F0}, ManagedMB={ManagedMB:F0}",
+            System.Diagnostics.Process.GetCurrentProcess().WorkingSet64 / (1024.0 * 1024.0),
+            GC.GetTotalMemory(false) / (1024.0 * 1024.0));
+
+        System.Runtime.GCSettings.LargeObjectHeapCompactionMode =
+            System.Runtime.GCLargeObjectHeapCompactionMode.CompactOnce;
+        GC.Collect(2, GCCollectionMode.Forced, blocking: true, compacting: true);
+        GC.WaitForPendingFinalizers();
+        GC.Collect(2, GCCollectionMode.Forced, blocking: true, compacting: true);
+
+        // Trim the process working set so that freed native heap pages (from
+        // SoftwareBitmap / Magick.NET temporary allocations) are released back to
+        // the OS instead of sitting in the working set as committed-but-unused pages.
+        EmptyWorkingSet(System.Diagnostics.Process.GetCurrentProcess().Handle);
+
+        _logger.LogDebug("[MEM] CleanupLoading after GC+Trim: ProcessMB={ProcessMB:F0}, ManagedMB={ManagedMB:F0}",
+            System.Diagnostics.Process.GetCurrentProcess().WorkingSet64 / (1024.0 * 1024.0),
+            GC.GetTotalMemory(false) / (1024.0 * 1024.0));
     }
+
+    [System.Runtime.InteropServices.LibraryImport("psapi.dll")]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static partial bool EmptyWorkingSet(nint hProcess);
 }

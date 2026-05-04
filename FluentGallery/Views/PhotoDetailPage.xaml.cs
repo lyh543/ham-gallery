@@ -195,13 +195,14 @@ public sealed partial class PhotoDetailPage : Page
     protected override void OnNavigatedFrom(NavigationEventArgs e)
     {
         base.OnNavigatedFrom(e);
+
+        _cts.Cancel();
         
         CleanupChrome();
         CleanupGestures();
         CleanupIndex();
         CleanupLoading();
-        
-        _cts.Cancel();
+
         ViewModel.PropertyChanged -= ViewModel_PropertyChanged;
         ViewModel.Dispose();
     }

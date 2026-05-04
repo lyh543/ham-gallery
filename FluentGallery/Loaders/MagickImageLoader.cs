@@ -83,12 +83,20 @@ public sealed class MagickImageLoader : IImageLoader
             lock (_cacheLock) { if (_pixelCache.ContainsKey(filePath)) return; }
             ct.ThrowIfCancellationRequested();
 
+            _logger.LogDebug("[MEM] PreloadAsync START: {File}, ProcessMB={MB:F0}",
+                Path.GetFileName(filePath), GetProcessMemoryMB());
+
             var decoded = await _pipeline
                 .TryDecodeAsync(filePath, 0, 0, ct, concurrentSafe: true)
                 .ConfigureAwait(false);
             if (decoded is null) return;
+            ct.ThrowIfCancellationRequested();
+
+            _logger.LogDebug("[MEM] PreloadAsync decoded: {File}, PixelsMB={PixelsMB:F1}, ProcessMB={MB:F0}",
+                Path.GetFileName(filePath), decoded.Pixels.Length / (1024.0 * 1024.0), GetProcessMemoryMB());
 
             AddToCache(filePath, decoded);
+            decoded = null; // Release reference from async state machine so evicted LOH byte[] can be GC'd
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { _logger.LogWarning(ex, "MagickImageLoader preload failed: {Path}", filePath); }
@@ -98,16 +106,27 @@ public sealed class MagickImageLoader : IImageLoader
     /// Must be called from the UI thread (because of SetBitmapAsync).
     public async Task<LoadedImage?> LoadAsync(string filePath, CancellationToken ct)
     {
-        // All pixel work runs on a thread-pool MTA thread.
-        // Task.Run without ConfigureAwait(false) resumes on the UI SynchronizationContext
-        // so SetBitmapAsync is safe.
+        _logger.LogDebug("[MEM] LoadAsync START: {File}, ProcessMB={MB:F0}",
+            Path.GetFileName(filePath), GetProcessMemoryMB());
+
 #pragma warning disable CAC001
         var (softwareBitmap, w, h) = await Task.Run(async () =>
 #pragma warning restore CAC001
         {
-            // ── Step 1: get decoded pixels (cache hit or fresh decode) ────────
             DecodedImageData? decoded;
-            lock (_cacheLock) { _pixelCache.TryGetValue(filePath, out decoded); }
+            bool cacheHit;
+            lock (_cacheLock)
+            {
+                cacheHit = _pixelCache.TryGetValue(filePath, out decoded);
+                if (cacheHit)
+                {
+                    _pixelCache.Remove(filePath);
+                    _insertionOrder.Remove(filePath);
+                }
+            }
+
+            _logger.LogDebug("[MEM] LoadAsync pixels: {File}, cacheHit={Hit}, cacheRemaining={Remaining}, ProcessMB={MB:F0}",
+                Path.GetFileName(filePath), cacheHit, _insertionOrder.Count, GetProcessMemoryMB());
 
             if (decoded is null)
             {
@@ -115,7 +134,6 @@ public sealed class MagickImageLoader : IImageLoader
                     .TryDecodeAsync(filePath, 0, 0, ct, concurrentSafe: true)
                     .ConfigureAwait(false);
                 if (decoded is null) return ((SoftwareBitmap?)null, 0, 0);
-                AddToCache(filePath, decoded);
             }
 
             ct.ThrowIfCancellationRequested();
@@ -123,17 +141,15 @@ public sealed class MagickImageLoader : IImageLoader
             int w = (int)decoded.Width;
             int h = (int)decoded.Height;
 
-            // ── Step 2: BGRA8 pixels → SoftwareBitmap ────────────────────────
-            using var sbIgnore = SoftwareBitmap.CreateCopyFromBuffer(
+            // HEIC photos are always fully opaque (alpha=255), so straight and
+            // premultiplied BGRA are identical.  Creating with Premultiplied directly
+            // avoids a redundant SoftwareBitmap.Convert copy (~48 MB native).
+            var sb = SoftwareBitmap.CreateCopyFromBuffer(
                 decoded.Pixels.AsBuffer(),
                 BitmapPixelFormat.Bgra8,
                 w, h,
-                BitmapAlphaMode.Ignore);
-
-            var sb = SoftwareBitmap.Convert(
-                sbIgnore,
-                BitmapPixelFormat.Bgra8,
                 BitmapAlphaMode.Premultiplied);
+            decoded = null; // Release LOH byte[] reference before awaiting
 
             return (sb, w, h);
         }, ct);
@@ -141,10 +157,12 @@ public sealed class MagickImageLoader : IImageLoader
         if (softwareBitmap is null) return null;
         ct.ThrowIfCancellationRequested();
 
-        // ── Step 3: upload to GPU — must be on UI thread (ASTA) ──────────────
         var source = new SoftwareBitmapSource();
         await source.SetBitmapAsync(softwareBitmap);
         softwareBitmap.Dispose();
+
+        _logger.LogDebug("[MEM] LoadAsync DONE: {File}, {W}x{H}, ProcessMB={MB:F0}",
+            Path.GetFileName(filePath), w, h, GetProcessMemoryMB());
 
         return new LoadedImage(source, w, h);
     }
@@ -158,30 +176,49 @@ public sealed class MagickImageLoader : IImageLoader
     /// <inheritdoc/>
     public void ClearCache()
     {
+        int clearedCount;
+        long clearedBytes;
         lock (_cacheLock)
         {
+            clearedCount = _pixelCache.Count;
+            clearedBytes = _pixelCache.Values.Sum(d => (long)d.Pixels.Length);
             _pixelCache.Clear();
             _insertionOrder.Clear();
         }
-        _logger.LogDebug("MagickImageLoader: pixel cache cleared");
+        _logger.LogDebug("[MEM] ClearCache: cleared {Count} entries, {MB:F1} MB, ProcessMB={ProcessMB:F0}",
+            clearedCount, clearedBytes / (1024.0 * 1024.0), GetProcessMemoryMB());
     }
 
     // ── Cache helpers ─────────────────────────────────────────────────────────
 
     private void AddToCache(string path, DecodedImageData decoded)
     {
-        int count; string first, last; long totalBytes;
+        int count; string first, last; long totalBytes; long evictedBytes = 0;
         lock (_cacheLock)
         {
             _pixelCache[path] = decoded;
             _insertionOrder.Remove(path);
             _insertionOrder.Add(path);
 
+            // Evict by count
             while (_insertionOrder.Count > MaxCacheSize)
             {
                 var oldest = _insertionOrder[0];
                 _insertionOrder.RemoveAt(0);
-                _pixelCache.Remove(oldest);
+                if (_pixelCache.Remove(oldest, out var evicted))
+                    evictedBytes += evicted.Pixels.Length;
+            }
+
+            // Evict by memory budget (~200 MB for BGRA8 pixel buffers)
+            const long MaxCacheBytes = 200L * 1024 * 1024;
+            while (_insertionOrder.Count > 1)
+            {
+                long total = _pixelCache.Values.Sum(d => (long)d.Pixels.Length);
+                if (total <= MaxCacheBytes) break;
+                var oldest = _insertionOrder[0];
+                _insertionOrder.RemoveAt(0);
+                if (_pixelCache.Remove(oldest, out var evicted2))
+                    evictedBytes += evicted2.Pixels.Length;
             }
 
             count      = _insertionOrder.Count;
@@ -196,5 +233,13 @@ public sealed class MagickImageLoader : IImageLoader
             Path.GetFileName(first), Path.GetFileName(last),
             Path.GetFileName(path),
             totalBytes / (1024.0 * 1024.0));
+
+        // Evicted pixel buffers are 48+ MB LOH allocations; hint the GC so they don't
+        // accumulate across preload batches.  Non-blocking, no perf impact on the hot path.
+        if (evictedBytes > 40L * 1024 * 1024)
+            GC.Collect(2, GCCollectionMode.Optimized, blocking: false);
     }
+
+    private static double GetProcessMemoryMB()
+        => System.Diagnostics.Process.GetCurrentProcess().WorkingSet64 / (1024.0 * 1024.0);
 }

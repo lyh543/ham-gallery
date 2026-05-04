@@ -209,13 +209,16 @@ public sealed partial class ZoomableImage : UserControl
     private void DeferDispose(IDisposable? disposable)
     {
         if (disposable is null) return;
-        // Double-enqueue: two Low-priority iterations give the compositor time to
-        // process Source=null and stop referencing the GPU surface before we release it.
+        _logger.LogDebug("[MEM] DeferDispose: type={Type}", disposable.GetType().Name);
         DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
             {
-                try { disposable.Dispose(); }
-                catch { /* SoftwareBitmapSource.Dispose can stow native exceptions */ }
+                try
+                {
+                    disposable.Dispose();
+                    _logger.LogDebug("[MEM] DeferDispose completed: type={Type}", disposable.GetType().Name);
+                }
+                catch { }
             }));
     }
 
@@ -228,12 +231,19 @@ public sealed partial class ZoomableImage : UserControl
     /// </summary>
     public void SetLoading()
     {
+        _logger.LogDebug("[MEM] SetLoading: hasCurrentDisposable={HasCurrent}, hasPendingDisposable={HasPending}",
+            _currentDisposable is not null, _pendingDisposable is not null);
         MainImage.Source  = null;
         MainImage.Width   = 0;
         MainImage.Height  = 0;
         MainImage.Opacity = 0;
+        PendingImage.Source = null;
+        PendingImage.Width  = 0;
+        PendingImage.Height = 0;
         DeferDispose(_currentDisposable);
         _currentDisposable = null;
+        DeferDispose(_pendingDisposable);
+        _pendingDisposable = null;
         ShowLoading();
     }
 
@@ -268,11 +278,12 @@ public sealed partial class ZoomableImage : UserControl
 
     private void LoadImageIntoMain(Loaders.LoadedImage image, CancellationToken ct)
     {
-        // In normal mode (skipFadeOut=false), clear and fade in.
         MainImage.Opacity = 0;
         MainImage.Source  = null;
         ShowLoading();
 
+        _logger.LogDebug("[MEM] LoadImageIntoMain: isDisposable={IsDisposable}, prevDisposable={HasPrev}",
+            image.Source is IDisposable, _currentDisposable is not null);
         DeferDispose(_currentDisposable);
         _currentDisposable = image.Source as IDisposable;
 
@@ -466,8 +477,8 @@ public sealed partial class ZoomableImage : UserControl
 
     private void SwapPendingToMain()
     {
-        // Transfer source and state from pending to main image.
-        // PendingImage was loaded hidden, now make it the displayed image.
+        _logger.LogDebug("[MEM] SwapPendingToMain: disposing current={HasCurrent}, pending→main",
+            _currentDisposable is not null);
         DeferDispose(_currentDisposable);
         _currentDisposable = _pendingDisposable;
         _pendingDisposable = null;

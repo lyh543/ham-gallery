@@ -66,9 +66,13 @@ public sealed class MagickImageDecoder : IImageDecoder
         double dpiY = image.Density.Y > 0 ? image.Density.Y : 96.0;
 
         // Export as BGRA8 — matches Windows.Graphics.Imaging.BitmapPixelFormat.Bgra8
-        var pixels = image.GetPixels().ToByteArray("BGRA")
-            ?? throw new InvalidOperationException(
-                $"Magick.NET: failed to extract BGRA pixel data from '{filePath}'");
+        byte[] pixels;
+        using (var pc = image.GetPixels())
+        {
+            pixels = pc.ToByteArray("BGRA")
+                ?? throw new InvalidOperationException(
+                    $"Magick.NET: failed to extract BGRA pixel data from '{filePath}'");
+        }
 
         return new DecodedImageData(
             pixels,
