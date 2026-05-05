@@ -198,9 +198,6 @@ public sealed partial class PhotoDetailPage
 
     private void CleanupLoading()
     {
-        _logger.LogDebug("[MEM] CleanupLoading START: ProcessMB={MB:F0}",
-            System.Diagnostics.Process.GetCurrentProcess().WorkingSet64 / (1024.0 * 1024.0));
-
         _preloadDebounce.Stop();
 
         var preloadTokens = _preloadTasks.Values.ToList();
@@ -216,12 +213,7 @@ public sealed partial class PhotoDetailPage
         _wicLoader.ClearCache();
         _magickLoader.ClearCache();
 
-        _logger.LogDebug("[MEM] CleanupLoading after ClearCache: ProcessMB={ProcessMB:F0}, ManagedMB={ManagedMB:F0}",
-            System.Diagnostics.Process.GetCurrentProcess().WorkingSet64 / (1024.0 * 1024.0),
-            GC.GetTotalMemory(false) / (1024.0 * 1024.0));
-
-        System.Runtime.GCSettings.LargeObjectHeapCompactionMode =
-            System.Runtime.GCLargeObjectHeapCompactionMode.CompactOnce;
+        // Force garbage collection to reclaim managed heap LOH allocations (pixel byte arrays)
         GC.Collect(2, GCCollectionMode.Forced, blocking: true, compacting: true);
         GC.WaitForPendingFinalizers();
         GC.Collect(2, GCCollectionMode.Forced, blocking: true, compacting: true);
@@ -230,10 +222,6 @@ public sealed partial class PhotoDetailPage
         // SoftwareBitmap / Magick.NET temporary allocations) are released back to
         // the OS instead of sitting in the working set as committed-but-unused pages.
         EmptyWorkingSet(System.Diagnostics.Process.GetCurrentProcess().Handle);
-
-        _logger.LogDebug("[MEM] CleanupLoading after GC+Trim: ProcessMB={ProcessMB:F0}, ManagedMB={ManagedMB:F0}",
-            System.Diagnostics.Process.GetCurrentProcess().WorkingSet64 / (1024.0 * 1024.0),
-            GC.GetTotalMemory(false) / (1024.0 * 1024.0));
     }
 
     [System.Runtime.InteropServices.LibraryImport("psapi.dll")]

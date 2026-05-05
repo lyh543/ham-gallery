@@ -83,20 +83,14 @@ public sealed class MagickImageLoader : IImageLoader
             lock (_cacheLock) { if (_pixelCache.ContainsKey(filePath)) return; }
             ct.ThrowIfCancellationRequested();
 
-            _logger.LogDebug("[MEM] PreloadAsync START: {File}, ProcessMB={MB:F0}",
-                Path.GetFileName(filePath), GetProcessMemoryMB());
-
             var decoded = await _pipeline
                 .TryDecodeAsync(filePath, 0, 0, ct, concurrentSafe: true)
                 .ConfigureAwait(false);
             if (decoded is null) return;
             ct.ThrowIfCancellationRequested();
 
-            _logger.LogDebug("[MEM] PreloadAsync decoded: {File}, PixelsMB={PixelsMB:F1}, ProcessMB={MB:F0}",
-                Path.GetFileName(filePath), decoded.Pixels.Length / (1024.0 * 1024.0), GetProcessMemoryMB());
-
             AddToCache(filePath, decoded);
-            decoded = null; // Release reference from async state machine so evicted LOH byte[] can be GC'd
+            decoded = null; // Release reference from async state machine
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { _logger.LogWarning(ex, "MagickImageLoader preload failed: {Path}", filePath); }
@@ -106,9 +100,6 @@ public sealed class MagickImageLoader : IImageLoader
     /// Must be called from the UI thread (because of SetBitmapAsync).
     public async Task<LoadedImage?> LoadAsync(string filePath, CancellationToken ct)
     {
-        _logger.LogDebug("[MEM] LoadAsync START: {File}, ProcessMB={MB:F0}",
-            Path.GetFileName(filePath), GetProcessMemoryMB());
-
 #pragma warning disable CAC001
         var (softwareBitmap, w, h) = await Task.Run(async () =>
 #pragma warning restore CAC001
@@ -124,9 +115,6 @@ public sealed class MagickImageLoader : IImageLoader
                     _insertionOrder.Remove(filePath);
                 }
             }
-
-            _logger.LogDebug("[MEM] LoadAsync pixels: {File}, cacheHit={Hit}, cacheRemaining={Remaining}, ProcessMB={MB:F0}",
-                Path.GetFileName(filePath), cacheHit, _insertionOrder.Count, GetProcessMemoryMB());
 
             if (decoded is null)
             {
@@ -161,9 +149,6 @@ public sealed class MagickImageLoader : IImageLoader
         await source.SetBitmapAsync(softwareBitmap);
         softwareBitmap.Dispose();
 
-        _logger.LogDebug("[MEM] LoadAsync DONE: {File}, {W}x{H}, ProcessMB={MB:F0}",
-            Path.GetFileName(filePath), w, h, GetProcessMemoryMB());
-
         return new LoadedImage(source, w, h);
     }
 
@@ -176,17 +161,11 @@ public sealed class MagickImageLoader : IImageLoader
     /// <inheritdoc/>
     public void ClearCache()
     {
-        int clearedCount;
-        long clearedBytes;
         lock (_cacheLock)
         {
-            clearedCount = _pixelCache.Count;
-            clearedBytes = _pixelCache.Values.Sum(d => (long)d.Pixels.Length);
             _pixelCache.Clear();
             _insertionOrder.Clear();
         }
-        _logger.LogDebug("[MEM] ClearCache: cleared {Count} entries, {MB:F1} MB, ProcessMB={ProcessMB:F0}",
-            clearedCount, clearedBytes / (1024.0 * 1024.0), GetProcessMemoryMB());
     }
 
     // ── Cache helpers ─────────────────────────────────────────────────────────
@@ -227,19 +206,6 @@ public sealed class MagickImageLoader : IImageLoader
             totalBytes = _pixelCache.Values.Sum(d => (long)d.Pixels.Length);
         }
 
-        _logger.LogDebug(
-            "MagickCache [{Count}/{Max}] First={First} Last={Last} Added={Added} TotalMB={TotalMB:F1}",
-            count, MaxCacheSize,
-            Path.GetFileName(first), Path.GetFileName(last),
-            Path.GetFileName(path),
-            totalBytes / (1024.0 * 1024.0));
 
-        // Evicted pixel buffers are 48+ MB LOH allocations; hint the GC so they don't
-        // accumulate across preload batches.  Non-blocking, no perf impact on the hot path.
-        if (evictedBytes > 40L * 1024 * 1024)
-            GC.Collect(2, GCCollectionMode.Optimized, blocking: false);
     }
-
-    private static double GetProcessMemoryMB()
-        => System.Diagnostics.Process.GetCurrentProcess().WorkingSet64 / (1024.0 * 1024.0);
 }

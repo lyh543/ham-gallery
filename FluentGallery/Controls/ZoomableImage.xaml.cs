@@ -209,15 +209,10 @@ public sealed partial class ZoomableImage : UserControl
     private void DeferDispose(IDisposable? disposable)
     {
         if (disposable is null) return;
-        _logger.LogDebug("[MEM] DeferDispose: type={Type}", disposable.GetType().Name);
         DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
             {
-                try
-                {
-                    disposable.Dispose();
-                    _logger.LogDebug("[MEM] DeferDispose completed: type={Type}", disposable.GetType().Name);
-                }
+                try { disposable.Dispose(); }
                 catch { }
             }));
     }
@@ -231,8 +226,6 @@ public sealed partial class ZoomableImage : UserControl
     /// </summary>
     public void SetLoading()
     {
-        _logger.LogDebug("[MEM] SetLoading: hasCurrentDisposable={HasCurrent}, hasPendingDisposable={HasPending}",
-            _currentDisposable is not null, _pendingDisposable is not null);
         MainImage.Source  = null;
         MainImage.Width   = 0;
         MainImage.Height  = 0;
@@ -282,8 +275,6 @@ public sealed partial class ZoomableImage : UserControl
         MainImage.Source  = null;
         ShowLoading();
 
-        _logger.LogDebug("[MEM] LoadImageIntoMain: isDisposable={IsDisposable}, prevDisposable={HasPrev}",
-            image.Source is IDisposable, _currentDisposable is not null);
         DeferDispose(_currentDisposable);
         _currentDisposable = image.Source as IDisposable;
 
