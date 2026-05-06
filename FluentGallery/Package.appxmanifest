@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap mp rescap">
+
+  <Identity
+    Name="FluentGallery"
+    Publisher="CN=HamGallery"
+    Version="1.0.0.0"
+    ProcessorArchitecture="x64" />
+
+  <mp:PhoneIdentity PhoneProductId="00000000-0000-0000-0000-000000000000" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
+
+  <Properties>
+    <DisplayName>Fluent Gallery</DisplayName>
+    <PublisherDisplayName>Fluent Gallery</PublisherDisplayName>
+    <Logo>Assets\icon_256.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.22621.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="en-US"/>
+    <Resource Language="zh-CN"/>
+  </Resources>
+
+  <Applications>
+    <Application Id="App" Executable="$targetnametoken$.exe" EntryPoint="$targetentrypoint$">
+      <uap:VisualElements
+        DisplayName="Fluent Gallery"
+        Description="A modern photo gallery for Windows"
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\icon_256.png"
+        Square44x44Logo="Assets\icon_48.png">
+        <uap:DefaultTile Wide310x150Logo="Assets\icon_256.png" Square310x310Logo="Assets\icon_512.png"/>
+        <uap:SplashScreen Image="Assets\icon_512.png" BackgroundColor="transparent"/>
+      </uap:VisualElements>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+    <uap:Capability Name="picturesLibrary" />
+  </Capabilities>
+
+</Package>

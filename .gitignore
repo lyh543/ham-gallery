@@ -15,6 +15,14 @@
 *.userprefs
 *.ide/
 
+## --- 代码签名证书 (不提交私钥) ---
+*.pfx
+*.p12
+**/.cert-thumbprint
+
+## --- MSIX 构建产物 ---
+**/BundleArtifacts/
+
 ## --- 依赖包 (Dependencies) ---
 # 排除 NuGet 包目录（通常由项目自动恢复）
 packages/

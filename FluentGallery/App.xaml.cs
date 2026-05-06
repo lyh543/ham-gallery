@@ -47,7 +47,10 @@ public partial class App : Application
             _dbInitializedInCtor = true;
 
             _startupSettings = db.LoadSettingsAsync().GetAwaiter().GetResult();
-            Microsoft.Windows.Globalization.ApplicationLanguages.PrimaryLanguageOverride = _startupSettings.Language ?? string.Empty;
+            // Only set override when a non-empty language is stored; passing ""
+            // throws 0x80070057 (E_INVALIDARG) in unpackaged WinUI 3 apps.
+            if (!string.IsNullOrEmpty(_startupSettings.Language))
+                Microsoft.Windows.Globalization.ApplicationLanguages.PrimaryLanguageOverride = _startupSettings.Language;
         }
         catch (Exception ex)
         {

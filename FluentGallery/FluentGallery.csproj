@@ -15,12 +15,41 @@
     <UseWinUI>true</UseWinUI>
     <WindowsPackageType>None</WindowsPackageType>
     <WindowsAppSDKSelfContained Condition="'$(RuntimeIdentifier)' != ''">true</WindowsAppSDKSelfContained>
+  </PropertyGroup>
+
+  <!-- MSIX packaging mode: pass -p:BuildMsix=true to enable.
+       Switches to MSIX package type and disables app.manifest (replaced by Package.appxmanifest).
+       AppxGeneratePrisForPortableLibrariesEnabled=false disables _GeneratePrisForPortableLibraries
+       which tries to run ResGen on all referenced DLLs — unsupported in .NET Core mode (MSB3824). -->
+  <PropertyGroup Condition="'$(BuildMsix)' == 'true'">
+    <WindowsPackageType>MSIX</WindowsPackageType>
+    <AppxPackage>true</AppxPackage>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <ApplicationManifest></ApplicationManifest>
+    <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
+    <!-- Signing: disabled by default. Pass AppxPackageCertificateKeyFile via CLI for local signing. -->
+    <AppxPackageSigningEnabled>false</AppxPackageSigningEnabled>
+    <AppxGeneratePrisForPortableLibrariesEnabled>false</AppxGeneratePrisForPortableLibrariesEnabled>
+    <PublishProfile>Properties\PublishProfiles\win10-$(Platform).pubxml</PublishProfile>
+  </PropertyGroup>
+
+  <PropertyGroup>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>14</LangVersion>
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
     <Product>Fluent Gallery</Product>
     <AssemblyTitle>Fluent Gallery</AssemblyTitle>
     <Description>Fluent Gallery</Description>
+
+    <!-- Version Management -->
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <InformationalVersion>1.0.0</InformationalVersion>
+
+    <!-- Release/Publish Optimizations -->
+    <PublishReadyToRun Condition="'$(Configuration)' == 'Release'">true</PublishReadyToRun>
+    <DebugSymbols Condition="'$(Configuration)' == 'Release'">false</DebugSymbols>
+    <DebugType Condition="'$(Configuration)' == 'Release'">none</DebugType>
   </PropertyGroup>
 
   <!-- Pass -p:DevBuild=true at build time to enable the development environment.
@@ -33,9 +62,22 @@
     <Description>Fluent Gallery (Dev)</Description>
   </PropertyGroup>
 
+  <!-- In MSIX mode the MAKEPRI resource compiler rejects DLL contentFiles from
+       NuGet packages (BuildHost, SQLite native, etc.) with MSB3824.
+       NuGet injects these items during ResolveNuGetPackageAssets, so we remove
+       them after that target runs. -->
+  <Target Name="RemoveNuGetContentFromMsix" AfterTargets="ResolveNuGetPackageAssets"
+          Condition="'$(BuildMsix)' == 'true'">
+    <ItemGroup>
+      <Content Remove="@(Content)" Condition="$([System.String]::Copy('%(FullPath)').Contains('.nuget'))" />
+    </ItemGroup>
+  </Target>
+
   <ItemGroup>
     <!-- Copy Assets folder to output directory -->
     <Content Include="Assets\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Copy Strings (localization) folder for WinUI resource loading -->
+    <Content Include="Strings\**\*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
