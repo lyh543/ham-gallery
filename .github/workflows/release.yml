@@ -100,17 +100,20 @@ jobs:
       - name: Prepare MSIX for upload ${{ matrix.arch }}
         shell: pwsh
         run: |
-          $msix = Get-ChildItem "dist\msix" -Recurse -Include "*.msix" |
-            Where-Object { $_.Name -notmatch "bundle|WindowsAppRuntime" } |
+          # dotnet build may produce either a .msix or a single-arch .msixbundle
+          $pkg = Get-ChildItem "dist\msix" -Recurse -Include "*.msix","*.msixbundle" |
+            Where-Object { $_.Name -notmatch "WindowsAppRuntime" } |
+            Sort-Object { $_.Extension } |   # prefer .msix over .msixbundle if both exist
             Select-Object -First 1
-          if (-not $msix) {
+          if (-not $pkg) {
             Write-Host "dist\msix contents:"
             Get-ChildItem "dist\msix" -Recurse | Select-Object -ExpandProperty FullName
-            throw "App .msix not found under dist\msix"
+            throw "App package not found under dist\msix"
           }
-          Write-Host "Found: $($msix.FullName)"
+          Write-Host "Found: $($pkg.FullName)"
           New-Item -ItemType Directory -Path "dist\upload" -Force | Out-Null
-          Copy-Item $msix.FullName "dist\upload\FluentGallery_${{ matrix.arch }}.msix" -Force
+          # Always upload as .msix so the release job filter is consistent
+          Copy-Item $pkg.FullName "dist\upload\FluentGallery_${{ matrix.arch }}.msix" -Force
 
       # ── Upload artifacts for this arch ──────────────────────────────────
       - name: Upload artifacts ${{ matrix.arch }}
