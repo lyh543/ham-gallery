@@ -26,7 +26,14 @@ jobs:
         run: |
           $years  = 3
           $expiry = (Get-Date).AddYears($years)
-          $certPwd = -join ((33..126) | Get-Random -Count 32 | ForEach-Object { [char]$_ })
+          # Restrict charset to alphanumeric + safe symbols to avoid shell quoting issues
+          $certPwd = -join ((1..32) | ForEach-Object {
+            $chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#%^&*-_=+'
+            $chars[(Get-Random -Maximum $chars.Length)]
+          })
+
+          # Mask password so it never appears in logs
+          Write-Output "::add-mask::$certPwd"
 
           $cert = New-SelfSignedCertificate `
             -Type Custom `
@@ -41,12 +48,13 @@ jobs:
           Export-PfxCertificate -Cert $cert -FilePath HamGallery.pfx -Password $pfxPwd | Out-Null
           Export-Certificate    -Cert $cert -FilePath HamGallery.cer -Type CERT           | Out-Null
 
+          # Write sensitive values to files — never pass through Actions expressions
           $pfxB64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes("$PWD\HamGallery.pfx"))
+          [IO.File]::WriteAllText("$PWD\.pfx_b64.txt",  $pfxB64,  [Text.Encoding]::UTF8)
+          [IO.File]::WriteAllText("$PWD\.cert_pwd.txt", $certPwd, [Text.Encoding]::UTF8)
 
-          # Write outputs — password masked in logs
-          "pfx_b64=$pfxB64"                             >> $env:GITHUB_OUTPUT
-          "cert_password=$certPwd"                      >> $env:GITHUB_OUTPUT
-          "thumbprint=$($cert.Thumbprint)"              >> $env:GITHUB_OUTPUT
+          # Only safe values go to outputs
+          "thumbprint=$($cert.Thumbprint)"                    >> $env:GITHUB_OUTPUT
           "expires=$($cert.NotAfter.ToString('yyyy-MM-dd'))" >> $env:GITHUB_OUTPUT
 
           Write-Host "Thumbprint : $($cert.Thumbprint)"
@@ -58,16 +66,14 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.CERT_REFRESH_PAT }}
         run: |
-          $pfxB64 = "${{ steps.cert.outputs.pfx_b64 }}"
-          gh secret set SIGNING_CERT_PFX --body $pfxB64
+          gh secret set SIGNING_CERT_PFX --body-file .pfx_b64.txt
 
       - name: Update SIGNING_CERT_PASSWORD secret
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.CERT_REFRESH_PAT }}
         run: |
-          $password = "${{ steps.cert.outputs.cert_password }}"
-          gh secret set SIGNING_CERT_PASSWORD --body $password
+          gh secret set SIGNING_CERT_PASSWORD --body-file .cert_pwd.txt
 
       # ── Upload .cer for distribution ──────────────────────────────────────
       - name: Upload new certificate
