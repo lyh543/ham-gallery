@@ -9,8 +9,22 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  # ── Job 1: build one arch per runner (3 parallel machines) ──────────────────
+  build:
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            platform: x64
+            runtime: win-x64
+          - arch: arm64
+            platform: ARM64
+            runtime: win-arm64
+          - arch: x86
+            platform: x86
+            runtime: win-x86
 
     steps:
       - uses: actions/checkout@v4
@@ -20,87 +34,58 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      # ── Extract version from tag ──────────────────────────────────────────
+      # ── Extract version from tag ────────────────────────────────────────
       - name: Extract version
         id: ver
         shell: pwsh
         run: |
-          $tag    = "${{ github.ref_name }}"   # e.g. v1.2.3 or v1.2.3.0
-          $semver = $tag.TrimStart('v')         # 1.2.3 or 1.2.3.0
-          # MSIX requires exactly 4-part version; append .0 only when needed
+          $tag    = "${{ github.ref_name }}"
+          $semver = $tag.TrimStart('v')
           $quad   = if ($semver.Split('.').Count -lt 4) { "$semver.0" } else { $semver }
           "semver=$semver" >> $env:GITHUB_OUTPUT
           "quad=$quad"     >> $env:GITHUB_OUTPUT
 
-      # ── Restore signing certificate from secret ──────────────────────────
+      # ── Restore signing certificate ─────────────────────────────────────
       - name: Restore signing certificate
         id: cert
         shell: pwsh
         run: |
-          # Decode PFX from base64 secret and write to disk
           $pfxBytes = [Convert]::FromBase64String("${{ secrets.SIGNING_CERT_PFX }}")
           [IO.File]::WriteAllBytes("$PWD\HamGallery.pfx", $pfxBytes)
 
-          # Import to cert store to get thumbprint
           $pfxPwd = ConvertTo-SecureString "${{ secrets.SIGNING_CERT_PASSWORD }}" -AsPlainText -Force
           $cert   = Import-PfxCertificate -FilePath HamGallery.pfx -CertStoreLocation Cert:\CurrentUser\My -Password $pfxPwd
 
-          # Export public .cer for users to trust
-          Export-Certificate -Cert $cert -FilePath HamGallery.cer -Type CERT | Out-Null
-
           "thumbprint=$($cert.Thumbprint)" >> $env:GITHUB_OUTPUT
-          Write-Host "Certificate thumbprint: $($cert.Thumbprint)"
-          Write-Host "Certificate expires:    $($cert.NotAfter)"
 
-      # ── Portable self-contained publish ──────────────────────────────────
-      - name: Publish x64
+      # ── Portable self-contained publish ────────────────────────────────
+      - name: Publish ${{ matrix.arch }}
         shell: pwsh
         run: |
           dotnet publish FluentGallery\FluentGallery.csproj `
-            -p:Platform=x64 -c Release --runtime win-x64 --self-contained `
+            -p:Platform=${{ matrix.platform }} -c Release `
+            --runtime ${{ matrix.runtime }} --self-contained `
             -p:InformationalVersion=${{ steps.ver.outputs.semver }} `
-            -o publish\FluentGallery\x64
-          Copy-Item "FluentGallery\bin\x64\Release\net10.0-windows10.0.19041.0\win-x64\FluentGallery.pri" `
-            "publish\FluentGallery\x64\" -Force -ErrorAction SilentlyContinue
+            -o publish\FluentGallery\${{ matrix.arch }}
+          Copy-Item "FluentGallery\bin\${{ matrix.platform }}\Release\net10.0-windows10.0.19041.0\${{ matrix.runtime }}\FluentGallery.pri" `
+            "publish\FluentGallery\${{ matrix.arch }}\" -Force -ErrorAction SilentlyContinue
 
-      - name: Publish arm64
-        shell: pwsh
-        run: |
-          dotnet publish FluentGallery\FluentGallery.csproj `
-            -p:Platform=ARM64 -c Release --runtime win-arm64 --self-contained `
-            -p:InformationalVersion=${{ steps.ver.outputs.semver }} `
-            -o publish\FluentGallery\arm64
-          Copy-Item "FluentGallery\bin\ARM64\Release\net10.0-windows10.0.19041.0\win-arm64\FluentGallery.pri" `
-            "publish\FluentGallery\arm64\" -Force -ErrorAction SilentlyContinue
-
-      - name: Publish x86
-        shell: pwsh
-        run: |
-          dotnet publish FluentGallery\FluentGallery.csproj `
-            -p:Platform=x86 -c Release --runtime win-x86 --self-contained `
-            -p:InformationalVersion=${{ steps.ver.outputs.semver }} `
-            -o publish\FluentGallery\x86
-          Copy-Item "FluentGallery\bin\x86\Release\net10.0-windows10.0.19041.0\win-x86\FluentGallery.pri" `
-            "publish\FluentGallery\x86\" -Force -ErrorAction SilentlyContinue
-
-      # ── Create portable ZIPs ──────────────────────────────────────────────
-      - name: Create portable ZIPs
+      # ── Create portable ZIP ─────────────────────────────────────────────
+      - name: Create portable ZIP ${{ matrix.arch }}
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Path dist -Force | Out-Null
           $ver = "${{ steps.ver.outputs.semver }}"
-          foreach ($arch in @("x64", "arm64", "x86")) {
-            pwsh -File tools\zip.ps1 `
-              -SourceDir "publish\FluentGallery\$arch" `
-              -DestPath  "dist\HamGallery-$ver-portable-$arch.zip"
-          }
+          pwsh -File tools\zip.ps1 `
+            -SourceDir "publish\FluentGallery\${{ matrix.arch }}" `
+            -DestPath  "dist\HamGallery-$ver-portable-${{ matrix.arch }}.zip"
 
-      # ── Build signed MSIX per architecture ───────────────────────────────
-      - name: Build MSIX x64
+      # ── Build signed MSIX ───────────────────────────────────────────────
+      - name: Build MSIX ${{ matrix.arch }}
         shell: pwsh
         run: |
           dotnet build FluentGallery\FluentGallery.csproj `
-            -p:Platform=x64 -c Release -p:BuildMsix=true `
+            -p:Platform=${{ matrix.platform }} -c Release -p:BuildMsix=true `
             "-p:AppxPackageDir=${{ github.workspace }}\dist\msix\" `
             -p:UapAppxPackageBuildMode=SideloadOnly `
             -p:GenerateAppxPackageOnBuild=true `
@@ -109,37 +94,62 @@ jobs:
             -p:AppxPackageVersion=${{ steps.ver.outputs.quad }} `
             -p:InformationalVersion=${{ steps.ver.outputs.semver }}
 
-      - name: Build MSIX arm64
+      # ── Upload artifacts for this arch ──────────────────────────────────
+      - name: Upload artifacts ${{ matrix.arch }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.arch }}
+          path: |
+            dist/*.zip
+            dist/msix/**/*.msix
+          retention-days: 1
+
+  # ── Job 2: bundle + publish release (runs after all 3 builders finish) ───────
+  release:
+    needs: build
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Extract version from tag ────────────────────────────────────────
+      - name: Extract version
+        id: ver
         shell: pwsh
         run: |
-          dotnet build FluentGallery\FluentGallery.csproj `
-            -p:Platform=ARM64 -c Release -p:BuildMsix=true `
-            "-p:AppxPackageDir=${{ github.workspace }}\dist\msix\" `
-            -p:UapAppxPackageBuildMode=SideloadOnly `
-            -p:GenerateAppxPackageOnBuild=true `
-            -p:AppxPackageSigningEnabled=true `
-            -p:PackageCertificateThumbprint=${{ steps.cert.outputs.thumbprint }} `
-            -p:AppxPackageVersion=${{ steps.ver.outputs.quad }} `
-            -p:InformationalVersion=${{ steps.ver.outputs.semver }}
+          $tag    = "${{ github.ref_name }}"
+          $semver = $tag.TrimStart('v')
+          $quad   = if ($semver.Split('.').Count -lt 4) { "$semver.0" } else { $semver }
+          "semver=$semver" >> $env:GITHUB_OUTPUT
+          "quad=$quad"     >> $env:GITHUB_OUTPUT
 
-      - name: Build MSIX x86
+      # ── Restore cert (for signing bundle + exporting .cer) ──────────────
+      - name: Restore signing certificate
+        id: cert
         shell: pwsh
         run: |
-          dotnet build FluentGallery\FluentGallery.csproj `
-            -p:Platform=x86 -c Release -p:BuildMsix=true `
-            "-p:AppxPackageDir=${{ github.workspace }}\dist\msix\" `
-            -p:UapAppxPackageBuildMode=SideloadOnly `
-            -p:GenerateAppxPackageOnBuild=true `
-            -p:AppxPackageSigningEnabled=true `
-            -p:PackageCertificateThumbprint=${{ steps.cert.outputs.thumbprint }} `
-            -p:AppxPackageVersion=${{ steps.ver.outputs.quad }} `
-            -p:InformationalVersion=${{ steps.ver.outputs.semver }}
+          $pfxBytes = [Convert]::FromBase64String("${{ secrets.SIGNING_CERT_PFX }}")
+          [IO.File]::WriteAllBytes("$PWD\HamGallery.pfx", $pfxBytes)
 
-      # ── Bundle all MSIXs into a .msixbundle ──────────────────────────────
+          $pfxPwd = ConvertTo-SecureString "${{ secrets.SIGNING_CERT_PASSWORD }}" -AsPlainText -Force
+          $cert   = Import-PfxCertificate -FilePath HamGallery.pfx -CertStoreLocation Cert:\CurrentUser\My -Password $pfxPwd
+
+          Export-Certificate -Cert $cert -FilePath HamGallery.cer -Type CERT | Out-Null
+
+          "thumbprint=$($cert.Thumbprint)" >> $env:GITHUB_OUTPUT
+
+      # ── Download all arch artifacts ──────────────────────────────────────
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          path: dist-all
+          merge-multiple: true
+
+      # ── Bundle all MSIXs into a .msixbundle ─────────────────────────────
       - name: Create msixbundle
         shell: pwsh
         run: |
-          # Locate MakeAppx.exe and SignTool.exe from installed Windows SDK
           $sdkBin = "C:\Program Files (x86)\Windows Kits\10\bin"
           $makeappx = Get-ChildItem $sdkBin -Recurse -Filter makeappx.exe |
             Where-Object { $_.FullName -match "x64" } |
@@ -153,28 +163,28 @@ jobs:
           if (-not $makeappx) { throw "makeappx.exe not found" }
           if (-not $signtool)  { throw "signtool.exe not found" }
 
-          # Collect .msix files from per-arch subdirectories into a staging dir
-          $staging = "dist\msix-staging"
+          # Stage .msix files (exclude WindowsAppRuntime deps, keep only app packages)
+          $staging = "dist-all\msix-staging"
           New-Item -ItemType Directory -Path $staging -Force | Out-Null
-          Get-ChildItem "dist\msix" -Recurse -Filter "*.msix" | ForEach-Object {
-            Copy-Item $_.FullName "$staging\$($_.Name)" -Force
-            Write-Host "Staging: $($_.Name)"
-          }
+          Get-ChildItem "dist-all" -Recurse -Filter "*.msix" |
+            Where-Object { $_.Name -notmatch "WindowsAppRuntime" } |
+            ForEach-Object {
+              Copy-Item $_.FullName "$staging\$($_.Name)" -Force
+              Write-Host "Staging: $($_.Name)"
+            }
 
           $ver    = "${{ steps.ver.outputs.semver }}"
-          $bundle = "dist\HamGallery-$ver.msixbundle"
+          $bundle = "dist-all\HamGallery-$ver.msixbundle"
 
-          # Create bundle
           & $makeappx bundle /d $staging /p $bundle /bv "${{ steps.ver.outputs.quad }}" /o
           if ($LASTEXITCODE -ne 0) { throw "makeappx failed" }
 
-          # Sign bundle with the self-signed cert
           & $signtool sign /fd SHA256 /f HamGallery.pfx /p "${{ secrets.SIGNING_CERT_PASSWORD }}" $bundle
           if ($LASTEXITCODE -ne 0) { throw "signtool failed" }
 
           Write-Host "Bundle: $bundle"
 
-      # ── Publish GitHub Release ────────────────────────────────────────────
+      # ── Publish GitHub Release ───────────────────────────────────────────
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -193,6 +203,6 @@ jobs:
             ### 绿色版 ZIP
             解压后直接运行 `FluentGallery.exe`，无需安装。支持 x64 / arm64 / x86 三种架构。
           files: |
-            dist/HamGallery-*.zip
-            dist/HamGallery-*.msixbundle
+            dist-all/HamGallery-*.zip
+            dist-all/HamGallery-*.msixbundle
             HamGallery.cer
