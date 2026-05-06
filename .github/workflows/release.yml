@@ -94,6 +94,20 @@ jobs:
             -p:AppxPackageVersion=${{ steps.ver.outputs.quad }} `
             -p:InformationalVersion=${{ steps.ver.outputs.semver }}
 
+      # ── Copy app MSIX to a flat upload directory ────────────────────────
+      # (avoids glob recursion issues in upload-artifact and name collisions
+      #  with WindowsAppRuntime dependency packages)
+      - name: Prepare MSIX for upload ${{ matrix.arch }}
+        shell: pwsh
+        run: |
+          $msix = Get-ChildItem "dist\msix" -Recurse -Filter "FluentGallery_*.msix" |
+            Where-Object { $_.Name -notmatch "bundle" } |
+            Select-Object -First 1
+          if (-not $msix) { throw "App .msix not found under dist\msix" }
+          Write-Host "Found: $($msix.FullName)"
+          New-Item -ItemType Directory -Path "dist\upload" -Force | Out-Null
+          Copy-Item $msix.FullName "dist\upload\FluentGallery_${{ matrix.arch }}.msix" -Force
+
       # ── Upload artifacts for this arch ──────────────────────────────────
       - name: Upload artifacts ${{ matrix.arch }}
         uses: actions/upload-artifact@v4
@@ -101,7 +115,7 @@ jobs:
           name: dist-${{ matrix.arch }}
           path: |
             dist/*.zip
-            dist/msix/**/*.msix
+            dist/upload/*.msix
           retention-days: 1
 
   # ── Job 2: bundle + publish release (runs after all 3 builders finish) ───────
@@ -146,6 +160,17 @@ jobs:
           path: dist-all
           merge-multiple: true
 
+      # ── Diagnose downloaded artifacts ────────────────────────────────────
+      - name: List downloaded artifacts
+        shell: pwsh
+        run: |
+          Write-Host "=== dist-all/ ==="
+          if (Test-Path dist-all) {
+            Get-ChildItem dist-all -Recurse | Select-Object -ExpandProperty FullName
+          } else {
+            Write-Host "(dist-all not found)"
+          }
+
       # ── Bundle all MSIXs into a .msixbundle ─────────────────────────────
       - name: Create msixbundle
         shell: pwsh
@@ -163,11 +188,11 @@ jobs:
           if (-not $makeappx) { throw "makeappx.exe not found" }
           if (-not $signtool)  { throw "signtool.exe not found" }
 
-          # Stage .msix files (exclude WindowsAppRuntime deps, keep only app packages)
+          # App MSIXs are in flat upload/ dir, named FluentGallery_<arch>.msix
           $staging = "dist-all\msix-staging"
           New-Item -ItemType Directory -Path $staging -Force | Out-Null
-          Get-ChildItem "dist-all" -Recurse -Filter "*.msix" |
-            Where-Object { $_.Name -notmatch "WindowsAppRuntime" } |
+          Get-ChildItem "dist-all" -Recurse -Filter "FluentGallery_*.msix" |
+            Where-Object { $_.Name -notmatch "bundle" } |
             ForEach-Object {
               Copy-Item $_.FullName "$staging\$($_.Name)" -Force
               Write-Host "Staging: $($_.Name)"
