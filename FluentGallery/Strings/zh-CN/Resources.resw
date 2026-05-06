@@ -593,6 +593,7 @@
   <data name="SettingsPage_DebugKeepChromeCard.Header" xml:space="preserve"><value>图片详情页工具栏常亮</value></data>
   <data name="SettingsPage_DebugKeepChromeCard.Description" xml:space="preserve"><value>调试选项。开启后，图片详情页顶部工具栏、底部工具栏和缩放条会始终显示，不再响应鼠标移入/移出触发的自动隐藏逻辑。</value></data>
   <data name="SettingsPage_AboutSectionTitle.Text" xml:space="preserve"><value>关于</value></data>
+  <data name="SettingsPage_AppInfoCard.Header" xml:space="preserve"><value>丸灰相册</value></data>
   <data name="SettingsPage_AppInfoCard.Description" xml:space="preserve"><value>版本 1.0.0</value></data>
   <data name="SettingsPage_RepoCard.Header" xml:space="preserve"><value>开源仓库</value></data>
   <data name="SettingsPage_RepoCard.Description" xml:space="preserve"><value>在 GitHub 上查看源代码、提交 Issue 或贡献代码</value></data>

@@ -12,16 +12,16 @@ public static class AppDataPaths
 
 #if DEV_BUILD
     /// <summary>Folder name under %LocalAppData% (also used as the process identity).</summary>
-    public const string AppFolderName = "FluentGallery-Dev";
+    public const string AppFolderName = "HamGallery-Dev";
 
     /// <summary>Human-readable application display name (window title, etc.).</summary>
-    public const string DisplayName = "Fluent Gallery (Dev)";
+    public const string DisplayName = "Ham Gallery (Dev)";
 #else
     /// <summary>Folder name under %LocalAppData% (also used as the process identity).</summary>
-    public const string AppFolderName = "FluentGallery";
+    public const string AppFolderName = "HamGallery";
 
     /// <summary>Human-readable application display name (window title, etc.).</summary>
-    public const string DisplayName = "Fluent Gallery";
+    public const string DisplayName = "Ham Gallery";
 #endif
 
     // ── Runtime paths ─────────────────────────────────────────────────────────

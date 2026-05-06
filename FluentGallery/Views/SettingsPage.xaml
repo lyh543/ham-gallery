@@ -612,7 +612,7 @@
             <!-- App version -->
             <ctk:SettingsCard
                 x:Uid="SettingsPage_AppInfoCard"
-                Header="Fluent Gallery"
+                Header="Ham Gallery"
                 Description="版本 1.0.0">
                 <ctk:SettingsCard.HeaderIcon>
                     <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xEB9F;" />

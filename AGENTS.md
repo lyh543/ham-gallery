@@ -10,7 +10,7 @@ If the build fails, read the error output, fix the issues, and rebuild. Repeat u
 
 ## 日志路径
 
-开发模式下，应用的日志位于 `%LocalAppData%\FluentGallery-Dev\logs`。如果出现了闪退问题，请优先读取日志，看有没有异常。
+开发模式下，应用的日志位于 `%LocalAppData%\HamGallery-Dev\logs`。如果出现了闪退问题，请优先读取日志，看有没有异常。
 
 ## Skills
 

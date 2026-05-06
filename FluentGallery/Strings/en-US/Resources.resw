@@ -593,6 +593,7 @@ This action cannot be undone. Continue?</value></data>
   <data name="SettingsPage_DebugKeepChromeCard.Header" xml:space="preserve"><value>Keep Photo Detail Chrome Visible</value></data>
   <data name="SettingsPage_DebugKeepChromeCard.Description" xml:space="preserve"><value>Debug option. Keep top/bottom toolbars and zoom slider always visible on photo detail page, disabling hover-triggered auto hide.</value></data>
   <data name="SettingsPage_AboutSectionTitle.Text" xml:space="preserve"><value>About</value></data>
+  <data name="SettingsPage_AppInfoCard.Header" xml:space="preserve"><value>Ham Gallery</value></data>
   <data name="SettingsPage_AppInfoCard.Description" xml:space="preserve"><value>Version 1.0.0</value></data>
   <data name="SettingsPage_RepoCard.Header" xml:space="preserve"><value>Open-source Repository</value></data>
   <data name="SettingsPage_RepoCard.Description" xml:space="preserve"><value>View source code, submit issues, or contribute on GitHub</value></data>

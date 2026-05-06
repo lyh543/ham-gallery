@@ -15,8 +15,8 @@
   <mp:PhoneIdentity PhoneProductId="00000000-0000-0000-0000-000000000000" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
   <Properties>
-    <DisplayName>Fluent Gallery</DisplayName>
-    <PublisherDisplayName>Fluent Gallery</PublisherDisplayName>
+    <DisplayName>Ham Gallery</DisplayName>
+    <PublisherDisplayName>Ham Gallery</PublisherDisplayName>
     <Logo>Assets\icon_256.png</Logo>
   </Properties>
 
@@ -32,7 +32,7 @@
   <Applications>
     <Application Id="App" Executable="$targetnametoken$.exe" EntryPoint="$targetentrypoint$">
       <uap:VisualElements
-        DisplayName="Fluent Gallery"
+        DisplayName="Ham Gallery"
         Description="A modern photo gallery for Windows"
         BackgroundColor="transparent"
         Square150x150Logo="Assets\icon_256.png"
