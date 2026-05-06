@@ -66,14 +66,14 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.CERT_REFRESH_PAT }}
         run: |
-          gh secret set SIGNING_CERT_PFX --body-file .pfx_b64.txt
+          Get-Content .pfx_b64.txt -Raw | gh secret set SIGNING_CERT_PFX
 
       - name: Update SIGNING_CERT_PASSWORD secret
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.CERT_REFRESH_PAT }}
         run: |
-          gh secret set SIGNING_CERT_PASSWORD --body-file .cert_pwd.txt
+          Get-Content .cert_pwd.txt -Raw | gh secret set SIGNING_CERT_PASSWORD
 
       # ── Upload .cer for distribution ──────────────────────────────────────
       - name: Upload new certificate
