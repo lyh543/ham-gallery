@@ -31,25 +31,25 @@ jobs:
           "semver=$semver" >> $env:GITHUB_OUTPUT
           "quad=$quad"     >> $env:GITHUB_OUTPUT
 
-      # ── Self-signed certificate ───────────────────────────────────────────
-      - name: Create self-signed certificate
+      # ── Restore signing certificate from secret ──────────────────────────
+      - name: Restore signing certificate
         id: cert
         shell: pwsh
         run: |
-          $cert = New-SelfSignedCertificate `
-            -Type Custom `
-            -Subject "CN=HamGallery" `
-            -KeyUsage DigitalSignature `
-            -FriendlyName "Ham Gallery" `
-            -CertStoreLocation "Cert:\CurrentUser\My" `
-            -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
+          # Decode PFX from base64 secret and write to disk
+          $pfxBytes = [Convert]::FromBase64String("${{ secrets.SIGNING_CERT_PFX }}")
+          [IO.File]::WriteAllBytes("$PWD\HamGallery.pfx", $pfxBytes)
 
-          $pfxPwd = ConvertTo-SecureString "ci-build" -AsPlainText -Force
-          Export-PfxCertificate -Cert $cert -FilePath HamGallery.pfx -Password $pfxPwd | Out-Null
-          Export-Certificate    -Cert $cert -FilePath HamGallery.cer -Type CERT          | Out-Null
+          # Import to cert store to get thumbprint
+          $pfxPwd = ConvertTo-SecureString "${{ secrets.SIGNING_CERT_PASSWORD }}" -AsPlainText -Force
+          $cert   = Import-PfxCertificate -FilePath HamGallery.pfx -CertStoreLocation Cert:\CurrentUser\My -Password $pfxPwd
+
+          # Export public .cer for users to trust
+          Export-Certificate -Cert $cert -FilePath HamGallery.cer -Type CERT | Out-Null
 
           "thumbprint=$($cert.Thumbprint)" >> $env:GITHUB_OUTPUT
           Write-Host "Certificate thumbprint: $($cert.Thumbprint)"
+          Write-Host "Certificate expires:    $($cert.NotAfter)"
 
       # ── Portable self-contained publish ──────────────────────────────────
       - name: Publish x64
@@ -168,7 +168,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "makeappx failed" }
 
           # Sign bundle with the self-signed cert
-          & $signtool sign /fd SHA256 /f HamGallery.pfx /p "ci-build" $bundle
+          & $signtool sign /fd SHA256 /f HamGallery.pfx /p "${{ secrets.SIGNING_CERT_PASSWORD }}" $bundle
           if ($LASTEXITCODE -ne 0) { throw "signtool failed" }
 
           Write-Host "Bundle: $bundle"

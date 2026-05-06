@@ -1,0 +1,102 @@
+name: Refresh Signing Certificate
+
+# Runs automatically every 3 years on Jan 1 (cron: 0 0 1 1 */3).
+# Can also be triggered manually for an emergency renewal.
+# Generates a new 3-year self-signed certificate, updates the two GitHub Secrets,
+# and uploads the new .cer as an artifact so you can distribute it to users.
+on:
+  schedule:
+    - cron: '0 0 1 1 */3'   # 00:00 UTC on January 1st, every 3 years
+  workflow_dispatch: {}
+
+permissions:
+  contents: write   # for uploading release asset if needed
+  secrets: write    # required to update repository secrets
+
+jobs:
+  refresh:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Generate new certificate ──────────────────────────────────────────
+      - name: Generate self-signed certificate
+        id: cert
+        shell: pwsh
+        run: |
+          $years  = 3
+          $expiry = (Get-Date).AddYears($years)
+          $pwd    = -join ((33..126) | Get-Random -Count 32 | ForEach-Object { [char]$_ })
+
+          $cert = New-SelfSignedCertificate `
+            -Type Custom `
+            -Subject "CN=HamGallery" `
+            -KeyUsage DigitalSignature `
+            -FriendlyName "Ham Gallery" `
+            -CertStoreLocation "Cert:\CurrentUser\My" `
+            -NotAfter $expiry `
+            -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
+
+          $pfxPwd = ConvertTo-SecureString $pwd -AsPlainText -Force
+          Export-PfxCertificate -Cert $cert -FilePath HamGallery.pfx -Password $pfxPwd | Out-Null
+          Export-Certificate    -Cert $cert -FilePath HamGallery.cer -Type CERT           | Out-Null
+
+          $pfxB64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes("$PWD\HamGallery.pfx"))
+
+          # Write outputs — password masked in logs
+          "pfx_b64=$pfxB64"           >> $env:GITHUB_OUTPUT
+          "cert_password=$pwd"         >> $env:GITHUB_OUTPUT
+          "thumbprint=$($cert.Thumbprint)" >> $env:GITHUB_OUTPUT
+          "expires=$($cert.NotAfter.ToString('yyyy-MM-dd'))" >> $env:GITHUB_OUTPUT
+
+          Write-Host "Thumbprint : $($cert.Thumbprint)"
+          Write-Host "Expires    : $($cert.NotAfter.ToString('yyyy-MM-dd'))"
+
+      # ── Update GitHub Secrets ─────────────────────────────────────────────
+      - name: Update SIGNING_CERT_PFX secret
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $pfxB64 = "${{ steps.cert.outputs.pfx_b64 }}"
+          gh secret set SIGNING_CERT_PFX --body $pfxB64
+
+      - name: Update SIGNING_CERT_PASSWORD secret
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $password = "${{ steps.cert.outputs.cert_password }}"
+          gh secret set SIGNING_CERT_PASSWORD --body $password
+
+      # ── Upload .cer for distribution ──────────────────────────────────────
+      - name: Upload new certificate
+        uses: actions/upload-artifact@v4
+        with:
+          name: HamGallery-signing-cert-${{ steps.cert.outputs.expires }}
+          path: HamGallery.cer
+          retention-days: 90
+
+      # ── Print summary ─────────────────────────────────────────────────────
+      - name: Job summary
+        shell: pwsh
+        run: |
+          $expires = "${{ steps.cert.outputs.expires }}"
+          $thumb   = "${{ steps.cert.outputs.thumbprint }}"
+          @"
+          ## Certificate refreshed
+
+          | Field | Value |
+          |-------|-------|
+          | Thumbprint | ``$thumb`` |
+          | Expires    | $expires |
+          | Validity   | 3 years |
+
+          ### Next steps
+          1. Download **HamGallery.cer** from the Artifacts section above.
+          2. Distribute it to users: they need to install it to **Local Machine → Trusted People**.
+          3. All future releases will use this new certificate until it expires.
+
+          > Next renewal reminder: before **$expires**
+          "@ >> $env:GITHUB_STEP_SUMMARY
