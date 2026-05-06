@@ -45,19 +45,6 @@ jobs:
           "semver=$semver" >> $env:GITHUB_OUTPUT
           "quad=$quad"     >> $env:GITHUB_OUTPUT
 
-      # ── Restore signing certificate ─────────────────────────────────────
-      - name: Restore signing certificate
-        id: cert
-        shell: pwsh
-        run: |
-          $pfxBytes = [Convert]::FromBase64String("${{ secrets.SIGNING_CERT_PFX }}")
-          [IO.File]::WriteAllBytes("$PWD\HamGallery.pfx", $pfxBytes)
-
-          $pfxPwd = ConvertTo-SecureString "${{ secrets.SIGNING_CERT_PASSWORD }}" -AsPlainText -Force
-          $cert   = Import-PfxCertificate -FilePath HamGallery.pfx -CertStoreLocation Cert:\CurrentUser\My -Password $pfxPwd
-
-          "thumbprint=$($cert.Thumbprint)" >> $env:GITHUB_OUTPUT
-
       # ── Portable self-contained publish ────────────────────────────────
       - name: Publish ${{ matrix.arch }}
         shell: pwsh
@@ -80,7 +67,7 @@ jobs:
             -SourceDir "publish\FluentGallery\${{ matrix.arch }}" `
             -DestPath  "dist\HamGallery-$ver-portable-${{ matrix.arch }}.zip"
 
-      # ── Build signed MSIX ───────────────────────────────────────────────
+      # ── Build unsigned MSIX (signing happens once on the bundle in release job) ──
       - name: Build MSIX ${{ matrix.arch }}
         shell: pwsh
         run: |
@@ -89,8 +76,7 @@ jobs:
             "-p:AppxPackageDir=${{ github.workspace }}\dist\msix\" `
             -p:UapAppxPackageBuildMode=SideloadOnly `
             -p:GenerateAppxPackageOnBuild=true `
-            -p:AppxPackageSigningEnabled=true `
-            -p:PackageCertificateThumbprint=${{ steps.cert.outputs.thumbprint }} `
+            -p:AppxPackageSigningEnabled=false `
             -p:AppxPackageVersion=${{ steps.ver.outputs.quad }} `
             -p:InformationalVersion=${{ steps.ver.outputs.semver }}
 
@@ -100,20 +86,14 @@ jobs:
       - name: Prepare MSIX for upload ${{ matrix.arch }}
         shell: pwsh
         run: |
-          # Prefer a bare .msix; fall back to .msixbundle (single-arch bundle)
-          # Use -eq on Extension for exact match — avoids .msixbundle matching *.msix
+          # With signing disabled, dotnet generates only a bare .msix (no bundle)
           $pkg = Get-ChildItem "dist\msix" -Recurse |
             Where-Object { $_.Extension -eq ".msix" -and $_.Name -notmatch "WindowsAppRuntime" } |
             Select-Object -First 1
           if (-not $pkg) {
-            $pkg = Get-ChildItem "dist\msix" -Recurse |
-              Where-Object { $_.Extension -eq ".msixbundle" -and $_.Name -notmatch "WindowsAppRuntime" } |
-              Select-Object -First 1
-          }
-          if (-not $pkg) {
             Write-Host "dist\msix contents:"
             Get-ChildItem "dist\msix" -Recurse | Select-Object -ExpandProperty FullName
-            throw "App package not found under dist\msix"
+            throw "App .msix not found under dist\msix"
           }
           Write-Host "Found: $($pkg.FullName)"
           New-Item -ItemType Directory -Path "dist\upload" -Force | Out-Null
@@ -182,7 +162,8 @@ jobs:
             Write-Host "(dist-all not found)"
           }
 
-      # ── Bundle all MSIXs into a .msixbundle ─────────────────────────────
+      # ── Bundle MSIXs ───────────────────────────────────────────────────
+      # Generates: per-arch .msixbundle + combined .msixbundle, then signs all
       - name: Create msixbundle
         shell: pwsh
         run: |
@@ -199,26 +180,50 @@ jobs:
           if (-not $makeappx) { throw "makeappx.exe not found" }
           if (-not $signtool)  { throw "signtool.exe not found" }
 
-          # App MSIXs are in flat upload/ dir, named FluentGallery_<arch>.msix
-          $staging = "dist-all\msix-staging"
-          New-Item -ItemType Directory -Path $staging -Force | Out-Null
-          Get-ChildItem "dist-all" -Recurse -Filter "FluentGallery_*.msix" |
-            Where-Object { $_.Name -notmatch "bundle" } |
+          $ver  = "${{ steps.ver.outputs.semver }}"
+          $quad = "${{ steps.ver.outputs.quad }}"
+          $dist = "dist-all"
+
+          # Collect all app MSIXs (named FluentGallery_<arch>.msix)
+          $msixFiles = Get-ChildItem "$dist" -Recurse |
+            Where-Object { $_.Extension -eq ".msix" -and $_.Name -match "^FluentGallery_" }
+
+          # 1. Per-arch single-package msixbundle
+          foreach ($msix in $msixFiles) {
+            $arch   = $msix.BaseName -replace '^FluentGallery_', ''
+            $single = "$dist\HamGallery-$ver-$arch.msixbundle"
+            $stage  = "$dist\stage-$arch"
+            New-Item -ItemType Directory -Path $stage -Force | Out-Null
+            Copy-Item $msix.FullName "$stage\$($msix.Name)" -Force
+            Write-Host "Building $arch bundle from: $($msix.Name)"
+            & $makeappx bundle /d $stage /p $single /bv $quad /o
+            if ($LASTEXITCODE -ne 0) { throw "makeappx failed for $arch" }
+          }
+
+          # 2. Combined all-arch msixbundle (signed, for sideload)
+          $stagingAll = "$dist\msix-staging-all"
+          New-Item -ItemType Directory -Path $stagingAll -Force | Out-Null
+          foreach ($msix in $msixFiles) {
+            Copy-Item $msix.FullName "$stagingAll\$($msix.Name)" -Force
+            Write-Host "Staging for combined bundle: $($msix.Name)"
+          }
+          $bundleAll = "$dist\HamGallery-$ver.msixbundle"
+          & $makeappx bundle /d $stagingAll /p $bundleAll /bv $quad /o
+          if ($LASTEXITCODE -ne 0) { throw "makeappx failed for combined bundle" }
+
+          # 3. Unsigned all-arch msixbundle for Microsoft Store submission
+          $bundleStore = "$dist\HamGallery-$ver-store.msixbundle"
+          Copy-Item $bundleAll $bundleStore -Force
+          Write-Host "Store bundle (unsigned): $bundleStore"
+
+          # 4. Sign the sideload bundles (store bundle stays unsigned)
+          Get-ChildItem $dist -Filter "*.msixbundle" |
+            Where-Object { $_.Name -notmatch "-store\." } |
             ForEach-Object {
-              Copy-Item $_.FullName "$staging\$($_.Name)" -Force
-              Write-Host "Staging: $($_.Name)"
+              Write-Host "Signing: $($_.Name)"
+              & $signtool sign /fd SHA256 /f HamGallery.pfx /p "${{ secrets.SIGNING_CERT_PASSWORD }}" $_.FullName
+              if ($LASTEXITCODE -ne 0) { throw "signtool failed for $($_.Name)" }
             }
-
-          $ver    = "${{ steps.ver.outputs.semver }}"
-          $bundle = "dist-all\HamGallery-$ver.msixbundle"
-
-          & $makeappx bundle /d $staging /p $bundle /bv "${{ steps.ver.outputs.quad }}" /o
-          if ($LASTEXITCODE -ne 0) { throw "makeappx failed" }
-
-          & $signtool sign /fd SHA256 /f HamGallery.pfx /p "${{ secrets.SIGNING_CERT_PASSWORD }}" $bundle
-          if ($LASTEXITCODE -ne 0) { throw "signtool failed" }
-
-          Write-Host "Bundle: $bundle"
 
       # ── Publish GitHub Release ───────────────────────────────────────────
       - name: Create GitHub Release
@@ -232,7 +237,11 @@ jobs:
 
             ### MSIX 安装包（推荐）
             1. 下载 `HamGallery.cer`，双击 → **安装到本地计算机 → 受信任人**
-            2. 下载 `HamGallery-${{ steps.ver.outputs.semver }}.msixbundle`，双击安装
+            2. 下载对应架构的 `.msixbundle`，双击安装
+               - `HamGallery-${{ steps.ver.outputs.semver }}.msixbundle` — 全架构包（x64 + arm64 + x86）
+               - `HamGallery-${{ steps.ver.outputs.semver }}-x64.msixbundle` — 仅 x64
+               - `HamGallery-${{ steps.ver.outputs.semver }}-arm64.msixbundle` — 仅 arm64
+               - `HamGallery-${{ steps.ver.outputs.semver }}-x86.msixbundle` — 仅 x86
 
             > 证书为 CI 构建时自动生成的自签名证书，每次发布均不同。每次升级需重新信任新证书。
 
