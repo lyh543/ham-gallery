@@ -10,8 +10,7 @@ on:
   workflow_dispatch: {}
 
 permissions:
-  contents: write   # for uploading release asset if needed
-  secrets: write    # required to update repository secrets
+  contents: write
 
 jobs:
   refresh:
@@ -57,7 +56,7 @@ jobs:
       - name: Update SIGNING_CERT_PFX secret
         shell: pwsh
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.CERT_REFRESH_PAT }}
         run: |
           $pfxB64 = "${{ steps.cert.outputs.pfx_b64 }}"
           gh secret set SIGNING_CERT_PFX --body $pfxB64
@@ -65,7 +64,7 @@ jobs:
       - name: Update SIGNING_CERT_PASSWORD secret
         shell: pwsh
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.CERT_REFRESH_PAT }}
         run: |
           $password = "${{ steps.cert.outputs.cert_password }}"
           gh secret set SIGNING_CERT_PASSWORD --body $password
