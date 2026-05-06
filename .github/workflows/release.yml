@@ -100,11 +100,16 @@ jobs:
       - name: Prepare MSIX for upload ${{ matrix.arch }}
         shell: pwsh
         run: |
-          # dotnet build may produce either a .msix or a single-arch .msixbundle
-          $pkg = Get-ChildItem "dist\msix" -Recurse -Include "*.msix","*.msixbundle" |
-            Where-Object { $_.Name -notmatch "WindowsAppRuntime" } |
-            Sort-Object { $_.Extension } |   # prefer .msix over .msixbundle if both exist
+          # Prefer a bare .msix; fall back to .msixbundle (single-arch bundle)
+          # Use -eq on Extension for exact match — avoids .msixbundle matching *.msix
+          $pkg = Get-ChildItem "dist\msix" -Recurse |
+            Where-Object { $_.Extension -eq ".msix" -and $_.Name -notmatch "WindowsAppRuntime" } |
             Select-Object -First 1
+          if (-not $pkg) {
+            $pkg = Get-ChildItem "dist\msix" -Recurse |
+              Where-Object { $_.Extension -eq ".msixbundle" -and $_.Name -notmatch "WindowsAppRuntime" } |
+              Select-Object -First 1
+          }
           if (-not $pkg) {
             Write-Host "dist\msix contents:"
             Get-ChildItem "dist\msix" -Recurse | Select-Object -ExpandProperty FullName
@@ -112,7 +117,6 @@ jobs:
           }
           Write-Host "Found: $($pkg.FullName)"
           New-Item -ItemType Directory -Path "dist\upload" -Force | Out-Null
-          # Always upload as .msix so the release job filter is consistent
           Copy-Item $pkg.FullName "dist\upload\FluentGallery_${{ matrix.arch }}.msix" -Force
 
       # ── Upload artifacts for this arch ──────────────────────────────────

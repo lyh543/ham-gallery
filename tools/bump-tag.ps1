@@ -5,21 +5,18 @@
 .PARAMETER Part
     要递增的版本段：major | minor | patch | build（默认 build）
 
-.PARAMETER DryRun
-    只打印计算结果，不实际创建或推送 tag。
-
 .EXAMPLE
     .\tools\bump-tag.ps1 -Part build    # 递增 build：v0.1.2.0 → v0.1.2.1
     .\tools\bump-tag.ps1 [-Part patch]  # 递增 patch：v0.1.2.0 → v0.1.3.0
     .\tools\bump-tag.ps1 -Part minor    # 递增 minor：v0.1.2.0 → v0.2.0.0
     .\tools\bump-tag.ps1 -Part major    # 递增 major：v0.1.2.0 → v1.0.0.0
-    .\tools\bump-tag.ps1 -DryRun        # 预览，不执行
+    .\tools\bump-tag.ps1 [-Part patch] -y # 递增 patch 并自动同意
 #>
 param(
     [ValidateSet("major", "minor", "patch", "build")]
     [string] $Part = "patch",
 
-    [switch] $DryRun
+    [switch] $y
 )
 
 Set-StrictMode -Version Latest
@@ -57,16 +54,15 @@ switch ($Part) {
 $newTag = "v$major.$minor.$patch.$build"
 Write-Host "New tag    : $newTag"
 
-if ($DryRun) {
-    Write-Host "[DryRun] Skipping git tag and push."
-    exit 0
-}
-
 # ── 4. 确认 ──────────────────────────────────────────────────────────────────
-$confirm = Read-Host "Create and push '$newTag'? [y/N]"
-if ($confirm -notmatch '^[Yy]$') {
-    Write-Host "Aborted."
-    exit 0
+if (-not $y) {
+    $confirm = Read-Host "Create and push '$newTag'? [y/N]"
+    if ($confirm -notmatch '^[Yy]$') {
+        Write-Host "Aborted."
+        exit 0
+    }
+} else {
+    Write-Host "Auto-confirming (use -y flag)..."
 }
 
 # ── 5. 打 tag 并推送 ─────────────────────────────────────────────────────────
