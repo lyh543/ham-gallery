@@ -25,9 +25,10 @@ jobs:
         id: ver
         shell: pwsh
         run: |
-          $tag    = "${{ github.ref_name }}"   # e.g. v1.2.3
-          $semver = $tag.TrimStart('v')         # 1.2.3
-          $quad   = "$semver.0"                 # 1.2.3.0  (required by MSIX)
+          $tag    = "${{ github.ref_name }}"   # e.g. v1.2.3 or v1.2.3.0
+          $semver = $tag.TrimStart('v')         # 1.2.3 or 1.2.3.0
+          # MSIX requires exactly 4-part version; append .0 only when needed
+          $quad   = if ($semver.Split('.').Count -lt 4) { "$semver.0" } else { $semver }
           "semver=$semver" >> $env:GITHUB_OUTPUT
           "quad=$quad"     >> $env:GITHUB_OUTPUT
 
