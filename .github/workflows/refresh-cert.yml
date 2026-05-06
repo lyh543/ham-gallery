@@ -26,7 +26,7 @@ jobs:
         run: |
           $years  = 3
           $expiry = (Get-Date).AddYears($years)
-          $pwd    = -join ((33..126) | Get-Random -Count 32 | ForEach-Object { [char]$_ })
+          $certPwd = -join ((33..126) | Get-Random -Count 32 | ForEach-Object { [char]$_ })
 
           $cert = New-SelfSignedCertificate `
             -Type Custom `
@@ -37,16 +37,16 @@ jobs:
             -NotAfter $expiry `
             -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
 
-          $pfxPwd = ConvertTo-SecureString $pwd -AsPlainText -Force
+          $pfxPwd = ConvertTo-SecureString $certPwd -AsPlainText -Force
           Export-PfxCertificate -Cert $cert -FilePath HamGallery.pfx -Password $pfxPwd | Out-Null
           Export-Certificate    -Cert $cert -FilePath HamGallery.cer -Type CERT           | Out-Null
 
           $pfxB64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes("$PWD\HamGallery.pfx"))
 
           # Write outputs — password masked in logs
-          "pfx_b64=$pfxB64"           >> $env:GITHUB_OUTPUT
-          "cert_password=$pwd"         >> $env:GITHUB_OUTPUT
-          "thumbprint=$($cert.Thumbprint)" >> $env:GITHUB_OUTPUT
+          "pfx_b64=$pfxB64"                             >> $env:GITHUB_OUTPUT
+          "cert_password=$certPwd"                      >> $env:GITHUB_OUTPUT
+          "thumbprint=$($cert.Thumbprint)"              >> $env:GITHUB_OUTPUT
           "expires=$($cert.NotAfter.ToString('yyyy-MM-dd'))" >> $env:GITHUB_OUTPUT
 
           Write-Host "Thumbprint : $($cert.Thumbprint)"
