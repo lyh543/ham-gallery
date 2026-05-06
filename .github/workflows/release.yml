@@ -100,10 +100,14 @@ jobs:
       - name: Prepare MSIX for upload ${{ matrix.arch }}
         shell: pwsh
         run: |
-          $msix = Get-ChildItem "dist\msix" -Recurse -Filter "FluentGallery_*.msix" |
-            Where-Object { $_.Name -notmatch "bundle" } |
+          $msix = Get-ChildItem "dist\msix" -Recurse -Include "*.msix" |
+            Where-Object { $_.Name -notmatch "bundle|WindowsAppRuntime" } |
             Select-Object -First 1
-          if (-not $msix) { throw "App .msix not found under dist\msix" }
+          if (-not $msix) {
+            Write-Host "dist\msix contents:"
+            Get-ChildItem "dist\msix" -Recurse | Select-Object -ExpandProperty FullName
+            throw "App .msix not found under dist\msix"
+          }
           Write-Host "Found: $($msix.FullName)"
           New-Item -ItemType Directory -Path "dist\upload" -Force | Out-Null
           Copy-Item $msix.FullName "dist\upload\FluentGallery_${{ matrix.arch }}.msix" -Force
