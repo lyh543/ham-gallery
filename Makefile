@@ -1,5 +1,5 @@
-PROJ        = FluentGallery\FluentGallery.csproj
-TEST_PROJ   = FluentGallery.Tests\FluentGallery.Tests.csproj
+PROJ        = FluentGallery/FluentGallery.csproj
+TEST_PROJ   = FluentGallery.Tests/FluentGallery.Tests.csproj
 EXE         = FluentGallery\bin\x64\Debug\net10.0-windows10.0.19041.0\win-x64\FluentGallery.exe
 
 # Architecture: x64 (default), arm64, x86
