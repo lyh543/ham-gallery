@@ -17,13 +17,10 @@ jobs:
       matrix:
         include:
           - arch: x64
-            platform: x64
             runtime: win-x64
           - arch: arm64
-            platform: ARM64
             runtime: win-arm64
           - arch: x86
-            platform: x86
             runtime: win-x86
 
     steps:
@@ -33,6 +30,9 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+
+      - name: Install make
+        run: choco install make --no-progress -y
 
       # ── Extract version from tag ────────────────────────────────────────
       - name: Extract version
@@ -63,11 +63,11 @@ jobs:
         shell: pwsh
         run: |
           dotnet publish FluentGallery\FluentGallery.csproj `
-            -p:Platform=${{ matrix.platform }} -c Release `
+            -p:Platform=${{ matrix.arch }} -c Release `
             --runtime ${{ matrix.runtime }} --self-contained `
             -p:InformationalVersion=${{ steps.ver.outputs.semver }} `
             -o publish\FluentGallery\${{ matrix.arch }}
-          Copy-Item "FluentGallery\bin\${{ matrix.platform }}\Release\net10.0-windows10.0.19041.0\${{ matrix.runtime }}\FluentGallery.pri" `
+          Copy-Item "FluentGallery\bin\${{ matrix.arch }}\Release\net10.0-windows10.0.19041.0\${{ matrix.runtime }}\FluentGallery.pri" `
             "publish\FluentGallery\${{ matrix.arch }}\" -Force -ErrorAction SilentlyContinue
 
       # ── Create portable ZIP ─────────────────────────────────────────────
@@ -94,16 +94,13 @@ jobs:
       - name: Build MSIX ${{ matrix.arch }}
         shell: pwsh
         run: |
-          dotnet build FluentGallery\FluentGallery.csproj `
-            -p:Platform=${{ matrix.platform }} -c Release -p:BuildMsix=true `
-            "-p:AppxPackageDir=${{ github.workspace }}\dist\msix\" `
-            -p:UapAppxPackageBuildMode=SideloadOnly `
-            -p:GenerateAppxPackageOnBuild=true `
-            -p:AppxPackageSigningEnabled=true `
-            -p:AppxBundle=Never `
-            -p:PackageCertificateThumbprint=${{ steps.cert.outputs.thumbprint }} `
-            -p:AppxPackageVersion=${{ steps.ver.outputs.quad }} `
-            -p:InformationalVersion=${{ steps.ver.outputs.semver }}
+          $msixDir = "${{ github.workspace }}/dist/msix"
+          make msix-signed `
+            ARCH=${{ matrix.arch }} `
+            CERT_THUMBPRINT=${{ steps.cert.outputs.thumbprint }} `
+            MSIX_QUAD_VER=${{ steps.ver.outputs.quad }} `
+            MSIX_SEMVER=${{ steps.ver.outputs.semver }} `
+            "MSIX_DIR=$msixDir"
 
       # ── Copy app MSIX to a flat upload directory ────────────────────────
       # (avoids glob recursion issues in upload-artifact and name collisions

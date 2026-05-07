@@ -73,10 +73,15 @@ zip:
 # 要安装到本机需要先签名（自签证书跑通后安装，或提交 Microsoft Store 自动签名）。
 # make cert-create  — 生成自签名证书 FluentGallery/HamGallery.pfx（密码: dev）
 # make cert-trust  — 以管理员身份将证书安装到本机受信任人（允许直接安装 MSIX）
-MSIX_DIR = publish\FluentGallery\msix
+MSIX_DIR ?= publish\FluentGallery\msix
 CERT_PFX = FluentGallery\HamGallery.pfx
 CERT_PASSWORD = dev
 CERT_THUMBPRINT = $(shell type FluentGallery\.cert-thumbprint 2>nul)
+# Optional: pass from CI to embed version in the package
+#   make msix-signed MSIX_QUAD_VER=1.0.0.5 MSIX_SEMVER=1.0.0.5
+MSIX_QUAD_VER  ?=
+MSIX_SEMVER   ?=
+_MSIX_VER_FLAGS = $(if $(MSIX_QUAD_VER),-p:AppxPackageVersion=$(MSIX_QUAD_VER)) $(if $(MSIX_SEMVER),-p:InformationalVersion=$(MSIX_SEMVER))
 
 cert-create:
 	pwsh -NoProfile -ExecutionPolicy Bypass -File tools\create-cert.ps1 -Password $(CERT_PASSWORD)
@@ -86,14 +91,16 @@ cert-trust:
 	@echo Done. Certificate trusted on this machine.
 
 ## make msix-unsigned [ARCH=...] [ENV=dev]  — MSIX 打包（默认 prod，未签名）
+## make msix-unsigned MSIX_QUAD_VER=1.0.0.5 MSIX_SEMVER=1.0.0.5 MSIX_DIR=dist\msix  — CI 模式
 msix-unsigned:
-	dotnet build $(PROJ) -p:Platform=$(ARCH) -c Release -p:BuildMsix=true $(DIST_ENV_FLAG) "-p:AppxPackageDir=$(CURDIR)/publish/FluentGallery/msix/" -p:UapAppxPackageBuildMode=SideloadOnly -p:GenerateAppxPackageOnBuild=true -p:AppxBundle=Never -t:"Build;PrepareForRun"
+	dotnet build $(PROJ) -p:Platform=$(ARCH) -c Release -p:BuildMsix=true $(DIST_ENV_FLAG) "-p:AppxPackageDir=$(MSIX_DIR:/=\)/" -p:UapAppxPackageBuildMode=SideloadOnly -p:GenerateAppxPackageOnBuild=true -p:AppxBundle=Never $(_MSIX_VER_FLAGS) -t:"Build;PrepareForRun"
 	@echo.
 	@echo MSIX output: $(MSIX_DIR)
 
 ## make msix-signed [ARCH=x64|arm64|x86]  — 构建已签名 MSIX（需先 make cert-create）
+## make msix-signed CERT_THUMBPRINT=xxx MSIX_QUAD_VER=1.0.0.5 MSIX_SEMVER=1.0.0.5 MSIX_DIR=dist\msix  — CI 模式
 msix-signed:
-	dotnet build $(PROJ) -p:Platform=$(ARCH) -c Release -p:BuildMsix=true $(DIST_ENV_FLAG) "-p:AppxPackageDir=$(CURDIR)/publish/FluentGallery/msix/" -p:UapAppxPackageBuildMode=SideloadOnly -p:GenerateAppxPackageOnBuild=true -p:AppxBundle=Never -p:AppxPackageSigningEnabled=true -p:PackageCertificateThumbprint=$(CERT_THUMBPRINT) -t:"Build;PrepareForRun"
+	dotnet build $(PROJ) -p:Platform=$(ARCH) -c Release -p:BuildMsix=true $(DIST_ENV_FLAG) "-p:AppxPackageDir=$(MSIX_DIR:/=\)/" -p:UapAppxPackageBuildMode=SideloadOnly -p:GenerateAppxPackageOnBuild=true -p:AppxBundle=Never -p:AppxPackageSigningEnabled=true -p:PackageCertificateThumbprint=$(CERT_THUMBPRINT) $(_MSIX_VER_FLAGS) -t:"Build;PrepareForRun"
 	@echo.
 	@echo Signed MSIX output: $(MSIX_DIR)
 
