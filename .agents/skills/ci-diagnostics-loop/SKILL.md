@@ -76,24 +76,24 @@ argument-hint: "问题描述或开始修复，例如：fix CI failures，或 che
    - 修复：在失败 step 前添加诊断：`Get-ChildItem "dist\msix" -Recurse | Select-Object FullName`
    - 代码位置：相应 step 上方新增诊断 step
 
-### Phase 4 - 提交、打 tag、push
+### Phase 4 - 提交、推送、打 tag
 
-修复后执行三部曲：
+修复后执行四部曲：
 
 ```pwsh
 # 1. Add & commit
 git add -A
 git commit -m "fix: <描述修复>"
 
-# 2. 使用 bump-tag.ps1 打新 build tag
+# 2. Push commit to origin
+git push
+
+# 3. 使用 bump-tag.ps1 打新 build tag（会自动 push tag）
 .\tools\bump-tag.ps1 -Part build -y
 
 # 输出示例：
 # New tag: v0.1.8.1
 # Pushed!
-
-# 3. Verify push 成功（自动执行）
-git push --tags
 ```
 
 **为什么用 build part？**

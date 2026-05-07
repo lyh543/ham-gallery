@@ -2,25 +2,44 @@
 """
 Fetch GitHub Actions workflow logs for the latest Release run.
 Public API, no token needed.
+Includes retry logic for rate limits.
 """
 
 import requests
 import json
 import sys
+import time
 from datetime import datetime
 
 REPO = "lyh543/ham-gallery"
+MAX_RETRIES = 3
+RETRY_DELAY = 10  # seconds
 
 def get_latest_release_runs(limit=5):
-    """Get the latest Release workflow runs."""
+    """Get the latest Release workflow runs with retry logic."""
     url = f"https://api.github.com/repos/{REPO}/actions/runs"
     params = {
         "per_page": limit,
         "status": "completed"
     }
     
-    resp = requests.get(url, params=params)
-    resp.raise_for_status()
+    for attempt in range(MAX_RETRIES):
+        try:
+            resp = requests.get(url, params=params)
+            if resp.status_code == 403:
+                # Rate limited
+                if attempt < MAX_RETRIES - 1:
+                    print(f"Rate limited. Retrying in {RETRY_DELAY} seconds... (attempt {attempt + 1}/{MAX_RETRIES})", file=sys.stderr)
+                    time.sleep(RETRY_DELAY)
+                    continue
+            resp.raise_for_status()
+            break
+        except requests.exceptions.RequestException as e:
+            if attempt < MAX_RETRIES - 1:
+                print(f"Request failed: {e}. Retrying in {RETRY_DELAY} seconds... (attempt {attempt + 1}/{MAX_RETRIES})", file=sys.stderr)
+                time.sleep(RETRY_DELAY)
+            else:
+                raise
     
     data = resp.json()
     release_runs = [
