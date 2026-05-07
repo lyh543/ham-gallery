@@ -113,14 +113,20 @@ jobs:
       - name: Prepare MSIX for upload ${{ matrix.arch }}
         shell: pwsh
         run: |
-          # With signing enabled, dotnet generates a signed .msix
+          # Prefer a bare .msix; fall back to .msixbundle (single-arch bundle)
+          # Use -eq on Extension for exact match – avoids .msixbundle matching *.msix
           $pkg = Get-ChildItem "dist\msix" -Recurse |
             Where-Object { $_.Extension -eq ".msix" -and $_.Name -notmatch "WindowsAppRuntime" } |
             Select-Object -First 1
           if (-not $pkg) {
+            $pkg = Get-ChildItem "dist\msix" -Recurse |
+              Where-Object { $_.Extension -eq ".msixbundle" -and $_.Name -notmatch "WindowsAppRuntime" } |
+              Select-Object -First 1
+          }
+          if (-not $pkg) {
             Write-Host "dist\msix contents:"
             Get-ChildItem "dist\msix" -Recurse | Select-Object -ExpandProperty FullName
-            throw "App .msix not found under dist\msix"
+            throw "App package not found under dist\msix"
           }
           Write-Host "Found: $($pkg.FullName)"
           New-Item -ItemType Directory -Path "dist\upload" -Force | Out-Null
