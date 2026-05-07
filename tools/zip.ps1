@@ -12,7 +12,7 @@ New-Item -ItemType Directory -Path (Split-Path $DestPath) -Force | Out-Null
 [System.IO.Compression.ZipFile]::CreateFromDirectory(
     (Resolve-Path $SourceDir),
     [System.IO.Path]::GetFullPath($DestPath),
-    [System.IO.Compression.CompressionLevel]::Optimal,
+    [System.IO.Compression.CompressionLevel]::SmallestSize,
     $false
 )
 

@@ -292,20 +292,21 @@ jobs:
           draft: false
           prerelease: ${{ contains(github.ref_name, '-') }}
           body: |
-            ## 安装说明
+            ## 安装说明 / Installation
 
-            ### MSIX 安装包（推荐）
+            ### MSIX 安装包（推荐）/ MSIX Package (Recommended)
             1. 下载 `HamGallery.cer`，双击 → **安装到本地计算机 → 受信任人**
+               Download `HamGallery.cer`, double-click → **Install to Local Machine → Trusted People**
             2. 下载对应架构的 `.msixbundle`，双击安装
-               - `HamGallery-${{ steps.ver.outputs.semver }}.msixbundle` — 全架构包（x64 + arm64 + x86）
-               - `HamGallery-${{ steps.ver.outputs.semver }}-x64.msixbundle` — 仅 x64
-               - `HamGallery-${{ steps.ver.outputs.semver }}-arm64.msixbundle` — 仅 arm64
-               - `HamGallery-${{ steps.ver.outputs.semver }}-x86.msixbundle` — 仅 x86
+               Download the `.msixbundle` for your architecture and double-click to install
+               - `HamGallery-${{ steps.ver.outputs.semver }}.msixbundle` — 全架构包（x64 + arm64 + x86）/ All architectures
+               - `HamGallery-${{ steps.ver.outputs.semver }}-x64.msixbundle` — 仅 x64 / x64 only
+               - `HamGallery-${{ steps.ver.outputs.semver }}-arm64.msixbundle` — 仅 arm64 / arm64 only
+               - `HamGallery-${{ steps.ver.outputs.semver }}-x86.msixbundle` — 仅 x86 / x86 only
 
-            > 证书为 CI 构建时自动生成的自签名证书，每次发布均不同。每次升级需重新信任新证书。
-
-            ### 绿色版 ZIP
+            ### 绿色版 ZIP / Portable ZIP
             解压后直接运行 `FluentGallery.exe`，无需安装。支持 x64 / arm64 / x86 三种架构。
+            Extract and run `FluentGallery.exe` directly, no installation needed. Supports x64 / arm64 / x86.
           files: |
             dist-all/HamGallery-*.zip
             dist-all/HamGallery-*.msixbundle
