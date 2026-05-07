@@ -62,7 +62,7 @@ publish:
 
 install:
 	powershell -NoProfile -Command "robocopy '$(RELEASE_OUT)\$(ARCH)' '$(INSTALL_DIR)' /MIR /IS /IT /NJH /NFL /NDL /NP; if ($$LASTEXITCODE -le 7) { exit 0 } else { exit $$LASTEXITCODE }"
-	@echo.
+	@echo
 	@echo Installed to: $(INSTALL_DIR)
 	@echo Run: $(INSTALL_DIR)\FluentGallery.exe
 
@@ -94,14 +94,14 @@ cert-trust:
 ## make msix-unsigned MSIX_QUAD_VER=1.0.0.5 MSIX_SEMVER=1.0.0.5 MSIX_DIR=dist\msix  — CI 模式
 msix-unsigned:
 	dotnet build $(PROJ) -p:Platform=$(ARCH) -c Release -p:BuildMsix=true $(DIST_ENV_FLAG) "-p:AppxPackageDir=$(MSIX_DIR)/" -p:UapAppxPackageBuildMode=SideloadOnly -p:GenerateAppxPackageOnBuild=true -p:AppxBundle=Never $(_MSIX_VER_FLAGS) -t:"Build;PrepareForRun"
-	@echo.
+	@echo
 	@echo MSIX output: $(MSIX_DIR)
 
 ## make msix-signed [ARCH=x64|arm64|x86]  — 构建已签名 MSIX（需先 make cert-create）
 ## make msix-signed CERT_THUMBPRINT=xxx MSIX_QUAD_VER=1.0.0.5 MSIX_SEMVER=1.0.0.5 MSIX_DIR=dist\msix  — CI 模式
 msix-signed:
 	dotnet build $(PROJ) -p:Platform=$(ARCH) -c Release -p:BuildMsix=true $(DIST_ENV_FLAG) "-p:AppxPackageDir=$(MSIX_DIR)/" -p:UapAppxPackageBuildMode=SideloadOnly -p:GenerateAppxPackageOnBuild=true -p:AppxBundle=Never -p:AppxPackageSigningEnabled=true -p:PackageCertificateThumbprint=$(CERT_THUMBPRINT) $(_MSIX_VER_FLAGS) -t:"Build;PrepareForRun"
-	@echo.
+	@echo
 	@echo Signed MSIX output: $(MSIX_DIR)
 
 ## make test-all          — 运行全部测试（安静模式）
