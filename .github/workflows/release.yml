@@ -80,6 +80,16 @@ jobs:
             -SourceDir "publish\FluentGallery\${{ matrix.arch }}" `
             -DestPath  "dist\HamGallery-$ver-portable-${{ matrix.arch }}.zip"
 
+      # ── Patch Package.appxmanifest version (not committed) ─────────────
+      - name: Patch manifest version ${{ matrix.arch }}
+        shell: pwsh
+        run: |
+          $quad = "${{ steps.ver.outputs.quad }}"
+          $file = "FluentGallery\Package.appxmanifest"
+          $xml  = [xml](Get-Content $file -Raw)
+          $xml.Package.Identity.Version = $quad
+          $xml.Save((Resolve-Path $file))
+
       # ── Build signed MSIX ───────────────────────────────────────────────
       - name: Build MSIX ${{ matrix.arch }}
         shell: pwsh
