@@ -147,7 +147,39 @@ v0.1.8.2: all jobs ✓ → 修复完毕！
 
 ### `python .agents\skills\ci-diagnostics-loop\get-release-logs.py`
 
-公开 API（无需认证）获取 Release workflow 的最新 3 次运行：
+公开 API（无需认证）获取 Release workflow 的最新 3 次运行，但有速率限制：
+
+```
+无 Token 限制：60 请求/小时
+使用 PAT Token：5000 请求/小时
+```
+
+#### 遇到 Rate Limit 怎么办？
+
+如果看到：
+```
+❌ GitHub API rate limited (403 Forbidden)
+```
+
+需要提供 GitHub Personal Access Token (PAT)：
+
+1. **创建 PAT**
+   - 打开 https://github.com/settings/tokens
+   - 点 "Generate new token (classic)"
+   - 选择 scopes：`repo`, `read:org`, `read:user`, `read:repo_hook`
+   - 复制 token
+
+2. **在 PowerShell 中设置**
+   ```pwsh
+   $env:GITHUB_PAT = "<your-token-here>"
+   ```
+
+3. **重新运行诊断**
+   ```pwsh
+   python .agents\skills\ci-diagnostics-loop\get-release-logs.py
+   ```
+
+#### 获取信息：
 
 ```
 获取信息：
@@ -157,7 +189,7 @@ v0.1.8.2: all jobs ✓ → 修复完毕！
   - 每个 job 的 GitHub Actions URL（点击看完整日志）
 
 无法获取：
-  - 完整的 step 输出（需要认证或网页点击）
+  - 完整的 step 输出（需要点击 Actions UI 查看）
   - 代码行级别的编译错误（需要点击 Actions UI 查看）
 ```
 

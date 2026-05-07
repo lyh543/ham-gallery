@@ -1,19 +1,36 @@
 #!/usr/bin/env python3
 """
 Fetch GitHub Actions workflow logs for the latest Release run.
-Public API, no token needed.
-Includes retry logic for rate limits.
+Public API, no token needed (but rate limited to 60 req/hour).
+Use GitHub Personal Access Token (PAT) for 5000 req/hour limit.
+
+To use a PAT:
+  1. Go to https://github.com/settings/tokens
+  2. Click "Generate new token (classic)"
+  3. Select scopes: repo, read:org, read:user, read:repo_hook
+  4. Copy the token
+  5. Export to environment: $env:GITHUB_PAT = "<your-token>"
+  6. Run this script
 """
 
 import requests
 import json
 import sys
+import os
 import time
 from datetime import datetime
 
 REPO = "lyh543/ham-gallery"
 MAX_RETRIES = 3
 RETRY_DELAY = 10  # seconds
+
+def get_headers():
+    """Build request headers with optional PAT."""
+    headers = {}
+    pat = os.environ.get("GITHUB_PAT") or os.environ.get("GH_TOKEN")
+    if pat:
+        headers["Authorization"] = f"token {pat}"
+    return headers
 
 def get_latest_release_runs(limit=5):
     """Get the latest Release workflow runs with retry logic."""
@@ -22,16 +39,24 @@ def get_latest_release_runs(limit=5):
         "per_page": limit,
         "status": "completed"
     }
+    headers = get_headers()
     
     for attempt in range(MAX_RETRIES):
         try:
-            resp = requests.get(url, params=params)
+            resp = requests.get(url, params=params, headers=headers)
             if resp.status_code == 403:
-                # Rate limited
-                if attempt < MAX_RETRIES - 1:
-                    print(f"Rate limited. Retrying in {RETRY_DELAY} seconds... (attempt {attempt + 1}/{MAX_RETRIES})", file=sys.stderr)
-                    time.sleep(RETRY_DELAY)
-                    continue
+                # Rate limited or forbidden
+                print(f"\n❌ GitHub API rate limited (403 Forbidden)", file=sys.stderr)
+                if "rate limit" in resp.text.lower() or "API rate limit exceeded" in resp.text:
+                    print("\n📝 To fix this, provide a GitHub Personal Access Token:\n", file=sys.stderr)
+                    print("  1. Go to: https://github.com/settings/tokens", file=sys.stderr)
+                    print("  2. Click 'Generate new token (classic)'", file=sys.stderr)
+                    print("  3. Select scopes: repo, read:org, read:user, read:repo_hook", file=sys.stderr)
+                    print("  4. Copy the token and run:", file=sys.stderr)
+                    print("     $env:GITHUB_PAT = '<your-token>'", file=sys.stderr)
+                    print("  5. Then re-run this script\n", file=sys.stderr)
+                sys.exit(1)
+            
             resp.raise_for_status()
             break
         except requests.exceptions.RequestException as e:
@@ -52,8 +77,9 @@ def get_latest_release_runs(limit=5):
 def get_jobs_for_run(run_id):
     """Get all jobs for a workflow run."""
     url = f"https://api.github.com/repos/{REPO}/actions/runs/{run_id}/jobs"
+    headers = get_headers()
     
-    resp = requests.get(url)
+    resp = requests.get(url, headers=headers)
     resp.raise_for_status()
     
     data = resp.json()
@@ -62,8 +88,9 @@ def get_jobs_for_run(run_id):
 def get_run_logs(run_id):
     """Try to get logs for a run (may be restricted for private)."""
     url = f"https://api.github.com/repos/{REPO}/actions/runs/{run_id}/attempts/1/logs"
+    headers = get_headers()
     
-    resp = requests.get(url, allow_redirects=False)
+    resp = requests.get(url, headers=headers, allow_redirects=False)
     
     if resp.status_code == 302:
         # Redirect to actual log download
