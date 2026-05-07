@@ -90,6 +90,7 @@ jobs:
             -p:UapAppxPackageBuildMode=SideloadOnly `
             -p:GenerateAppxPackageOnBuild=true `
             -p:AppxPackageSigningEnabled=true `
+            -p:AppxBundle=Never `
             -p:PackageCertificateThumbprint=${{ steps.cert.outputs.thumbprint }} `
             -p:AppxPackageVersion=${{ steps.ver.outputs.quad }} `
             -p:InformationalVersion=${{ steps.ver.outputs.semver }}
