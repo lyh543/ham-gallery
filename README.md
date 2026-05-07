@@ -1,19 +1,19 @@
-# fluent-gallery
+# Ham Gallery（丸灰相册）
 
-Fluent Gallery is being implemented incrementally from [PROMPT.md](PROMPT.md).
+Ham Gallery is being implemented incrementally from [PROMPT.md](PROMPT.md).
 
 ## 运行时数据目录
 
-应用以非打包模式（unpackaged）运行，所有运行时数据存放在 `%LocalAppData%\FluentGallery\` 下：
+应用以非打包模式（unpackaged）运行，所有运行时数据存放在 `%LocalAppData%\HamGallery\` 下：
 
 | 路径 | 用途 |
 |------|------|
-| `%LocalAppData%\FluentGallery\gallery.db` | SQLite 主数据库（相册、照片、设置） |
-| `%LocalAppData%\FluentGallery\Thumbnails\` | 生成的缩略图 JPEG 文件 |
-| `%LocalAppData%\FluentGallery\logs\` | 滚动日志文件 |
-| `%LocalAppData%\FluentGallery\Temp\` | 临时文件（如裁剪前备份） |
+| `%LocalAppData%\HamGallery\gallery.db` | SQLite 主数据库（相册、照片、设置） |
+| `%LocalAppData%\HamGallery\Thumbnails\` | 生成的缩略图 JPEG 文件 |
+| `%LocalAppData%\HamGallery\logs\` | 滚动日志文件 |
+| `%LocalAppData%\HamGallery\Temp\` | 临时文件（如裁剪前备份） |
 
-在资源管理器地址栏输入 `%LocalAppData%\FluentGallery` 可直接打开该目录。
+在资源管理器地址栏输入 `%LocalAppData%\HamGallery` 可直接打开该目录。
 
 ## Build & Run Locally
 
@@ -74,6 +74,7 @@ dotnet watch run --no-hot-reload --project FluentGallery\FluentGallery.csproj -p
 > **Note:** The project uses `WindowsPackageType=None` (unpackaged) so no MSIX packaging or sideloading is needed during development.  
 > You can also open `FluentGallery.sln` in Visual Studio 2022, set the platform to **x64**, and press **F5**.
 
+
 ### Run all tests
 
 ```powershell
@@ -125,12 +126,10 @@ make install INSTALL_DIR="C:\Apps\FluentGallery"
 
 ## TODO
 
-[] MSIX 安装后的应用有点糊
 [] 图片旋转还有 bug
 
 [] 支持多种格式 mp4 mov heic heif gif bmp 透明底
    - 支持 mvimg 格式（Live Photo）
-[] 旋转模块不是支持每一种图片类型
 [] 编写 README，添加宣传视频
 
 
