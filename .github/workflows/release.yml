@@ -219,27 +219,29 @@ jobs:
           $dist = "dist-all"
 
           # Collect all app packages (FluentGallery_<arch>.msix or FluentGallery_<arch>.msixbundle)
-          $msixFiles = Get-ChildItem "$dist" -Recurse |
+          $allFiles = Get-ChildItem "$dist" -Recurse |
             Where-Object { ($_.Extension -eq ".msix" -or $_.Extension -eq ".msixbundle") -and $_.Name -match "^FluentGallery_" }
+          
+          # Separate into .msix and .msixbundle files
+          $msixFiles = $allFiles | Where-Object { $_.Extension -eq ".msix" }
+          $bundleFiles = $allFiles | Where-Object { $_.Extension -eq ".msixbundle" }
 
-          # Check if any are pre-bundled (.msixbundle)
-          $preBundled = $msixFiles | Where-Object { $_.Extension -eq ".msixbundle" }
-          if ($preBundled) {
-            Write-Host "Found pre-bundled packages (MSIXBUNDLEs). Using them directly, skipping re-bundling."
-            # Copy pre-bundled files directly to dist root
-            foreach ($bundle in $preBundled) {
+          if ($bundleFiles) {
+            Write-Host "Found pre-bundled packages (.msixbundle files). Skipping bundle creation."
+            # Pre-bundled files: just rename and use directly
+            foreach ($bundle in $bundleFiles) {
               $arch = $bundle.BaseName -replace '^FluentGallery_', ''
-              $targetSingle = "$dist\HamGallery-$ver-$arch.msixbundle"
-              Copy-Item $bundle.FullName $targetSingle -Force
-              Write-Host "Using pre-built bundle: $($bundle.Name) -> $(Split-Path $targetSingle -Leaf)"
+              $target = "$dist\HamGallery-$ver-$arch.msixbundle"
+              Copy-Item $bundle.FullName $target -Force
+              Write-Host "Using pre-bundled: $($bundle.Name) -> $(Split-Path $target -Leaf)"
             }
-            # For combined bundle, copy first pre-bundled as the combined
+            # Use the first architecture's bundle as combined bundle (for minimal releases)
             $bundleAll = "$dist\HamGallery-$ver.msixbundle"
             $bundleStore = "$dist\HamGallery-$ver-store.msixbundle"
-            Copy-Item ($preBundled[0]).FullName $bundleAll -Force
+            Copy-Item ($bundleFiles[0]).FullName $bundleAll -Force
             Copy-Item $bundleAll $bundleStore -Force
-            Write-Host "Combined bundle (from pre-bundled): $bundleAll"
-          } else {
+            Write-Host "Combined/store bundles created from pre-bundled package"
+          } elseif ($msixFiles) {
             Write-Host "Found individual MSIX files. Creating bundles..."
             # 1. Per-arch single-package msixbundle
             foreach ($msix in $msixFiles) {
@@ -253,7 +255,7 @@ jobs:
               if ($LASTEXITCODE -ne 0) { throw "makeappx failed for $arch" }
             }
 
-            # 2. Combined all-arch msixbundle (signed, for sideload)
+            # 2. Combined all-arch msixbundle (for sideload)
             $stagingAll = "$dist\msix-staging-all"
             New-Item -ItemType Directory -Path $stagingAll -Force | Out-Null
             foreach ($msix in $msixFiles) {
@@ -268,6 +270,8 @@ jobs:
             $bundleStore = "$dist\HamGallery-$ver-store.msixbundle"
             Copy-Item $bundleAll $bundleStore -Force
             Write-Host "Store bundle (unsigned): $bundleStore"
+          } else {
+            throw "No app packages found (expected .msix or .msixbundle files)"
           }
 
           # 4. Sign the sideload bundles (store bundle stays unsigned)
