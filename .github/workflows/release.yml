@@ -141,6 +141,7 @@ jobs:
           path: |
             dist/*.zip
             dist/upload/*.msix
+            dist/upload/*.msixbundle
           retention-days: 1
 
   # ── Job 2: bundle + publish release (runs after all 3 builders finish) ───────
