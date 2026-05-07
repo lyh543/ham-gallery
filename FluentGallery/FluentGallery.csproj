@@ -18,14 +18,14 @@
   </PropertyGroup>
 
   <!-- MSIX packaging mode: pass -p:BuildMsix=true to enable.
-       Switches to MSIX package type and disables app.manifest (replaced by Package.appxmanifest).
+       Switches to MSIX package type. app.manifest is retained so PerMonitorV2 DPI awareness
+       is embedded into the executable (prevents blurriness on high-DPI displays).
        AppxGeneratePrisForPortableLibrariesEnabled=false disables _GeneratePrisForPortableLibraries
        which tries to run ResGen on all referenced DLLs — unsupported in .NET Core mode (MSB3824). -->
   <PropertyGroup Condition="'$(BuildMsix)' == 'true'">
     <WindowsPackageType>MSIX</WindowsPackageType>
     <AppxPackage>true</AppxPackage>
     <EnableMsixTooling>true</EnableMsixTooling>
-    <ApplicationManifest></ApplicationManifest>
     <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
     <!-- Signing: disabled by default. Pass AppxPackageCertificateKeyFile via CLI for local signing. -->
     <AppxPackageSigningEnabled>false</AppxPackageSigningEnabled>

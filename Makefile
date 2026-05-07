@@ -87,13 +87,13 @@ cert-trust:
 
 ## make msix-unsigned [ARCH=...] [ENV=dev]  — MSIX 打包（默认 prod，未签名）
 msix-unsigned:
-	dotnet build $(PROJ) -p:Platform=$(ARCH) -c Release -p:BuildMsix=true $(DIST_ENV_FLAG) "-p:AppxPackageDir=$(CURDIR)/publish/FluentGallery/msix/" -p:UapAppxPackageBuildMode=SideloadOnly -p:GenerateAppxPackageOnBuild=true -t:"Build;PrepareForRun"
+	dotnet build $(PROJ) -p:Platform=$(ARCH) -c Release -p:BuildMsix=true $(DIST_ENV_FLAG) "-p:AppxPackageDir=$(CURDIR)/publish/FluentGallery/msix/" -p:UapAppxPackageBuildMode=SideloadOnly -p:GenerateAppxPackageOnBuild=true -p:AppxBundle=Never -t:"Build;PrepareForRun"
 	@echo.
 	@echo MSIX output: $(MSIX_DIR)
 
 ## make msix-signed [ARCH=x64|arm64|x86]  — 构建已签名 MSIX（需先 make cert-create）
 msix-signed:
-	dotnet build $(PROJ) -p:Platform=$(ARCH) -c Release -p:BuildMsix=true $(DIST_ENV_FLAG) "-p:AppxPackageDir=$(CURDIR)/publish/FluentGallery/msix/" -p:UapAppxPackageBuildMode=SideloadOnly -p:GenerateAppxPackageOnBuild=true -p:AppxPackageSigningEnabled=true -p:PackageCertificateThumbprint=$(CERT_THUMBPRINT) -t:"Build;PrepareForRun"
+	dotnet build $(PROJ) -p:Platform=$(ARCH) -c Release -p:BuildMsix=true $(DIST_ENV_FLAG) "-p:AppxPackageDir=$(CURDIR)/publish/FluentGallery/msix/" -p:UapAppxPackageBuildMode=SideloadOnly -p:GenerateAppxPackageOnBuild=true -p:AppxBundle=Never -p:AppxPackageSigningEnabled=true -p:PackageCertificateThumbprint=$(CERT_THUMBPRINT) -t:"Build;PrepareForRun"
 	@echo.
 	@echo Signed MSIX output: $(MSIX_DIR)
 
