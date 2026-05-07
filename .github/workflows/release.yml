@@ -90,23 +90,9 @@ jobs:
             -p:UapAppxPackageBuildMode=SideloadOnly `
             -p:GenerateAppxPackageOnBuild=true `
             -p:AppxPackageSigningEnabled=true `
-            -p:AppxBundle=Never `
             -p:PackageCertificateThumbprint=${{ steps.cert.outputs.thumbprint }} `
             -p:AppxPackageVersion=${{ steps.ver.outputs.quad }} `
             -p:InformationalVersion=${{ steps.ver.outputs.semver }}
-
-      # ── Diagnostic: List dist\msix contents after build ──────────────────
-      - name: Diagnostic - Check MSIX build output ${{ matrix.arch }}
-        shell: pwsh
-        run: |
-          Write-Host "=== dist\msix contents after build ===" -ForegroundColor Green
-          if (Test-Path "dist\msix") {
-            Get-ChildItem "dist\msix" -Recurse -Force | Select-Object FullName, Extension, Length
-          } else {
-            Write-Host "dist\msix directory does NOT exist!" -ForegroundColor Red
-          }
-          Write-Host "=== bin and obj directories ===" -ForegroundColor Green
-          Get-ChildItem "FluentGallery\bin\${{ matrix.platform }}\Release" -Recurse -Include "*.msix", "*.msixbundle" 2>$null | Select-Object FullName
 
       # ── Copy app MSIX to a flat upload directory ────────────────────────
       # (avoids glob recursion issues in upload-artifact and name collisions
@@ -114,25 +100,18 @@ jobs:
       - name: Prepare MSIX for upload ${{ matrix.arch }}
         shell: pwsh
         run: |
-          # Prefer a bare .msix; fall back to .msixbundle (single-arch bundle)
-          # Use -eq on Extension for exact match – avoids .msixbundle matching *.msix
+          # With signing disabled, dotnet generates only a bare .msix (no bundle)
           $pkg = Get-ChildItem "dist\msix" -Recurse |
             Where-Object { $_.Extension -eq ".msix" -and $_.Name -notmatch "WindowsAppRuntime" } |
             Select-Object -First 1
           if (-not $pkg) {
-            $pkg = Get-ChildItem "dist\msix" -Recurse |
-              Where-Object { $_.Extension -eq ".msixbundle" -and $_.Name -notmatch "WindowsAppRuntime" } |
-              Select-Object -First 1
-          }
-          if (-not $pkg) {
             Write-Host "dist\msix contents:"
             Get-ChildItem "dist\msix" -Recurse | Select-Object -ExpandProperty FullName
-            throw "App package not found under dist\msix"
+            throw "App .msix not found under dist\msix"
           }
           Write-Host "Found: $($pkg.FullName)"
           New-Item -ItemType Directory -Path "dist\upload" -Force | Out-Null
-          # Preserve the original extension (.msix or .msixbundle)
-          Copy-Item $pkg.FullName "dist\upload\FluentGallery_${{ matrix.arch }}$($pkg.Extension)" -Force
+          Copy-Item $pkg.FullName "dist\upload\FluentGallery_${{ matrix.arch }}.msix" -Force
 
       # ── Upload artifacts for this arch ──────────────────────────────────
       - name: Upload artifacts ${{ matrix.arch }}
@@ -142,7 +121,6 @@ jobs:
           path: |
             dist/*.zip
             dist/upload/*.msix
-            dist/upload/*.msixbundle
           retention-days: 1
 
   # ── Job 2: bundle + publish release (runs after all 3 builders finish) ───────
@@ -220,61 +198,37 @@ jobs:
           $quad = "${{ steps.ver.outputs.quad }}"
           $dist = "dist-all"
 
-          # Collect all app packages (FluentGallery_<arch>.msix or FluentGallery_<arch>.msixbundle)
-          $allFiles = Get-ChildItem "$dist" -Recurse |
-            Where-Object { ($_.Extension -eq ".msix" -or $_.Extension -eq ".msixbundle") -and $_.Name -match "^FluentGallery_" }
-          
-          # Separate into .msix and .msixbundle files
-          $msixFiles = $allFiles | Where-Object { $_.Extension -eq ".msix" }
-          $bundleFiles = $allFiles | Where-Object { $_.Extension -eq ".msixbundle" }
+          # Collect all app MSIXs (named FluentGallery_<arch>.msix)
+          $msixFiles = Get-ChildItem "$dist" -Recurse |
+            Where-Object { $_.Extension -eq ".msix" -and $_.Name -match "^FluentGallery_" }
 
-          if ($bundleFiles) {
-            Write-Host "Found pre-bundled packages (.msixbundle files). Skipping bundle creation."
-            # Pre-bundled files: just rename and use directly
-            foreach ($bundle in $bundleFiles) {
-              $arch = $bundle.BaseName -replace '^FluentGallery_', ''
-              $target = "$dist\HamGallery-$ver-$arch.msixbundle"
-              Copy-Item $bundle.FullName $target -Force
-              Write-Host "Using pre-bundled: $($bundle.Name) -> $(Split-Path $target -Leaf)"
-            }
-            # Use the first architecture's bundle as combined bundle (for minimal releases)
-            $bundleAll = "$dist\HamGallery-$ver.msixbundle"
-            $bundleStore = "$dist\HamGallery-$ver-store.msixbundle"
-            Copy-Item ($bundleFiles[0]).FullName $bundleAll -Force
-            Copy-Item $bundleAll $bundleStore -Force
-            Write-Host "Combined/store bundles created from pre-bundled package"
-          } elseif ($msixFiles) {
-            Write-Host "Found individual MSIX files. Creating bundles..."
-            # 1. Per-arch single-package msixbundle
-            foreach ($msix in $msixFiles) {
-              $arch   = $msix.BaseName -replace '^FluentGallery_', ''
-              $single = "$dist\HamGallery-$ver-$arch.msixbundle"
-              $stage  = "$dist\stage-$arch"
-              New-Item -ItemType Directory -Path $stage -Force | Out-Null
-              Copy-Item $msix.FullName "$stage\$($msix.Name)" -Force
-              Write-Host "Building $arch bundle from: $($msix.Name)"
-              & $makeappx bundle /d $stage /p $single /bv $quad /o
-              if ($LASTEXITCODE -ne 0) { throw "makeappx failed for $arch" }
-            }
-
-            # 2. Combined all-arch msixbundle (for sideload)
-            $stagingAll = "$dist\msix-staging-all"
-            New-Item -ItemType Directory -Path $stagingAll -Force | Out-Null
-            foreach ($msix in $msixFiles) {
-              Copy-Item $msix.FullName "$stagingAll\$($msix.Name)" -Force
-              Write-Host "Staging for combined bundle: $($msix.Name)"
-            }
-            $bundleAll = "$dist\HamGallery-$ver.msixbundle"
-            & $makeappx bundle /d $stagingAll /p $bundleAll /bv $quad /o
-            if ($LASTEXITCODE -ne 0) { throw "makeappx failed for combined bundle" }
-
-            # 3. Unsigned all-arch msixbundle for Microsoft Store submission
-            $bundleStore = "$dist\HamGallery-$ver-store.msixbundle"
-            Copy-Item $bundleAll $bundleStore -Force
-            Write-Host "Store bundle (unsigned): $bundleStore"
-          } else {
-            throw "No app packages found (expected .msix or .msixbundle files)"
+          # 1. Per-arch single-package msixbundle
+          foreach ($msix in $msixFiles) {
+            $arch   = $msix.BaseName -replace '^FluentGallery_', ''
+            $single = "$dist\HamGallery-$ver-$arch.msixbundle"
+            $stage  = "$dist\stage-$arch"
+            New-Item -ItemType Directory -Path $stage -Force | Out-Null
+            Copy-Item $msix.FullName "$stage\$($msix.Name)" -Force
+            Write-Host "Building $arch bundle from: $($msix.Name)"
+            & $makeappx bundle /d $stage /p $single /bv $quad /o
+            if ($LASTEXITCODE -ne 0) { throw "makeappx failed for $arch" }
           }
+
+          # 2. Combined all-arch msixbundle (signed, for sideload)
+          $stagingAll = "$dist\msix-staging-all"
+          New-Item -ItemType Directory -Path $stagingAll -Force | Out-Null
+          foreach ($msix in $msixFiles) {
+            Copy-Item $msix.FullName "$stagingAll\$($msix.Name)" -Force
+            Write-Host "Staging for combined bundle: $($msix.Name)"
+          }
+          $bundleAll = "$dist\HamGallery-$ver.msixbundle"
+          & $makeappx bundle /d $stagingAll /p $bundleAll /bv $quad /o
+          if ($LASTEXITCODE -ne 0) { throw "makeappx failed for combined bundle" }
+
+          # 3. Unsigned all-arch msixbundle for Microsoft Store submission
+          $bundleStore = "$dist\HamGallery-$ver-store.msixbundle"
+          Copy-Item $bundleAll $bundleStore -Force
+          Write-Host "Store bundle (unsigned): $bundleStore"
 
           # 4. Sign the sideload bundles (store bundle stays unsigned)
           Get-ChildItem $dist -Filter "*.msixbundle" |
@@ -293,21 +247,20 @@ jobs:
           draft: false
           prerelease: ${{ contains(github.ref_name, '-') }}
           body: |
-            ## 安装说明 / Installation
+            ## 安装说明
 
-            ### MSIX 安装包（推荐）/ MSIX Package (Recommended)
+            ### MSIX 安装包（推荐）
             1. 下载 `HamGallery.cer`，双击 → **安装到本地计算机 → 受信任人**
-               Download `HamGallery.cer`, double-click → **Install to Local Machine → Trusted People**
             2. 下载对应架构的 `.msixbundle`，双击安装
-               Download the `.msixbundle` for your architecture and double-click to install
-               - `HamGallery-${{ steps.ver.outputs.semver }}.msixbundle` — 全架构包（x64 + arm64 + x86）/ All architectures
-               - `HamGallery-${{ steps.ver.outputs.semver }}-x64.msixbundle` — 仅 x64 / x64 only
-               - `HamGallery-${{ steps.ver.outputs.semver }}-arm64.msixbundle` — 仅 arm64 / arm64 only
-               - `HamGallery-${{ steps.ver.outputs.semver }}-x86.msixbundle` — 仅 x86 / x86 only
+               - `HamGallery-${{ steps.ver.outputs.semver }}.msixbundle` — 全架构包（x64 + arm64 + x86）
+               - `HamGallery-${{ steps.ver.outputs.semver }}-x64.msixbundle` — 仅 x64
+               - `HamGallery-${{ steps.ver.outputs.semver }}-arm64.msixbundle` — 仅 arm64
+               - `HamGallery-${{ steps.ver.outputs.semver }}-x86.msixbundle` — 仅 x86
 
-            ### 绿色版 ZIP / Portable ZIP
+            > 证书为 CI 构建时自动生成的自签名证书，每次发布均不同。每次升级需重新信任新证书。
+
+            ### 绿色版 ZIP
             解压后直接运行 `FluentGallery.exe`，无需安装。支持 x64 / arm64 / x86 三种架构。
-            Extract and run `FluentGallery.exe` directly, no installation needed. Supports x64 / arm64 / x86.
           files: |
             dist-all/HamGallery-*.zip
             dist-all/HamGallery-*.msixbundle

@@ -47,10 +47,20 @@ public partial class App : Application
             _dbInitializedInCtor = true;
 
             _startupSettings = db.LoadSettingsAsync().GetAwaiter().GetResult();
-            // Only set override when a non-empty language is stored; passing ""
-            // throws 0x80070057 (E_INVALIDARG) in unpackaged WinUI 3 apps.
+            // Only set override when a non-empty language is stored.
+            // In packaged (MSIX) apps, use the WinRT API (Windows.Globalization) — the
+            // WinAppSDK shim (Microsoft.Windows.Globalization) is for non-packaged apps only
+            // and is silently ignored by ResourceLoader in packaged mode.
+            // In unpackaged apps, Windows.Globalization.ApplicationLanguages.PrimaryLanguageOverride
+            // is unavailable; use the WinAppSDK shim, but only with a non-empty string
+            // (passing "" throws 0x80070057 / E_INVALIDARG).
             if (!string.IsNullOrEmpty(_startupSettings.Language))
-                Microsoft.Windows.Globalization.ApplicationLanguages.PrimaryLanguageOverride = _startupSettings.Language;
+            {
+                if (IsPackaged())
+                    Windows.Globalization.ApplicationLanguages.PrimaryLanguageOverride = _startupSettings.Language;
+                else
+                    Microsoft.Windows.Globalization.ApplicationLanguages.PrimaryLanguageOverride = _startupSettings.Language;
+            }
         }
         catch (Exception ex)
         {
@@ -85,6 +95,12 @@ public partial class App : Application
             Log.CloseAndFlush();
             e.SetObserved();
         };
+    }
+
+    private static bool IsPackaged()
+    {
+        try { _ = Windows.ApplicationModel.Package.Current; return true; }
+        catch { return false; }
     }
 
     private static IServiceProvider ConfigureServices()
