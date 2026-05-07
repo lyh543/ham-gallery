@@ -45,6 +45,19 @@ jobs:
           "semver=$semver" >> $env:GITHUB_OUTPUT
           "quad=$quad"     >> $env:GITHUB_OUTPUT
 
+      # ── Restore signing certificate ─────────────────────────────────────
+      - name: Restore signing certificate
+        id: cert
+        shell: pwsh
+        run: |
+          $pfxBytes = [Convert]::FromBase64String("${{ secrets.SIGNING_CERT_PFX }}")
+          [IO.File]::WriteAllBytes("$PWD\HamGallery.pfx", $pfxBytes)
+
+          $pfxPwd = ConvertTo-SecureString "${{ secrets.SIGNING_CERT_PASSWORD }}" -AsPlainText -Force
+          $cert   = Import-PfxCertificate -FilePath HamGallery.pfx -CertStoreLocation Cert:\CurrentUser\My -Password $pfxPwd
+
+          "thumbprint=$($cert.Thumbprint)" >> $env:GITHUB_OUTPUT
+
       # ── Portable self-contained publish ────────────────────────────────
       - name: Publish ${{ matrix.arch }}
         shell: pwsh
@@ -67,7 +80,7 @@ jobs:
             -SourceDir "publish\FluentGallery\${{ matrix.arch }}" `
             -DestPath  "dist\HamGallery-$ver-portable-${{ matrix.arch }}.zip"
 
-      # ── Build unsigned MSIX (signing happens once on the bundle in release job) ──
+      # ── Build signed MSIX ───────────────────────────────────────────────
       - name: Build MSIX ${{ matrix.arch }}
         shell: pwsh
         run: |
@@ -76,7 +89,8 @@ jobs:
             "-p:AppxPackageDir=${{ github.workspace }}\dist\msix\" `
             -p:UapAppxPackageBuildMode=SideloadOnly `
             -p:GenerateAppxPackageOnBuild=true `
-            -p:AppxPackageSigningEnabled=false `
+            -p:AppxPackageSigningEnabled=true `
+            -p:PackageCertificateThumbprint=${{ steps.cert.outputs.thumbprint }} `
             -p:AppxPackageVersion=${{ steps.ver.outputs.quad }} `
             -p:InformationalVersion=${{ steps.ver.outputs.semver }}
 

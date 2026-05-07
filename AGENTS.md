@@ -14,6 +14,13 @@ If the build fails, read the error output, fix the issues, and rebuild. Repeat u
 
 ## Skills
 
+### ci-diagnostics-loop
+
+- 位置：`.agents/skills/ci-diagnostics-loop/SKILL.md`
+- 用途：自动化诊断 GitHub Actions Release workflow 失败、修复问题、打 build tag 并循环验证。
+- 触发场景：CI 构建失败、需要快速定位失败原因（哪个 job、哪个 step）、需要逐次修复并验证、修复 CI workflow 配置问题。
+- 工作流：获取 CI 日志 → 分析失败原因 → 修改 `.github/workflows/release.yml` → commit → 打 build tag → push → 等待 CI → 重复，直至全部 jobs success。
+
 ### translate-resw
 
 - 位置：`.agents/skills/translate-resw/SKILL.md`
