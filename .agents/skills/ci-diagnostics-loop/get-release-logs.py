@@ -27,7 +27,10 @@ RETRY_DELAY = 10  # seconds
 def get_headers():
     """Build request headers with optional PAT."""
     headers = {}
-    pat = os.environ.get("GITHUB_PAT") or os.environ.get("GH_TOKEN")
+    # Support multiple token variable names
+    pat = (os.environ.get("GITHUB_PAT") or 
+           os.environ.get("GH_TOKEN") or 
+           os.environ.get("HAM_GALLERY_READ_ONLY_PAT"))
     if pat:
         headers["Authorization"] = f"token {pat}"
     return headers

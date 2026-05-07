@@ -94,13 +94,26 @@ jobs:
             -p:AppxPackageVersion=${{ steps.ver.outputs.quad }} `
             -p:InformationalVersion=${{ steps.ver.outputs.semver }}
 
+      # ── Diagnostic: List dist\msix contents after build ──────────────────
+      - name: Diagnostic - Check MSIX build output ${{ matrix.arch }}
+        shell: pwsh
+        run: |
+          Write-Host "=== dist\msix contents after build ===" -ForegroundColor Green
+          if (Test-Path "dist\msix") {
+            Get-ChildItem "dist\msix" -Recurse -Force | Select-Object FullName, Extension, Length
+          } else {
+            Write-Host "dist\msix directory does NOT exist!" -ForegroundColor Red
+          }
+          Write-Host "=== bin and obj directories ===" -ForegroundColor Green
+          Get-ChildItem "FluentGallery\bin\${{ matrix.platform }}\Release" -Recurse -Include "*.msix", "*.msixbundle" 2>$null | Select-Object FullName
+
       # ── Copy app MSIX to a flat upload directory ────────────────────────
       # (avoids glob recursion issues in upload-artifact and name collisions
       #  with WindowsAppRuntime dependency packages)
       - name: Prepare MSIX for upload ${{ matrix.arch }}
         shell: pwsh
         run: |
-          # With signing disabled, dotnet generates only a bare .msix (no bundle)
+          # With signing enabled, dotnet generates a signed .msix
           $pkg = Get-ChildItem "dist\msix" -Recurse |
             Where-Object { $_.Extension -eq ".msix" -and $_.Name -notmatch "WindowsAppRuntime" } |
             Select-Object -First 1

@@ -195,11 +195,24 @@ v0.1.8.2: all jobs ✓ → 修复完毕！
 
 ### 手动查看完整日志
 
-1. 运行 `python .agents\skills\ci-diagnostics-loop\get-release-logs.py` 获取 Run ID
-2. 打开 GitHub Actions URL（脚本中给出）
-3. 点击失败的 job
-4. 点击失败的 step 展开完整日志
-5. 搜索关键词（error, exception, 0x 等）定位问题
+**方法 1：使用 GitHub Web UI（最简单）**
+
+1. 运行 `python .agents\skills\ci-diagnostics-loop\get-release-logs.py` 获取 Run ID 和 Commit SHA
+2. 运行 `python .agents\skills\ci-diagnostics-loop\get-check-suites.py <commit_sha>` 获取 Suite ID
+   ```pwsh
+   python .agents\skills\ci-diagnostics-loop\get-check-suites.py 58379034d74d2903915caf4bc690405c62213b5a
+   ```
+3. 点击输出中的 `Logs URL`：`https://github.com/lyh543/ham-gallery/suites/<suite-id>/logs?attempt=1`
+4. 在浏览器中查看完整的 step 日志
+
+**方法 2：使用 API 获取原始日志**
+
+1. 从 `get-release-logs.py` 获取 Job ID
+2. 运行：
+   ```pwsh
+   python .agents\skills\ci-diagnostics-loop\get-job-logs.py <job_id>
+   ```
+3. 日志会输出到 stdout，可以重定向到文件或搜索关键词
 
 ## 修改代码前的检查清单
 
