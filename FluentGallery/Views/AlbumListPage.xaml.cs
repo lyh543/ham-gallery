@@ -6,8 +6,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Navigation;
+using System.Runtime.InteropServices;
+using WinRT.Interop;
 using Windows.System;
 
 namespace FluentGallery.Views;
@@ -28,6 +31,10 @@ public sealed partial class AlbumListPage : Page
     // Toast state
     private CancellationTokenSource? _toastCts;
 
+    // Coalesce rapid multi-select toggles so GridView mode switches and toolbar relayouts
+    // don't repeatedly execute in the same input burst.
+    private bool _interactionModeApplyQueued;
+
     public AlbumListPage()
     {
         ViewModel   = App.Current.Services.GetRequiredService<AlbumListViewModel>();
@@ -44,7 +51,13 @@ public sealed partial class AlbumListPage : Page
                 if (ViewModel.ShowCardSizeToast)
                     _ = ShowCardSizeToastAsync($"{ViewModel.AlbumCardWidth} px");
             }
+            else if (e.PropertyName == nameof(AlbumListViewModel.IsMultiSelectMode))
+            {
+                QueueInteractionModeApply();
+            }
         };
+
+        ApplyToolbarMode();
     }
 
     // ── Page lifecycle ────────────────────────────────────────────────────────
@@ -72,6 +85,7 @@ public sealed partial class AlbumListPage : Page
     {
         ElasticScrollHelper.Attach(AlbumScrollViewer);
         await ViewModel.LoadAsync();
+        ApplySelectionMode();
         UpdateEmptyState();
         UpdateItemSize();
     }
@@ -189,30 +203,79 @@ public sealed partial class AlbumListPage : Page
         ViewModel.SortDirection = t.IsChecked ? SortDirection.Ascending : SortDirection.Descending;
     }
 
+    // ── Multi-select ─────────────────────────────────────────────────────────
+
+    private void MultiSelectToggle_Click(object sender, RoutedEventArgs e)
+        => ViewModel.ToggleMultiSelectModeCommand.Execute(null);
+
+    private void ApplySelectionMode()
+    {
+        if (ViewModel.IsMultiSelectMode)
+        {
+            if (AlbumGridView.SelectionMode == ListViewSelectionMode.Multiple && !AlbumGridView.IsItemClickEnabled)
+                return;
+
+            AlbumGridView.SelectionMode = ListViewSelectionMode.Multiple;
+            AlbumGridView.IsItemClickEnabled = false;
+        }
+        else
+        {
+            if (AlbumGridView.SelectionMode == ListViewSelectionMode.None && AlbumGridView.IsItemClickEnabled)
+                return;
+
+            ClearSelectionSafely();
+            AlbumGridView.SelectionMode = ListViewSelectionMode.None;
+            AlbumGridView.IsItemClickEnabled = true;
+        }
+    }
+
+    private void QueueInteractionModeApply()
+    {
+        if (_interactionModeApplyQueued) return;
+        _interactionModeApplyQueued = true;
+
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            _interactionModeApplyQueued = false;
+            ApplySelectionMode();
+            ApplyToolbarMode();
+        });
+    }
+
+    private void ApplyToolbarMode()
+    {
+        BrowseCommandsPanel.Visibility = ViewModel.IsMultiSelectMode
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+        BatchCommandsPanel.Visibility = ViewModel.IsMultiSelectMode
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+    }
+
+    private void SelectAll_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.Albums.Count > 0)
+            AlbumGridView.SelectAll();
+    }
+
     // ── Navigate ──────────────────────────────────────────────────────────────
 
     private void AlbumGridView_ItemClick(object sender, ItemClickEventArgs e)
     {
+        if (ViewModel.IsMultiSelectMode) return;
         if (e.ClickedItem is AlbumItemViewModel album)
             Frame.Navigate(typeof(PhotoListPage), album.Id);
     }
 
-    // ── Create album ──────────────────────────────────────────────────────────
+    // ── Add folders ──────────────────────────────────────────────────────────
 
-    private async void CreateAlbumButton_Click(object sender, RoutedEventArgs e)
+    private async void AddFolder_Click(object sender, RoutedEventArgs e)
     {
-        var nameBox = new TextBox { PlaceholderText = L10n.Get("AlbumList_CreateAlbum_Placeholder"), MinWidth = 280 };
+        var hwnd = WindowNative.GetWindowHandle(App.Current.MainWindow);
+        var paths = await MultiFolderPicker.PickAsync(hwnd);
+        if (paths.Count == 0) return;
 
-        if (!await ConfirmDialogHelper.ShowAsync(
-            XamlRoot,
-            L10n.Get("AlbumList_CreateAlbum_Title"),
-            nameBox,
-            L10n.Get("AlbumList_CreateAlbum_Confirm"))) return;
-        var name = nameBox.Text.Trim();
-        if (string.IsNullOrEmpty(name)) return;
-
-        await ViewModel.CreateAlbumAsync(name);
-        UpdateEmptyState();
+        await ViewModel.AddScanDirectoriesAsync(paths, _pageCts.Token);
     }
 
     // ── Inline rename ─────────────────────────────────────────────────────────
@@ -259,7 +322,19 @@ public sealed partial class AlbumListPage : Page
         if (vm is null) return;
 
         e.Handled = true;
-        ShowContextMenu(vm, src, e.GetPosition(src));
+        _ = ShowContextMenuAsync(vm, src, e.GetPosition(src));
+    }
+
+    private void AlbumGridView_Holding(object sender, HoldingRoutedEventArgs e)
+    {
+        if (e.HoldingState != Microsoft.UI.Input.HoldingState.Started) return;
+        if (e.OriginalSource is not FrameworkElement src) return;
+
+        var vm = FindAlbumVm(src);
+        if (vm is null) return;
+
+        e.Handled = true;
+        _ = ShowContextMenuAsync(vm, src, e.GetPosition(src));
     }
 
     private static AlbumItemViewModel? FindAlbumVm(FrameworkElement element)
@@ -274,37 +349,71 @@ public sealed partial class AlbumListPage : Page
         return null;
     }
 
-    private void ShowContextMenu(AlbumItemViewModel vm, FrameworkElement anchor, Windows.Foundation.Point point)
+    private async Task ShowContextMenuAsync(
+        AlbumItemViewModel vm,
+        FrameworkElement anchor,
+        Windows.Foundation.Point point)
     {
-        var rename = new MenuFlyoutItem { Text = L10n.Get("AlbumList_Context_Rename") };
-        rename.Click += (_, _) =>
+        var flyout = new MenuFlyout();
+
+        var rename = new MenuFlyoutItem
         {
-            vm.BeginEdit();
-            DispatcherQueue.TryEnqueue(() =>
-            {
-                var container = AlbumGridView.ContainerFromItem(vm) as GridViewItem;
-                var box       = FindChild<TextBox>(container);
-                box?.Focus(FocusState.Programmatic);
-                box?.SelectAll();
-            });
+            Text = L10n.Get("AlbumList_Context_Rename"),
+            Icon = new FontIcon { Glyph = "\uE8AC" },
         };
+        rename.Click += async (_, _) => await ShowRenameDialogAsync(vm);
 
         var pinText = vm.IsPinned ? L10n.Get("AlbumList_Context_Unpin") : L10n.Get("AlbumList_Context_Pin");
-        var pinItem = new MenuFlyoutItem { Text = pinText };
-        pinItem.Click += async (_, _) => await ViewModel.SetPinnedAsync(vm, !vm.IsPinned);
+        var pinGlyph = vm.IsPinned ? "\uE77A" : "\uE840";
+        var pinItem = new MenuFlyoutItem
+        {
+            Text = pinText,
+            Icon = new FontIcon { Glyph = pinGlyph },
+        };
+        pinItem.Click += async (_, _) =>
+        {
+            await ViewModel.SetPinnedAsync(vm, !vm.IsPinned);
+            await RefreshPinnedAlbumsAsync();
+        };
+
+        var directories = await ViewModel.GetAlbumDirectoriesAsync(_pageCts.Token);
+        var moveItem = BuildDirectorySubMenu(vm, anchor, point, isMove: true, directories);
+        var copyItem = BuildDirectorySubMenu(vm, anchor, point, isMove: false, directories);
+
+        var openInExplorer = new MenuFlyoutItem
+        {
+            Text = L10n.Get("AlbumList_Context_OpenInExplorer"),
+            Icon = new FontIcon { Glyph = "\uE838" },
+            IsEnabled = !string.IsNullOrWhiteSpace(vm.DirectoryPath),
+        };
+        openInExplorer.Click += (_, _) => ViewModel.OpenAlbumInExplorer(vm);
+
+        var excludeItem = new MenuFlyoutItem
+        {
+            Text = L10n.Get("AlbumList_Context_Exclude"),
+            Icon = new FontIcon { Glyph = "\uE738" },
+            IsEnabled = !string.IsNullOrWhiteSpace(vm.DirectoryPath),
+        };
+        excludeItem.Click += async (_, _) => await ExcludeAlbumsWithConfirmAsync([vm]);
 
         var delete = new MenuFlyoutItem
         {
             Text       = L10n.Get("AlbumList_Context_Delete"),
+            Icon       = new FontIcon { Glyph = "\uE74D" },
             Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorCriticalBrush"],
         };
-        delete.Click += async (_, _) => await ConfirmDeleteAsync(vm);
+        delete.Click += async (_, _) => await DeleteAlbumsWithConfirmAsync([vm]);
 
-        var flyout = new MenuFlyout();
         flyout.Items.Add(rename);
         flyout.Items.Add(pinItem);
+        flyout.Items.Add(moveItem);
+        flyout.Items.Add(copyItem);
+        flyout.Items.Add(openInExplorer);
         flyout.Items.Add(new MenuFlyoutSeparator());
+        flyout.Items.Add(excludeItem);
         flyout.Items.Add(delete);
+        flyout.Items.Add(new MenuFlyoutSeparator());
+        flyout.Items.Add(CreateInfoItem(vm));
         flyout.ShowAt(anchor, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
         {
             Position  = point,
@@ -312,19 +421,338 @@ public sealed partial class AlbumListPage : Page
         });
     }
 
-    private async Task ConfirmDeleteAsync(AlbumItemViewModel vm)
+    private async void BatchDelete_Click(object sender, RoutedEventArgs e)
+        => await DeleteAlbumsWithConfirmAsync(GetSelectedAlbums());
+
+    private async void BatchExclude_Click(object sender, RoutedEventArgs e)
+        => await ExcludeAlbumsWithConfirmAsync(GetSelectedAlbums());
+
+    private async void BatchMove_Click(object sender, RoutedEventArgs e)
+        => await ShowBatchDirectoryFlyoutAsync(BatchMoveButton, isMove: true);
+
+    private async void BatchCopy_Click(object sender, RoutedEventArgs e)
+        => await ShowBatchDirectoryFlyoutAsync(BatchCopyButton, isMove: false);
+
+    private async Task DeleteAlbumsWithConfirmAsync(IReadOnlyList<AlbumItemViewModel> items)
     {
+        if (items.Count == 0) return;
+
+        var totalPhotos = items.Sum(item => item.PhotoCount);
+        var content = items.Count == 1
+            ? L10n.Format("AlbumList_DeleteConfirm_Content_WithCount", items[0].Name, totalPhotos)
+            : L10n.Format("AlbumList_BatchDeleteConfirm_Content", items.Count, totalPhotos);
+
         if (!await ConfirmDialogHelper.ShowAsync(
                 XamlRoot,
             L10n.Get("AlbumList_DeleteConfirm_Title"),
-            L10n.Get("AlbumList_DeleteConfirm_Content"),
+            content,
             L10n.Get("AlbumList_DeleteConfirm_Confirm"),
                 confirmStyle: DialogButtonStyle.Danger)) return;
-        await ViewModel.DeleteAlbumAsync(vm);
+
+        int deletedCount = await ViewModel.DeleteAlbumsAsync(items, _pageCts.Token);
+        ClearSelectionSafely();
+        if (deletedCount > 0)
+            await ShowTransientToastAsync(L10n.Get("AlbumList_Toast_Deleted"));
         UpdateEmptyState();
+        await RefreshPinnedAlbumsAsync();
+    }
+
+    private async Task ExcludeAlbumsWithConfirmAsync(IReadOnlyList<AlbumItemViewModel> items)
+    {
+        if (items.Count == 0) return;
+
+        var content = items.Count == 1
+            ? L10n.Format("AlbumList_ExcludeConfirm_Content", items[0].Name)
+            : L10n.Format("AlbumList_BatchExcludeConfirm_Content", items.Count);
+
+        if (!await ConfirmDialogHelper.ShowAsync(
+                XamlRoot,
+                L10n.Get("AlbumList_ExcludeConfirm_Title"),
+                content,
+                L10n.Get("AlbumList_ExcludeConfirm_Confirm"),
+                confirmStyle: DialogButtonStyle.Primary)) return;
+
+        await ViewModel.ExcludeAlbumsAsync(items, _pageCts.Token);
+        ClearSelectionSafely();
+        await ShowTransientToastAsync(L10n.Format("AlbumList_Toast_Excluded", items.Count));
+        UpdateEmptyState();
+        await RefreshPinnedAlbumsAsync();
+    }
+
+    private async Task ShowBatchDirectoryFlyoutAsync(AppBarButton anchor, bool isMove)
+    {
+        var selected = GetSelectedAlbums();
+        if (selected.Count == 0) return;
+
+        var directories = await ViewModel.GetAlbumDirectoriesAsync(_pageCts.Token);
+        var excluded = selected
+            .Select(item => item.DirectoryPath)
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var flyout = new MenuFlyout();
+        foreach (var directory in directories.Where(d => !excluded.Contains(d.DirectoryPath)))
+        {
+            var item = CreateDirectoryMenuItem(directory.Name, directory.DirectoryPath);
+            item.Click += async (_, _) => await ExecuteBatchDirectoryActionAsync(selected, directory.DirectoryPath, isMove);
+            flyout.Items.Add(item);
+        }
+
+        if (flyout.Items.Count > 0)
+            flyout.Items.Add(new MenuFlyoutSeparator());
+
+        var otherItem = new MenuFlyoutItem
+        {
+            Text = L10n.Get("AlbumList_Context_Other"),
+            Icon = new FontIcon { Glyph = "\uE8F4" },
+        };
+        otherItem.Click += async (_, _) =>
+        {
+            var targetDir = await PickSingleFolderAsync();
+            if (string.IsNullOrWhiteSpace(targetDir)) return;
+            await ExecuteBatchDirectoryActionAsync(selected, targetDir, isMove);
+        };
+        flyout.Items.Add(otherItem);
+        flyout.ShowAt(anchor);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private IReadOnlyList<AlbumItemViewModel> GetSelectedAlbums()
+        => AlbumGridView.SelectedItems.OfType<AlbumItemViewModel>().ToList();
+
+    private void ClearSelectionSafely()
+    {
+        if (AlbumGridView.SelectionMode == ListViewSelectionMode.None) return;
+        if (AlbumGridView.SelectedItems.Count == 0) return;
+
+        try
+        {
+            AlbumGridView.SelectedItems.Clear();
+        }
+        catch (COMException)
+        {
+            // WinUI may throw while the backing selection vector is changing after item removal.
+        }
+    }
+
+    private MenuFlyoutSubItem BuildDirectorySubMenu(
+        AlbumItemViewModel vm,
+        FrameworkElement anchor,
+        Windows.Foundation.Point point,
+        bool isMove,
+        IReadOnlyList<(string Name, string DirectoryPath)> directories)
+    {
+        var subItem = new MenuFlyoutSubItem
+        {
+            Text = L10n.Get(isMove ? "AlbumList_Context_Move" : "AlbumList_Context_Copy"),
+            Icon = new FontIcon { Glyph = isMove ? "\uE8DE" : "\uE8C8" },
+        };
+
+        foreach (var directory in directories.Where(d => !string.Equals(d.DirectoryPath, vm.DirectoryPath, StringComparison.OrdinalIgnoreCase)))
+        {
+            var item = CreateDirectoryMenuItem(directory.Name, directory.DirectoryPath);
+            item.Click += async (_, _) => await ExecuteSingleDirectoryActionAsync(vm, directory.DirectoryPath, isMove);
+            subItem.Items.Add(item);
+        }
+
+        if (subItem.Items.Count > 0)
+            subItem.Items.Add(new MenuFlyoutSeparator());
+
+        var otherItem = new MenuFlyoutItem
+        {
+            Text = L10n.Get("AlbumList_Context_Other"),
+            Icon = new FontIcon { Glyph = "\uE8F4" },
+        };
+        otherItem.Click += async (_, _) =>
+        {
+            var targetDir = await PickSingleFolderAsync();
+            if (string.IsNullOrWhiteSpace(targetDir)) return;
+
+            if (IsSameDirectory(vm.DirectoryPath, targetDir))
+            {
+                await ShowTransientToastAsync(L10n.Get("AlbumList_Toast_SameDirectory"));
+                await ShowContextMenuAsync(vm, anchor, point);
+                return;
+            }
+
+            await ExecuteSingleDirectoryActionAsync(vm, targetDir, isMove);
+        };
+        subItem.Items.Add(otherItem);
+
+        return subItem;
+    }
+
+    private async Task ExecuteSingleDirectoryActionAsync(AlbumItemViewModel vm, string targetDir, bool isMove)
+    {
+        if (IsSameDirectory(vm.DirectoryPath, targetDir))
+        {
+            await ShowTransientToastAsync(L10n.Get("AlbumList_Toast_SameDirectory"));
+            return;
+        }
+
+        var targetName = Path.GetFileName(targetDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        bool confirmed = await ConfirmDirectoryActionAsync([vm], targetName, isMove);
+        if (!confirmed) return;
+
+        if (isMove)
+        {
+            await ViewModel.MoveAlbumPhotosAsync(vm, targetDir, _pageCts.Token);
+            await ShowTransientToastAsync(L10n.Format("AlbumList_Toast_Moved", vm.PhotoCount, targetName));
+            await RefreshPinnedAlbumsAsync();
+        }
+        else
+        {
+            await ViewModel.CopyAlbumPhotosAsync(vm, targetDir, _pageCts.Token);
+            await ShowTransientToastAsync(L10n.Format("AlbumList_Toast_Copied", vm.PhotoCount, targetName));
+        }
+
+        UpdateEmptyState();
+    }
+
+    private async Task ExecuteBatchDirectoryActionAsync(
+        IReadOnlyList<AlbumItemViewModel> items,
+        string targetDir,
+        bool isMove)
+    {
+        if (items.Count == 0) return;
+
+        if (items.Any(item => IsSameDirectory(item.DirectoryPath, targetDir)))
+        {
+            await ShowTransientToastAsync(L10n.Get("AlbumList_Toast_SameDirectory"));
+            return;
+        }
+
+        var targetName = Path.GetFileName(targetDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        bool confirmed = await ConfirmDirectoryActionAsync(items, targetName, isMove);
+        if (!confirmed) return;
+
+        int totalPhotos = items.Sum(item => item.PhotoCount);
+        foreach (var item in items)
+        {
+            if (isMove)
+                await ViewModel.MoveAlbumPhotosAsync(item, targetDir, _pageCts.Token);
+            else
+                await ViewModel.CopyAlbumPhotosAsync(item, targetDir, _pageCts.Token);
+        }
+
+        ClearSelectionSafely();
+        await ShowTransientToastAsync(L10n.Format(
+            isMove ? "AlbumList_Toast_Moved" : "AlbumList_Toast_Copied",
+            totalPhotos,
+            targetName));
+        UpdateEmptyState();
+        if (isMove)
+            await RefreshPinnedAlbumsAsync();
+    }
+
+    private async Task<bool> ConfirmDirectoryActionAsync(
+        IReadOnlyList<AlbumItemViewModel> items,
+        string targetName,
+        bool isMove)
+    {
+        int totalPhotos = items.Sum(item => item.PhotoCount);
+        string titleKey = isMove ? "AlbumList_MoveConfirm_Title" : "AlbumList_CopyConfirm_Title";
+        string contentKey = items.Count == 1
+            ? (isMove ? "AlbumList_MoveConfirm_Content" : "AlbumList_CopyConfirm_Content")
+            : (isMove ? "AlbumList_BatchMoveConfirm_Content" : "AlbumList_BatchCopyConfirm_Content");
+        string confirmKey = isMove ? "AlbumList_MoveConfirm_Confirm" : "AlbumList_CopyConfirm_Confirm";
+
+        string content = items.Count == 1
+            ? L10n.Format(contentKey, items[0].Name, totalPhotos, targetName)
+            : L10n.Format(contentKey, items.Count, totalPhotos, targetName);
+
+        return await ConfirmDialogHelper.ShowAsync(
+            XamlRoot,
+            L10n.Get(titleKey),
+            content,
+            L10n.Get(confirmKey),
+            confirmStyle: DialogButtonStyle.Primary);
+    }
+
+    private static MenuFlyoutItem CreateDirectoryMenuItem(string name, string directoryPath)
+    {
+        var item = new MenuFlyoutItem { Text = name };
+        ToolTipService.SetToolTip(item, directoryPath);
+        return item;
+    }
+
+    private async Task ShowRenameDialogAsync(AlbumItemViewModel vm)
+    {
+        var input = new TextBox
+        {
+            Text = vm.Name,
+            PlaceholderText = L10n.Get("AlbumList_RenameDialog_Placeholder"),
+            MinWidth = 320,
+        };
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = L10n.Get("AlbumList_RenameDialog_Title"),
+            Content = input,
+            PrimaryButtonText = L10n.Get("AlbumList_RenameDialog_Confirm"),
+            CloseButtonText = L10n.Get("Common_Cancel"),
+            DefaultButton = ContentDialogButton.Primary,
+            IsPrimaryButtonEnabled = !string.IsNullOrWhiteSpace(vm.Name),
+        };
+
+        input.TextChanged += (_, _) =>
+        {
+            dialog.IsPrimaryButtonEnabled = !string.IsNullOrWhiteSpace(input.Text);
+        };
+        dialog.Opened += (_, _) =>
+        {
+            input.Focus(FocusState.Programmatic);
+            input.SelectAll();
+        };
+
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+
+        var newName = input.Text.Trim();
+        if (string.IsNullOrWhiteSpace(newName) || string.Equals(newName, vm.Name, StringComparison.CurrentCulture))
+            return;
+
+        try
+        {
+            await ViewModel.RenameAlbumAsync(vm, newName, _pageCts.Token);
+            if (vm.IsPinned)
+                await RefreshPinnedAlbumsAsync();
+        }
+        catch
+        {
+            await ShowTransientToastAsync(L10n.Get("AlbumList_Toast_RenameFailed"));
+        }
+    }
+
+    private MenuFlyoutItem CreateInfoItem(AlbumItemViewModel vm)
+    {
+        return new MenuFlyoutItem
+        {
+            Text = $"{vm.PhotoCountFormatted}  ·  {vm.TotalSizeFormatted}  ·  {vm.CreatedAtFormatted}",
+            IsEnabled = false,
+            Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+        };
+    }
+
+    private static bool IsSameDirectory(string? left, string? right)
+        => !string.IsNullOrWhiteSpace(left)
+        && !string.IsNullOrWhiteSpace(right)
+        && string.Equals(left.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                         right.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                         StringComparison.OrdinalIgnoreCase);
+
+    private static Task RefreshPinnedAlbumsAsync(CancellationToken ct = default)
+        => App.Current.MainWindow is global::FluentGallery.MainWindow window
+            ? window.RefreshPinnedAlbumsAsync(ct)
+            : Task.CompletedTask;
+
+    private static async Task<string?> PickSingleFolderAsync()
+    {
+        var hwnd = WindowNative.GetWindowHandle(App.Current.MainWindow);
+        var paths = await MultiFolderPicker.PickAsync(hwnd);
+        return paths.FirstOrDefault();
+    }
 
     private void UpdateEmptyState()
     {
@@ -350,6 +778,9 @@ public sealed partial class AlbumListPage : Page
     // ── Card size toast ───────────────────────────────────────────────────────
 
     private async Task ShowCardSizeToastAsync(string text)
+        => await ShowTransientToastAsync(text);
+
+    private async Task ShowTransientToastAsync(string text)
     {
         // Cancel any previous auto-dismiss so only one timer runs at a time
         _toastCts?.Cancel();

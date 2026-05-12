@@ -1,8 +1,12 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FluentGallery.Data;
+using FluentGallery.Helpers;
 using FluentGallery.Models;
+using Microsoft.Extensions.Logging;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
+using System.Diagnostics;
 using System.Collections.ObjectModel;
 
 namespace FluentGallery.ViewModels;
@@ -16,10 +20,12 @@ public sealed partial class AlbumListViewModel : ObservableObject, IDisposable
     private readonly DatabaseService  _db;
     private readonly ScanService      _scan;
     private readonly ThumbnailService _thumbnails;
+    private readonly ILogger<AlbumListViewModel> _logger;
 
     public ObservableCollection<AlbumItemViewModel> Albums { get; } = new();
 
     [ObservableProperty] public partial bool           IsLoading      { get; set; }
+    [ObservableProperty] public partial bool           IsMultiSelectMode { get; set; }
     [ObservableProperty] public partial int            AlbumCardWidth { get; set; }
     [ObservableProperty] public partial bool           ShowCardSizeToast { get; set; }
     [ObservableProperty] public partial AlbumSortField SortField     { get; set; }
@@ -45,11 +51,16 @@ public sealed partial class AlbumListViewModel : ObservableObject, IDisposable
     // initialising SortField / SortDirection from the stored AppSettings.
     private bool _loadingSort;
 
-    public AlbumListViewModel(DatabaseService db, ScanService scan, ThumbnailService thumbnails)
+    public AlbumListViewModel(
+        DatabaseService db,
+        ScanService scan,
+        ThumbnailService thumbnails,
+        ILogger<AlbumListViewModel> logger)
     {
         _db         = db;
         _scan       = scan;
         _thumbnails = thumbnails;
+        _logger     = logger;
         AlbumCardWidth = CardWidthSteps[5]; // default: 170 px
         SortField      = AlbumSortField.TakenAt;
         SortDirection  = SortDirection.Descending;
@@ -95,6 +106,7 @@ public sealed partial class AlbumListViewModel : ObservableObject, IDisposable
             if (existing is not null)
             {
                 existing.PhotoCount += group.Count();
+                existing.TotalSize += group.Sum(p => p.FileSize);
             }
             else
             {
@@ -230,15 +242,62 @@ public sealed partial class AlbumListViewModel : ObservableObject, IDisposable
 
             var raw    = await _db.GetAlbumsAsync(ct);
             var sorted = ApplySort(raw);
-
-            Albums.Clear();
-            foreach (var a in sorted)
-                Albums.Add(new AlbumItemViewModel(a));
+            SynchronizeAlbums(sorted);
         }
         finally
         {
             IsLoading = false;
         }
+    }
+
+    private void SynchronizeAlbums(IEnumerable<Album> sortedAlbums)
+    {
+        var ordered = sortedAlbums.ToList();
+        var existingById = Albums.ToDictionary(vm => vm.Id);
+        var desiredIds = ordered.Select(album => album.Id).ToHashSet();
+        bool coverRefreshQueued = false;
+
+        foreach (var stale in Albums.Where(vm => !desiredIds.Contains(vm.Id)).ToList())
+            Albums.Remove(stale);
+
+        for (int i = 0; i < ordered.Count; i++)
+        {
+            var album = ordered[i];
+            if (!existingById.TryGetValue(album.Id, out var vm))
+            {
+                vm = new AlbumItemViewModel(album);
+                Albums.Insert(i, vm);
+                existingById[album.Id] = vm;
+                continue;
+            }
+
+            bool coverMayHaveChanged = vm.PhotoCount != album.PhotoCount
+                || !string.Equals(vm.MaxPhotoTakenAt, album.MaxPhotoTakenAt, StringComparison.Ordinal)
+                || !string.Equals(vm.MaxPhotoCreatedAt, album.MaxPhotoCreatedAt, StringComparison.Ordinal)
+                || !string.Equals(vm.MaxPhotoModifiedAt, album.MaxPhotoModifiedAt, StringComparison.Ordinal);
+
+            vm.Name = album.Name;
+            vm.PhotoCount = album.PhotoCount;
+            vm.CreatedAt = album.CreatedAt;
+            vm.ModifiedAt = album.ModifiedAt;
+            vm.IsPinned = album.IsPinned;
+            vm.MaxPhotoTakenAt = album.MaxPhotoTakenAt;
+            vm.MaxPhotoCreatedAt = album.MaxPhotoCreatedAt;
+            vm.MaxPhotoModifiedAt = album.MaxPhotoModifiedAt;
+
+            if (coverMayHaveChanged)
+            {
+                _pendingCoverIds.Add(album.Id);
+                coverRefreshQueued = true;
+            }
+
+            int currentIndex = Albums.IndexOf(vm);
+            if (currentIndex != i)
+                Albums.Move(currentIndex, i);
+        }
+
+        if (coverRefreshQueued)
+            EnsureCoverTimerRunning();
     }
 
     private async void SaveSortSettings()
@@ -357,19 +416,163 @@ public sealed partial class AlbumListViewModel : ObservableObject, IDisposable
 
     public async Task RenameAlbumAsync(AlbumItemViewModel vm, string newName, CancellationToken ct = default)
     {
+        string trimmed = newName.Trim();
+        if (string.IsNullOrWhiteSpace(trimmed)) return;
+
         var album = await _db.GetAlbumAsync(vm.Id, ct);
         if (album is null) return;
-        album.Name = newName.Trim();
+
+        if (string.IsNullOrWhiteSpace(album.DirectoryPath))
+        {
+            album.Name = trimmed;
+            await _db.UpdateAlbumAsync(album, ct);
+            vm.Name = album.Name;
+            ReSortInPlace();
+            return;
+        }
+
+        string oldDir = album.DirectoryPath;
+        string normalizedOldDir = oldDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        string? parentDir = Path.GetDirectoryName(normalizedOldDir);
+        if (string.IsNullOrWhiteSpace(parentDir) || !Directory.Exists(normalizedOldDir))
+            throw new IOException("Album directory not found.");
+
+        if (trimmed.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+            throw new IOException("Album name contains invalid characters.");
+
+        string newDir = Path.Combine(parentDir, trimmed);
+        if (!string.Equals(normalizedOldDir, newDir, StringComparison.OrdinalIgnoreCase))
+        {
+            if (Directory.Exists(newDir))
+                throw new IOException("Target directory already exists.");
+
+            await RunWithScanPausedAsync(async () =>
+            {
+                await Task.Run(() => Directory.Move(normalizedOldDir, newDir), ct);
+
+                var photos = await _db.GetPhotosByAlbumAsync(album.Id, ct);
+                foreach (var photo in photos)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    string relativePath = Path.GetRelativePath(normalizedOldDir, photo.FilePath);
+                    string updatedPath = Path.Combine(newDir, relativePath);
+                    photo.FilePath = updatedPath;
+                    photo.FileName = Path.GetFileName(updatedPath);
+                    photo.ModifiedAt = File.GetLastWriteTimeUtc(updatedPath).ToString("O");
+                    await _db.UpdatePhotoAsync(photo, ct);
+                }
+
+                var settings = await _db.LoadSettingsAsync(ct);
+                bool settingsChanged = ReplaceDirectorySetting(settings.ScanDirectories, normalizedOldDir, newDir)
+                    | ReplaceDirectorySetting(settings.ExcludeDirectories, normalizedOldDir, newDir);
+                if (settingsChanged)
+                    await _db.SaveSettingsAsync(settings, ct);
+            });
+
+            album.DirectoryPath = newDir;
+            vm.DirectoryPath = newDir;
+        }
+
+        album.Name = trimmed;
         await _db.UpdateAlbumAsync(album, ct);
         vm.Name = album.Name;
+        ReSortInPlace();
+    }
+
+    private static bool ReplaceDirectorySetting(IList<string> directories, string oldDir, string newDir)
+    {
+        bool changed = false;
+        for (int index = 0; index < directories.Count; index++)
+        {
+            if (!string.Equals(
+                    directories[index].TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                    oldDir,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            directories[index] = newDir;
+            changed = true;
+        }
+
+        return changed;
     }
 
     // ── Delete ────────────────────────────────────────────────────────────────
 
     public async Task DeleteAlbumAsync(AlbumItemViewModel vm, CancellationToken ct = default)
+        => await DeleteAlbumsAsync([vm], ct);
+
+    public async Task<int> DeleteAlbumsAsync(
+        IReadOnlyList<AlbumItemViewModel> items,
+        CancellationToken ct = default)
     {
-        await _db.DeleteAlbumAsync(vm.Id, ct);
-        Albums.Remove(vm);
+        if (items.Count == 0) return 0;
+
+        var deletedAlbums = new List<AlbumItemViewModel>(items.Count);
+
+        foreach (var album in items)
+        {
+            bool deleteFailed = false;
+            var photos = await _db.GetPhotosByAlbumAsync(album.Id, ct);
+            foreach (var photo in photos)
+            {
+                ct.ThrowIfCancellationRequested();
+                try
+                {
+                    await RecycleBinHelper.MoveToRecycleBinAsync(photo.FilePath);
+                    await _db.DeletePhotoAsync(photo.Id, ct);
+                }
+                catch (OperationCanceledException) { throw; }
+                catch (Exception ex)
+                {
+                    deleteFailed = true;
+                    _logger.LogWarning(ex, "Failed to delete album photo {Path}", photo.FilePath);
+                }
+            }
+
+            if (deleteFailed)
+            {
+                _logger.LogWarning("Skipping album deletion because one or more photos failed to delete. AlbumId: {AlbumId}", album.Id);
+                continue;
+            }
+
+            await _db.DeleteAlbumAsync(album.Id, ct);
+            deletedAlbums.Add(album);
+        }
+
+        foreach (var album in deletedAlbums)
+            Albums.Remove(album);
+
+        return deletedAlbums.Count;
+    }
+
+    public async Task ExcludeAlbumsAsync(
+        IReadOnlyList<AlbumItemViewModel> items,
+        CancellationToken ct = default)
+    {
+        if (items.Count == 0) return;
+
+        await RunWithScanPausedAsync(async () =>
+        {
+            var settings = await _db.LoadSettingsAsync(ct);
+            foreach (var dir in items.Select(a => a.DirectoryPath)
+                         .OfType<string>()
+                         .Where(path => !string.IsNullOrWhiteSpace(path))
+                         .Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                if (!settings.ExcludeDirectories.Contains(dir, StringComparer.OrdinalIgnoreCase))
+                    settings.ExcludeDirectories.Add(dir);
+            }
+
+            await _db.SaveSettingsAsync(settings, ct);
+            await _db.DeletePhotosByAlbumIdsAsync(items.Select(a => a.Id), ct);
+            await _db.DeleteAlbumsAsync(items.Select(a => a.Id), ct);
+        });
+
+        foreach (var album in items)
+            Albums.Remove(album);
     }
 
     // ── Pin / Unpin ───────────────────────────────────────────────────────────
@@ -379,6 +582,148 @@ public sealed partial class AlbumListViewModel : ObservableObject, IDisposable
         await _db.SetAlbumPinnedAsync(vm.Id, pinned, ct);
         vm.IsPinned = pinned;
     }
+
+    public async Task<IReadOnlyList<(string Name, string DirectoryPath)>> GetAlbumDirectoriesAsync(
+        CancellationToken ct = default)
+    {
+        var albums = await _db.GetAlbumsAsync(ct);
+        return albums
+            .Where(a => !string.IsNullOrWhiteSpace(a.DirectoryPath))
+            .Select(a => (Name: a.Name, DirectoryPath: a.DirectoryPath!))
+            .DistinctBy(a => a.DirectoryPath, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    public async Task MoveAlbumPhotosAsync(
+        AlbumItemViewModel album,
+        string targetDir,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(targetDir)) return;
+
+        await RunWithScanPausedAsync(async () =>
+        {
+            Directory.CreateDirectory(targetDir);
+            var targetAlbumId = await _db.GetOrCreateDirectoryAlbumAsync(targetDir, ct);
+            var photos = await _db.GetPhotosByAlbumAsync(album.Id, ct);
+
+            foreach (var photo in photos)
+            {
+                ct.ThrowIfCancellationRequested();
+                var targetPath = GetTargetPath(targetDir, photo.FileName);
+                await Task.Run(() => File.Move(photo.FilePath, targetPath), ct);
+                photo.FilePath = targetPath;
+                photo.FileName = Path.GetFileName(targetPath);
+                photo.AlbumId = targetAlbumId;
+                photo.ModifiedAt = File.GetLastWriteTimeUtc(targetPath).ToString("O");
+                await _db.UpdatePhotoAsync(photo, ct);
+            }
+
+            await _db.DeleteAlbumAsync(album.Id, ct);
+        });
+
+        await LoadAsync(ct);
+    }
+
+    public async Task CopyAlbumPhotosAsync(
+        AlbumItemViewModel album,
+        string targetDir,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(targetDir)) return;
+
+        await RunWithScanPausedAsync(async () =>
+        {
+            Directory.CreateDirectory(targetDir);
+            var targetAlbumId = await _db.GetOrCreateDirectoryAlbumAsync(targetDir, ct);
+            var photos = await _db.GetPhotosByAlbumAsync(album.Id, ct);
+
+            foreach (var photo in photos)
+            {
+                ct.ThrowIfCancellationRequested();
+                var targetPath = GetTargetPath(targetDir, photo.FileName);
+                await Task.Run(() => File.Copy(photo.FilePath, targetPath), ct);
+
+                var copied = new Photo
+                {
+                    FilePath = targetPath,
+                    FileName = Path.GetFileName(targetPath),
+                    FileSize = new FileInfo(targetPath).Length,
+                    Width = photo.Width,
+                    Height = photo.Height,
+                    TakenAt = photo.TakenAt,
+                    CreatedAt = DateTime.UtcNow.ToString("O"),
+                    ModifiedAt = File.GetLastWriteTimeUtc(targetPath).ToString("O"),
+                    Latitude = photo.Latitude,
+                    Longitude = photo.Longitude,
+                    CameraMake = photo.CameraMake,
+                    CameraModel = photo.CameraModel,
+                    Orientation = photo.Orientation,
+                    AlbumId = targetAlbumId,
+                    IsPinned = photo.IsPinned,
+                };
+
+                await _db.InsertPhotoAsync(copied, ct);
+            }
+        });
+
+        await LoadAsync(ct);
+    }
+
+    public void OpenAlbumInExplorer(AlbumItemViewModel vm)
+    {
+        if (string.IsNullOrWhiteSpace(vm.DirectoryPath) || !Directory.Exists(vm.DirectoryPath))
+            return;
+
+        try
+        {
+            WindowsApiHelper.SHParseDisplayName(vm.DirectoryPath, IntPtr.Zero, out var pidlFolder, 0, out _);
+            if (pidlFolder == IntPtr.Zero) return;
+
+            try
+            {
+                int hResult = WindowsApiHelper.SHOpenFolderAndSelectItems(pidlFolder, 0, [], 0);
+                if (hResult != 0)
+                    _logger.LogWarning("SHOpenFolderAndSelectItems failed with HRESULT: {HResult:X8}", hResult);
+            }
+            finally
+            {
+                WindowsApiHelper.CoTaskMemFree(pidlFolder);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to open album directory {Directory}", vm.DirectoryPath);
+        }
+    }
+
+    public async Task AddScanDirectoriesAsync(IEnumerable<string> paths, CancellationToken ct = default)
+    {
+        var normalized = paths
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (normalized.Count == 0) return;
+
+        var settings = await _db.LoadSettingsAsync(ct);
+        bool added = false;
+        foreach (var path in normalized)
+        {
+            if (settings.ScanDirectories.Contains(path, StringComparer.OrdinalIgnoreCase))
+                continue;
+
+            settings.ScanDirectories.Add(path);
+            added = true;
+        }
+
+        if (!added) return;
+
+        await _db.SaveSettingsAsync(settings, ct);
+        await _scan.StartAsync(settings, DispatcherQueue.GetForCurrentThread());
+    }
+
+    [RelayCommand]
+    private void ToggleMultiSelectMode() => IsMultiSelectMode = !IsMultiSelectMode;
 
     // ── Card width changed ────────────────────────────────────────────────────
 
@@ -437,5 +782,36 @@ public sealed partial class AlbumListViewModel : ObservableObject, IDisposable
         return value - CardWidthSteps[idx - 1] <= CardWidthSteps[idx] - value
             ? CardWidthSteps[idx - 1]
             : CardWidthSteps[idx];
+    }
+
+    private async Task RunWithScanPausedAsync(Func<Task> action)
+    {
+        await _scan.StopAsync();
+        try
+        {
+            await action();
+        }
+        finally
+        {
+            var settings = await _db.LoadSettingsAsync();
+            await _scan.StartAsync(settings, DispatcherQueue.GetForCurrentThread());
+        }
+    }
+
+    private static string GetTargetPath(string targetDir, string fileName)
+    {
+        var candidate = Path.Combine(targetDir, fileName);
+        if (!File.Exists(candidate)) return candidate;
+
+        var stem = Path.GetFileNameWithoutExtension(fileName);
+        var ext = Path.GetExtension(fileName);
+        int index = 1;
+        do
+        {
+            candidate = Path.Combine(targetDir, $"{stem} ({index++}){ext}");
+        }
+        while (File.Exists(candidate));
+
+        return candidate;
     }
 }

@@ -143,13 +143,49 @@
   <data name='AlbumList_CreateAlbum_Placeholder' xml:space='preserve'><value>アルバム名</value></data>
   <data name='AlbumList_CreateAlbum_Title' xml:space='preserve'><value>新規アルバム</value></data>
   <data name='AlbumList_CreateAlbum_Confirm' xml:space='preserve'><value>作成</value></data>
+  <data name='AlbumList_PhotoCountFormat' xml:space='preserve'><value>{0:N0} 枚の写真</value></data>
   <data name='AlbumList_Context_Rename' xml:space='preserve'><value>名前の変更</value></data>
+  <data name='AlbumList_RenameDialog_Title' xml:space='preserve'><value>アルバム名を変更</value></data>
+  <data name='AlbumList_RenameDialog_Placeholder' xml:space='preserve'><value>アルバム名</value></data>
+  <data name='AlbumList_RenameDialog_Confirm' xml:space='preserve'><value>名前を変更</value></data>
   <data name='AlbumList_Context_Unpin' xml:space='preserve'><value>ナビゲーションから外す</value></data>
   <data name='AlbumList_Context_Pin' xml:space='preserve'><value>ナビゲーションにピン留め</value></data>
   <data name='AlbumList_Context_Delete' xml:space='preserve'><value>削除</value></data>
   <data name='AlbumList_DeleteConfirm_Title' xml:space='preserve'><value>アルバムの削除</value></data>
   <data name='AlbumList_DeleteConfirm_Content' xml:space='preserve'><value>このアルバムを削除してもよろしいですか？ 写真自体は削除されません。</value></data>
-  <data name='AlbumList_DeleteConfirm_Confirm' xml:space='preserve'><value>削除</value></data>
+  <data name='AlbumList_DeleteConfirm_Confirm' xml:space='preserve'><value>ごみ箱へ</value></data>
+  <data name='AlbumList_AddFolderButton.Label' xml:space='preserve'><value>フォルダーを追加</value></data>
+  <data name='AlbumList_MultiSelectToggle.Label' xml:space='preserve'><value>複数選択</value></data>
+  <data name='AlbumList_SelectAllButton.Label' xml:space='preserve'><value>すべて選択</value></data>
+  <data name='AlbumList_BatchDeleteButton.Label' xml:space='preserve'><value>削除</value></data>
+  <data name='AlbumList_BatchExcludeButton.Label' xml:space='preserve'><value>ディレクトリを除外</value></data>
+  <data name='AlbumList_BatchMoveButton.Label' xml:space='preserve'><value>移動</value></data>
+  <data name='AlbumList_BatchCopyButton.Label' xml:space='preserve'><value>コピー</value></data>
+  <data name='AlbumList_Context_Move' xml:space='preserve'><value>移動</value></data>
+  <data name='AlbumList_Context_Copy' xml:space='preserve'><value>コピー</value></data>
+  <data name='AlbumList_Context_Exclude' xml:space='preserve'><value>ディレクトリを除外</value></data>
+  <data name='AlbumList_Context_OpenInExplorer' xml:space='preserve'><value>エクスプローラーで表示</value></data>
+  <data name='AlbumList_Context_Other' xml:space='preserve'><value>その他...</value></data>
+  <data name='AlbumList_ExcludeConfirm_Title' xml:space='preserve'><value>ディレクトリを除外</value></data>
+  <data name='AlbumList_ExcludeConfirm_Content' xml:space='preserve'><value>「{0}」のディレクトリを除外しますか？ 写真はライブラリから削除されますが、ファイル自体は削除されません。</value></data>
+  <data name='AlbumList_ExcludeConfirm_Confirm' xml:space='preserve'><value>除外</value></data>
+  <data name='AlbumList_DeleteConfirm_Content_WithCount' xml:space='preserve'><value>「{0}」内の {1} 枚の写真をごみ箱に移動しますか？</value></data>
+  <data name='AlbumList_MoveConfirm_Title' xml:space='preserve'><value>写真を移動</value></data>
+  <data name='AlbumList_MoveConfirm_Content' xml:space='preserve'><value>「{0}」内の {1} 枚の写真を「{2}」へ移動しますか？</value></data>
+  <data name='AlbumList_MoveConfirm_Confirm' xml:space='preserve'><value>移動</value></data>
+  <data name='AlbumList_CopyConfirm_Title' xml:space='preserve'><value>写真をコピー</value></data>
+  <data name='AlbumList_CopyConfirm_Content' xml:space='preserve'><value>「{0}」内の {1} 枚の写真を「{2}」へコピーしますか？</value></data>
+  <data name='AlbumList_CopyConfirm_Confirm' xml:space='preserve'><value>コピー</value></data>
+  <data name='AlbumList_Toast_Deleted' xml:space='preserve'><value>ごみ箱に移動しました</value></data>
+  <data name='AlbumList_Toast_Excluded' xml:space='preserve'><value>{0} 個のディレクトリを除外しました</value></data>
+  <data name='AlbumList_Toast_RenameFailed' xml:space='preserve'><value>フォルダー名を変更できませんでした</value></data>
+  <data name='AlbumList_Toast_Moved' xml:space='preserve'><value>{0} 枚の写真を「{1}」へ移動しました</value></data>
+  <data name='AlbumList_Toast_Copied' xml:space='preserve'><value>{0} 枚の写真を「{1}」へコピーしました</value></data>
+  <data name='AlbumList_BatchExcludeConfirm_Content' xml:space='preserve'><value>{0} 個のアルバムのディレクトリを除外しますか？</value></data>
+  <data name='AlbumList_BatchDeleteConfirm_Content' xml:space='preserve'><value>{0} 個のアルバムから合計 {1} 枚の写真をごみ箱に移動しますか？</value></data>
+  <data name='AlbumList_BatchMoveConfirm_Content' xml:space='preserve'><value>{0} 個のアルバムから合計 {1} 枚の写真を「{2}」へ移動しますか？</value></data>
+  <data name='AlbumList_BatchCopyConfirm_Content' xml:space='preserve'><value>{0} 個のアルバムから合計 {1} 枚の写真を「{2}」へコピーしますか？</value></data>
+  <data name='AlbumList_Toast_SameDirectory' xml:space='preserve'><value>元のディレクトリと移動先が同じです。別のディレクトリを選択してください。</value></data>
   <data name='AllPhotos_DeleteConfirm_Title' xml:space='preserve'><value>写真を削除</value></data>
   <data name='AllPhotos_DeleteConfirm_Content' xml:space='preserve'><value>選択した {0} 枚の写真をゴミ箱に移動しますか？</value></data>
   <data name='AllPhotos_DeleteConfirm_Confirm' xml:space='preserve'><value>ゴミ箱へ</value></data>
@@ -305,7 +341,7 @@
   <data name='AlbumList_ZoomInButton.Label' xml:space='preserve'><value>拡大</value></data>
   <data name='AlbumList_ZoomOutButton.Label' xml:space='preserve'><value>縮小</value></data>
   <data name='AlbumList_EmptyTitle.Text' xml:space='preserve'><value>まだアルバムがありません</value></data>
-  <data name='AlbumList_EmptySubtitle.Text' xml:space='preserve'><value>「新しいアルバム」をクリックして最初のアルバムを作成してください</value></data>
+  <data name='AlbumList_EmptySubtitle.Text' xml:space='preserve'><value>「フォルダーを追加」をクリックして最初のフォルダーを追加してください</value></data>
   <data name='PhotoList_AddPhotos_Text' xml:space='preserve'><value>写真を追加</value></data>
   <data name='PhotoList_Delete_Text' xml:space='preserve'><value>削除</value></data>
   <data name='PhotoList_MoveToAlbum_Text' xml:space='preserve'><value>アルバムへ移動</value></data>
@@ -335,4 +371,5 @@
   <data name='SettingsPage_DebugKeepChromeCard.Description' xml:space='preserve'><value>解析用に Chromium のデバッグデータを保持します</value></data>
   <data name='SettingsPage_AppInfoCard.Description' xml:space='preserve'><value>バージョン、ランタイム、アプリ情報を表示します</value></data>
   <data name='SettingsPage_RepoCard.Description' xml:space='preserve'><value>プロジェクトのソースコードとリポジトリを開きます</value></data>
+  <data name='SettingsPage_AppInfoCard.Header' xml:space='preserve'><value>Ham Gallery</value></data>
 </root>

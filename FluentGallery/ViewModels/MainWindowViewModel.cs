@@ -12,11 +12,16 @@ namespace FluentGallery.ViewModels;
 public sealed partial class MainWindowViewModel : ObservableObject
 {
     private readonly DatabaseService _db;
+    private readonly AlbumListViewModel _albumList;
 
     /// <summary>Pinned albums in sidebar order (SortOrder ASC, then Name ASC).</summary>
     public ObservableCollection<Album> PinnedAlbums { get; } = new();
 
-    public MainWindowViewModel(DatabaseService db) => _db = db;
+    public MainWindowViewModel(DatabaseService db, AlbumListViewModel albumList)
+    {
+        _db = db;
+        _albumList = albumList;
+    }
 
     /// <summary>
     /// Reloads pinned albums from the database and refreshes <see cref="PinnedAlbums"/>.
@@ -39,5 +44,9 @@ public sealed partial class MainWindowViewModel : ObservableObject
         var item = PinnedAlbums.FirstOrDefault(a => a.Id == albumId);
         if (item is not null)
             PinnedAlbums.Remove(item);
+
+        var albumVm = _albumList.Albums.FirstOrDefault(a => a.Id == albumId);
+        if (albumVm is not null)
+            albumVm.IsPinned = false;
     }
 }

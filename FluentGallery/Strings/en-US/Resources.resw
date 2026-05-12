@@ -135,7 +135,7 @@
     <value>No albums yet</value>
   </data>
   <data name="AlbumList_EmptySubtitle.Text" xml:space="preserve">
-    <value>Click "New Album" to create your first album</value>
+    <value>Click "Add Folder" to add your first folder</value>
   </data>
 
   <!-- ==================== Photo List Page ==================== -->
@@ -438,13 +438,49 @@
   <data name="AlbumList_CreateAlbum_Placeholder" xml:space="preserve"><value>Album name</value></data>
   <data name="AlbumList_CreateAlbum_Title" xml:space="preserve"><value>New Album</value></data>
   <data name="AlbumList_CreateAlbum_Confirm" xml:space="preserve"><value>Create</value></data>
+  <data name="AlbumList_PhotoCountFormat" xml:space="preserve"><value>{0:N0} photos</value></data>
   <data name="AlbumList_Context_Rename" xml:space="preserve"><value>Rename</value></data>
+  <data name="AlbumList_RenameDialog_Title" xml:space="preserve"><value>Rename Album</value></data>
+  <data name="AlbumList_RenameDialog_Placeholder" xml:space="preserve"><value>Album name</value></data>
+  <data name="AlbumList_RenameDialog_Confirm" xml:space="preserve"><value>Rename</value></data>
   <data name="AlbumList_Context_Unpin" xml:space="preserve"><value>Unpin</value></data>
   <data name="AlbumList_Context_Pin" xml:space="preserve"><value>Pin to Navigation</value></data>
   <data name="AlbumList_Context_Delete" xml:space="preserve"><value>Delete</value></data>
   <data name="AlbumList_DeleteConfirm_Title" xml:space="preserve"><value>Delete Album</value></data>
   <data name="AlbumList_DeleteConfirm_Content" xml:space="preserve"><value>Are you sure you want to delete this album? The photos inside will not be deleted.</value></data>
-  <data name="AlbumList_DeleteConfirm_Confirm" xml:space="preserve"><value>Delete</value></data>
+  <data name="AlbumList_DeleteConfirm_Confirm" xml:space="preserve"><value>Move to Recycle Bin</value></data>
+  <data name="AlbumList_AddFolderButton.Label" xml:space="preserve"><value>Add Folder</value></data>
+  <data name="AlbumList_MultiSelectToggle.Label" xml:space="preserve"><value>Multi-select</value></data>
+  <data name="AlbumList_SelectAllButton.Label" xml:space="preserve"><value>Select All</value></data>
+  <data name="AlbumList_BatchDeleteButton.Label" xml:space="preserve"><value>Delete</value></data>
+  <data name="AlbumList_BatchExcludeButton.Label" xml:space="preserve"><value>Exclude Directory</value></data>
+  <data name="AlbumList_BatchMoveButton.Label" xml:space="preserve"><value>Move</value></data>
+  <data name="AlbumList_BatchCopyButton.Label" xml:space="preserve"><value>Copy</value></data>
+  <data name="AlbumList_Context_Move" xml:space="preserve"><value>Move</value></data>
+  <data name="AlbumList_Context_Copy" xml:space="preserve"><value>Copy</value></data>
+  <data name="AlbumList_Context_Exclude" xml:space="preserve"><value>Exclude Directory</value></data>
+  <data name="AlbumList_Context_OpenInExplorer" xml:space="preserve"><value>Show in Explorer</value></data>
+  <data name="AlbumList_Context_Other" xml:space="preserve"><value>Other...</value></data>
+  <data name="AlbumList_ExcludeConfirm_Title" xml:space="preserve"><value>Exclude Directory</value></data>
+  <data name="AlbumList_ExcludeConfirm_Content" xml:space="preserve"><value>Exclude the directory of "{0}"? Photos will be removed from the library but files won't be deleted.</value></data>
+  <data name="AlbumList_ExcludeConfirm_Confirm" xml:space="preserve"><value>Exclude</value></data>
+  <data name="AlbumList_DeleteConfirm_Content_WithCount" xml:space="preserve"><value>Move {1} photos from "{0}" to Recycle Bin?</value></data>
+  <data name="AlbumList_MoveConfirm_Title" xml:space="preserve"><value>Move Photos</value></data>
+  <data name="AlbumList_MoveConfirm_Content" xml:space="preserve"><value>Move {1} photos from "{0}" to "{2}"?</value></data>
+  <data name="AlbumList_MoveConfirm_Confirm" xml:space="preserve"><value>Move</value></data>
+  <data name="AlbumList_CopyConfirm_Title" xml:space="preserve"><value>Copy Photos</value></data>
+  <data name="AlbumList_CopyConfirm_Content" xml:space="preserve"><value>Copy {1} photos from "{0}" to "{2}"?</value></data>
+  <data name="AlbumList_CopyConfirm_Confirm" xml:space="preserve"><value>Copy</value></data>
+  <data name="AlbumList_Toast_Deleted" xml:space="preserve"><value>Moved to Recycle Bin</value></data>
+  <data name="AlbumList_Toast_Excluded" xml:space="preserve"><value>Excluded {0} directories</value></data>
+  <data name="AlbumList_Toast_RenameFailed" xml:space="preserve"><value>Couldn't rename the folder</value></data>
+  <data name="AlbumList_Toast_Moved" xml:space="preserve"><value>Moved {0} photos to "{1}"</value></data>
+  <data name="AlbumList_Toast_Copied" xml:space="preserve"><value>Copied {0} photos to "{1}"</value></data>
+  <data name="AlbumList_BatchExcludeConfirm_Content" xml:space="preserve"><value>Exclude directories of {0} albums?</value></data>
+  <data name="AlbumList_BatchDeleteConfirm_Content" xml:space="preserve"><value>Move {1} photos from {0} albums to Recycle Bin?</value></data>
+  <data name="AlbumList_BatchMoveConfirm_Content" xml:space="preserve"><value>Move {1} photos from {0} albums to "{2}"?</value></data>
+  <data name="AlbumList_BatchCopyConfirm_Content" xml:space="preserve"><value>Copy {1} photos from {0} albums to "{2}"?</value></data>
+  <data name="AlbumList_Toast_SameDirectory" xml:space="preserve"><value>Source and target directory are the same, please choose another</value></data>
   <data name="AllPhotos_DeleteConfirm_Title" xml:space="preserve"><value>Delete Photos</value></data>
   <data name="AllPhotos_DeleteConfirm_Content" xml:space="preserve"><value>Move {0} selected photos to Recycle Bin?</value></data>
   <data name="AllPhotos_DeleteConfirm_Confirm" xml:space="preserve"><value>Move to Recycle Bin</value></data>

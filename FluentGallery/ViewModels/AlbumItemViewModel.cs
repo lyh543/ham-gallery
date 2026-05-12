@@ -1,7 +1,9 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using FluentGallery.Data;
+using FluentGallery.Helpers;
 using FluentGallery.Models;
 using Microsoft.UI.Xaml.Media.Imaging;
+using System.Globalization;
 
 namespace FluentGallery.ViewModels;
 
@@ -13,8 +15,11 @@ public sealed partial class AlbumItemViewModel : ObservableObject
 {
     public long Id { get; }
 
+    public string? DirectoryPath { get; set; }
+
     [ObservableProperty] public partial string       Name                { get; set; }
     [ObservableProperty] public partial int          PhotoCount          { get; set; }
+    [ObservableProperty] public partial long         TotalSize           { get; set; }
     [ObservableProperty] public partial string       CreatedAt           { get; set; }
     [ObservableProperty] public partial string       ModifiedAt          { get; set; }
     [ObservableProperty] public partial bool         IsPinned            { get; set; }
@@ -28,11 +33,20 @@ public sealed partial class AlbumItemViewModel : ObservableObject
     public string? MaxPhotoCreatedAt  { get; set; }
     public string? MaxPhotoModifiedAt { get; set; }
 
+    public string CreatedAtFormatted => FormatIsoDate(CreatedAt);
+
+    public string PhotoCountFormatted
+        => L10n.Format("AlbumList_PhotoCountFormat", PhotoCount);
+
+    public string TotalSizeFormatted => FormatFileSize(TotalSize);
+
     public AlbumItemViewModel(Album album)
     {
         Id                 = album.Id;
+        DirectoryPath      = album.DirectoryPath;
         Name               = album.Name;
         PhotoCount         = album.PhotoCount;
+        TotalSize          = 0;
         CreatedAt          = album.CreatedAt;
         ModifiedAt         = album.ModifiedAt;
         IsPinned           = album.IsPinned;
@@ -57,6 +71,15 @@ public sealed partial class AlbumItemViewModel : ObservableObject
 
     public void CancelEdit() => IsEditing = false;
 
+    partial void OnCreatedAtChanged(string value)
+        => OnPropertyChanged(nameof(CreatedAtFormatted));
+
+    partial void OnPhotoCountChanged(int value)
+        => OnPropertyChanged(nameof(PhotoCountFormatted));
+
+    partial void OnTotalSizeChanged(long value)
+        => OnPropertyChanged(nameof(TotalSizeFormatted));
+
     // ── Cover thumbnail ───────────────────────────────────────────────────────
 
     /// <summary>
@@ -80,6 +103,7 @@ public sealed partial class AlbumItemViewModel : ObservableObject
         try
         {
             var photo = await db.GetLatestPhotoByAlbumAsync(Id, ct);
+            TotalSize = await db.GetAlbumTotalSizeAsync(Id, ct);
             if (photo is null) { CoverThumbnailSource = null; return; }
 
             // Offload to thread pool so ThumbnailService.GetOrCreateThumbnailAsync
@@ -103,4 +127,23 @@ public sealed partial class AlbumItemViewModel : ObservableObject
 
     /// <summary>Releases the loaded cover image (called when a container is recycled).</summary>
     public void ClearCover() => CoverThumbnailSource = null;
+
+    private static string FormatIsoDate(string? iso)
+    {
+        if (string.IsNullOrWhiteSpace(iso)) return string.Empty;
+        return DateTime.TryParse(iso, null, DateTimeStyles.RoundtripKind, out var dt)
+            ? dt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.CurrentCulture)
+            : iso;
+    }
+
+    private static string FormatFileSize(long bytes)
+    {
+        if (bytes >= 1024L * 1024 * 1024)
+            return $"{bytes / (1024.0 * 1024 * 1024):F2} GB";
+        if (bytes >= 1024 * 1024)
+            return $"{bytes / (1024.0 * 1024):F1} MB";
+        if (bytes >= 1024)
+            return $"{bytes / 1024.0:F1} KB";
+        return $"{bytes} B";
+    }
 }

@@ -117,6 +117,15 @@ public sealed class DatabaseService
         return await db.Albums.FindAsync(new object[] { id }, ct).ConfigureAwait(false);
     }
 
+    public async Task<long> GetAlbumTotalSizeAsync(long albumId, CancellationToken ct = default)
+    {
+        using var db = _factory.CreateDbContext();
+        return await db.Photos
+            .Where(p => p.AlbumId == albumId)
+            .SumAsync(p => (long?)p.FileSize, ct)
+            .ConfigureAwait(false) ?? 0;
+    }
+
     /// <summary>
     /// Finds the album whose <see cref="Album.DirectoryPath"/> matches <paramref name="dirPath"/>,
     /// creating one (named after the leaf directory) if none exists.
@@ -231,6 +240,15 @@ public sealed class DatabaseService
     {
         using var db = _factory.CreateDbContext();
         await db.Albums.Where(a => a.Id == id).ExecuteDeleteAsync(ct).ConfigureAwait(false);
+    }
+
+    public async Task DeleteAlbumsAsync(IEnumerable<long> ids, CancellationToken ct = default)
+    {
+        var idList = ids.Distinct().ToList();
+        if (idList.Count == 0) return;
+
+        using var db = _factory.CreateDbContext();
+        await db.Albums.Where(a => idList.Contains(a.Id)).ExecuteDeleteAsync(ct).ConfigureAwait(false);
     }
 
     /// <summary>Deletes albums that have no photos (e.g. after a scan directory is removed).</summary>
@@ -384,6 +402,20 @@ public sealed class DatabaseService
     {
         using var db = _factory.CreateDbContext();
         await db.Photos.Where(p => p.Id == id).ExecuteDeleteAsync(ct).ConfigureAwait(false);
+    }
+
+    public async Task DeletePhotosByAlbumIdsAsync(
+        IEnumerable<long> albumIds,
+        CancellationToken ct = default)
+    {
+        var idList = albumIds.Distinct().ToList();
+        if (idList.Count == 0) return;
+
+        using var db = _factory.CreateDbContext();
+        await db.Photos
+            .Where(p => p.AlbumId.HasValue && idList.Contains(p.AlbumId.Value))
+            .ExecuteDeleteAsync(ct)
+            .ConfigureAwait(false);
     }
 
     /// <summary>

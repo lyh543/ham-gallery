@@ -142,13 +142,49 @@
   <data name='AlbumList_CreateAlbum_Placeholder' xml:space='preserve'><value>Nombre del álbum</value></data>
   <data name='AlbumList_CreateAlbum_Title' xml:space='preserve'><value>Nuevo álbum</value></data>
   <data name='AlbumList_CreateAlbum_Confirm' xml:space='preserve'><value>Crear</value></data>
+  <data name='AlbumList_PhotoCountFormat' xml:space='preserve'><value>{0:N0} fotos</value></data>
   <data name='AlbumList_Context_Rename' xml:space='preserve'><value>Renombrar</value></data>
+  <data name='AlbumList_RenameDialog_Title' xml:space='preserve'><value>Renombrar álbum</value></data>
+  <data name='AlbumList_RenameDialog_Placeholder' xml:space='preserve'><value>Nombre del álbum</value></data>
+  <data name='AlbumList_RenameDialog_Confirm' xml:space='preserve'><value>Renombrar</value></data>
   <data name='AlbumList_Context_Unpin' xml:space='preserve'><value>Quitar de la navegación</value></data>
   <data name='AlbumList_Context_Pin' xml:space='preserve'><value>Anclar a la navegación</value></data>
   <data name='AlbumList_Context_Delete' xml:space='preserve'><value>Eliminar</value></data>
   <data name='AlbumList_DeleteConfirm_Title' xml:space='preserve'><value>Eliminar álbum</value></data>
   <data name='AlbumList_DeleteConfirm_Content' xml:space='preserve'><value>¿Estás seguro de que quieres eliminar este álbum? Las fotos no se borrarán.</value></data>
-  <data name='AlbumList_DeleteConfirm_Confirm' xml:space='preserve'><value>Eliminar</value></data>
+  <data name='AlbumList_DeleteConfirm_Confirm' xml:space='preserve'><value>Mover a la Papelera</value></data>
+  <data name='AlbumList_AddFolderButton.Label' xml:space='preserve'><value>Agregar carpeta</value></data>
+  <data name='AlbumList_MultiSelectToggle.Label' xml:space='preserve'><value>Selección múltiple</value></data>
+  <data name='AlbumList_SelectAllButton.Label' xml:space='preserve'><value>Seleccionar todo</value></data>
+  <data name='AlbumList_BatchDeleteButton.Label' xml:space='preserve'><value>Eliminar</value></data>
+  <data name='AlbumList_BatchExcludeButton.Label' xml:space='preserve'><value>Excluir directorio</value></data>
+  <data name='AlbumList_BatchMoveButton.Label' xml:space='preserve'><value>Mover</value></data>
+  <data name='AlbumList_BatchCopyButton.Label' xml:space='preserve'><value>Copiar</value></data>
+  <data name='AlbumList_Context_Move' xml:space='preserve'><value>Mover</value></data>
+  <data name='AlbumList_Context_Copy' xml:space='preserve'><value>Copiar</value></data>
+  <data name='AlbumList_Context_Exclude' xml:space='preserve'><value>Excluir directorio</value></data>
+  <data name='AlbumList_Context_OpenInExplorer' xml:space='preserve'><value>Mostrar en el Explorador</value></data>
+  <data name='AlbumList_Context_Other' xml:space='preserve'><value>Otro...</value></data>
+  <data name='AlbumList_ExcludeConfirm_Title' xml:space='preserve'><value>Excluir directorio</value></data>
+  <data name='AlbumList_ExcludeConfirm_Content' xml:space='preserve'><value>¿Excluir el directorio de « {0} »? Las fotos se quitarán de la biblioteca, pero los archivos no se eliminarán.</value></data>
+  <data name='AlbumList_ExcludeConfirm_Confirm' xml:space='preserve'><value>Excluir</value></data>
+  <data name='AlbumList_DeleteConfirm_Content_WithCount' xml:space='preserve'><value>¿Mover {1} fotos de « {0} » a la Papelera de reciclaje?</value></data>
+  <data name='AlbumList_MoveConfirm_Title' xml:space='preserve'><value>Mover fotos</value></data>
+  <data name='AlbumList_MoveConfirm_Content' xml:space='preserve'><value>¿Mover {1} fotos de « {0} » a « {2} »?</value></data>
+  <data name='AlbumList_MoveConfirm_Confirm' xml:space='preserve'><value>Mover</value></data>
+  <data name='AlbumList_CopyConfirm_Title' xml:space='preserve'><value>Copiar fotos</value></data>
+  <data name='AlbumList_CopyConfirm_Content' xml:space='preserve'><value>¿Copiar {1} fotos de « {0} » a « {2} »?</value></data>
+  <data name='AlbumList_CopyConfirm_Confirm' xml:space='preserve'><value>Copiar</value></data>
+  <data name='AlbumList_Toast_Deleted' xml:space='preserve'><value>Movido a la Papelera de reciclaje</value></data>
+  <data name='AlbumList_Toast_Excluded' xml:space='preserve'><value>Se excluyeron {0} directorios</value></data>
+  <data name='AlbumList_Toast_RenameFailed' xml:space='preserve'><value>No se pudo renombrar la carpeta</value></data>
+  <data name='AlbumList_Toast_Moved' xml:space='preserve'><value>Se movieron {0} fotos a « {1} »</value></data>
+  <data name='AlbumList_Toast_Copied' xml:space='preserve'><value>Se copiaron {0} fotos a « {1} »</value></data>
+  <data name='AlbumList_BatchExcludeConfirm_Content' xml:space='preserve'><value>¿Excluir los directorios de {0} álbumes?</value></data>
+  <data name='AlbumList_BatchDeleteConfirm_Content' xml:space='preserve'><value>¿Mover {1} fotos de {0} álbumes a la Papelera de reciclaje?</value></data>
+  <data name='AlbumList_BatchMoveConfirm_Content' xml:space='preserve'><value>¿Mover {1} fotos de {0} álbumes a « {2} »?</value></data>
+  <data name='AlbumList_BatchCopyConfirm_Content' xml:space='preserve'><value>¿Copiar {1} fotos de {0} álbumes a « {2} »?</value></data>
+  <data name='AlbumList_Toast_SameDirectory' xml:space='preserve'><value>El directorio de origen y el de destino son el mismo. Elige otro.</value></data>
   <data name='AllPhotos_DeleteConfirm_Title' xml:space='preserve'><value>Eliminar fotos</value></data>
   <data name='AllPhotos_DeleteConfirm_Content' xml:space='preserve'><value>¿Mover las {0} fotos seleccionadas a la papelera?</value></data>
   <data name='AllPhotos_DeleteConfirm_Confirm' xml:space='preserve'><value>A la papelera</value></data>
@@ -304,7 +340,7 @@
   <data name='AlbumList_ZoomInButton.Label' xml:space='preserve'><value>Ampliar</value></data>
   <data name='AlbumList_ZoomOutButton.Label' xml:space='preserve'><value>Reducir</value></data>
   <data name='AlbumList_EmptyTitle.Text' xml:space='preserve'><value>Aún no hay álbumes</value></data>
-  <data name='AlbumList_EmptySubtitle.Text' xml:space='preserve'><value>Haz clic en "Nuevo álbum" para crear tu primer álbum</value></data>
+  <data name='AlbumList_EmptySubtitle.Text' xml:space='preserve'><value>Haz clic en «Agregar carpeta» para añadir tu primera carpeta</value></data>
   <data name='PhotoList_AddPhotos_Text' xml:space='preserve'><value>Añadir fotos</value></data>
   <data name='PhotoList_Delete_Text' xml:space='preserve'><value>Eliminar</value></data>
   <data name='PhotoList_MoveToAlbum_Text' xml:space='preserve'><value>Mover al álbum</value></data>
@@ -335,4 +371,5 @@
   <data name='SettingsPage_DebugKeepChromeCard.Description' xml:space='preserve'><value>Conservar los datos de depuración de Chromium para análisis</value></data>
   <data name='SettingsPage_AppInfoCard.Description' xml:space='preserve'><value>Mostrar la versión, el runtime y la información de la aplicación</value></data>
   <data name='SettingsPage_RepoCard.Description' xml:space='preserve'><value>Abrir el código fuente y el repositorio del proyecto</value></data>
+  <data name='SettingsPage_AppInfoCard.Header' xml:space='preserve'><value>Ham Gallery</value></data>
 </root>

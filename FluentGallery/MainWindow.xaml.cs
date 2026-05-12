@@ -85,6 +85,12 @@ public sealed partial class MainWindow : Window
 #endif
     }
 
+    public async Task RefreshPinnedAlbumsAsync(CancellationToken ct = default)
+    {
+        await _vm.LoadPinnedAlbumsAsync(ct);
+        RebuildPinnedNavItems();
+    }
+
     // ── Window size persistence ───────────────────────────────────────────────
 
     /// <summary>
@@ -208,19 +214,9 @@ public sealed partial class MainWindow : Window
     /// </summary>
     private void RebuildPinnedNavItems()
     {
-        // Remove existing Album:* items
-        for (int i = NavView.MenuItems.Count - 1; i >= 0; i--)
-        {
-            if (NavView.MenuItems[i] is NavigationViewItem nvi &&
-                nvi.Tag is string tag &&
-                tag.StartsWith("Album:", StringComparison.Ordinal))
-            {
-                NavView.MenuItems.RemoveAt(i);
-            }
-        }
+        AlbumsNavItem.MenuItems.Clear();
+        AlbumsNavItem.IsExpanded = _vm.PinnedAlbums.Count > 0;
 
-        // Re-insert in SortOrder order (already sorted by the query)
-        int insertAt = 1; // slot 0 = AlbumsNavItem
         foreach (var album in _vm.PinnedAlbums)
         {
             var unpinItem = new MenuFlyoutItem { Text = L10n.Get("MainWindow_Context_Unpin") };
@@ -239,7 +235,7 @@ public sealed partial class MainWindow : Window
                 ContextFlyout = new MenuFlyout { Items = { unpinItem } },
             };
 
-            NavView.MenuItems.Insert(insertAt++, navItem);
+            AlbumsNavItem.MenuItems.Add(navItem);
         }
     }
 
