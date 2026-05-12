@@ -168,6 +168,16 @@ public sealed class MagickImageLoader : IImageLoader
         }
     }
 
+    /// <inheritdoc/>
+    public void InvalidatePath(string filePath)
+    {
+        lock (_cacheLock)
+        {
+            _pixelCache.Remove(filePath);
+            _insertionOrder.Remove(filePath);
+        }
+    }
+
     // ── Cache helpers ─────────────────────────────────────────────────────────
 
     private void AddToCache(string path, DecodedImageData decoded)

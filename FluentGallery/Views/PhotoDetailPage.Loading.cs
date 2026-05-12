@@ -26,6 +26,8 @@ public sealed partial class PhotoDetailPage
 
     private void HandleCurrentImagePathChanged()
     {
+        if (!string.IsNullOrEmpty(ViewModel.CurrentImagePath))
+            ResetRotation();
         _ = LoadCurrentImageAsync();
         UpdateCounterText();
         TitleText.Text = ViewModel.CurrentPhoto?.FileName ?? string.Empty;
@@ -55,7 +57,8 @@ public sealed partial class PhotoDetailPage
     {
         int gen  = ++_loadGeneration;
         var path = ViewModel.CurrentImagePath;
-        if (string.IsNullOrEmpty(path)) return;
+        if (string.IsNullOrEmpty(path))
+            return;
 
         bool keepSwipePreviewDuringLoad = _swipeCommitPending &&
                                           string.Equals(_swipeCommitTargetPath, path, StringComparison.OrdinalIgnoreCase) &&

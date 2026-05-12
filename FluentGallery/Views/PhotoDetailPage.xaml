@@ -243,6 +243,7 @@
 
                 <Button Click="RotateCcw_Click"
                         Width="40" Height="40"
+                        IsEnabled="{x:Bind ViewModel.CanRotate, Mode=OneWay}"
                         ToolTipService.ToolTip="逆时针旋转 90°">
                     <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
                               Glyph="&#xE80C;" FontSize="14" />
@@ -250,6 +251,7 @@
 
                 <Button Click="RotateCw_Click"
                         Width="40" Height="40"
+                        IsEnabled="{x:Bind ViewModel.CanRotate, Mode=OneWay}"
                         ToolTipService.ToolTip="顺时针旋转 90°">
                     <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
                               Glyph="&#xE80D;" FontSize="14" />

@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using FluentGallery.Data;
 using FluentGallery.Helpers;
 using FluentGallery.Models;
+using FluentGallery.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.UI.Dispatching;
 using System.Collections.ObjectModel;
@@ -24,6 +25,10 @@ public sealed record PhotoDetailArgs(IReadOnlyList<Photo> Photos, int InitialInd
 /// sibling photos in the same directory to populate the filmstrip.
 /// </summary>
 public sealed record PhotoDetailFileArgs(string FilePath);
+
+public sealed record RotationPersistedEventArgs(long PhotoId, string FilePath, string? ThumbPath, string ModifiedAt);
+
+public sealed record RotationPersistFailedEventArgs(string FilePath, Exception Exception);
 
 // ── Preload state ────────────────────────────────────────────────────────────
 
@@ -70,8 +75,11 @@ public sealed partial class PhotoThumbItem : ObservableObject
     public PhotoThumbItem(Photo photo, string? thumbPath)
     {
         Photo     = photo;
-        ThumbPath = thumbPath;
+        ThumbPath = CreateDisplayThumbPath(thumbPath);
     }
+
+    public static string? CreateDisplayThumbPath(string? thumbPath) =>
+        string.IsNullOrEmpty(thumbPath) ? thumbPath : $"{thumbPath}#v={DateTime.UtcNow.Ticks}";
 }
 
 // ── Undo stack entry ────────────────────────────────────────────────────────
@@ -89,18 +97,27 @@ public sealed record UndoEntry(long DeletedPhotoDbId, string FilePath, int Index
 /// Manages the current photo, navigation, info-panel data,
 /// filmstrip thumbnails, rotation, deletion and undo.
 /// </summary>
-public sealed partial class PhotoDetailViewModel : ObservableObject
+public sealed partial class PhotoDetailViewModel : ObservableObject, IDisposable
 {
+    private sealed record RotationPersistRequest(Photo PhotoSnapshot, int Orientation, int Sequence);
+
     private readonly DatabaseService               _db;
     private readonly ThumbnailService              _thumbnail;
     private readonly ExifService                   _exif;
     private readonly ScanService                   _scan;
+    private readonly ThumbnailRefreshService       _thumbnailRefresh;
     private readonly ILogger<PhotoDetailViewModel> _logger;
 
     private IReadOnlyList<Photo>     _photos = Array.Empty<Photo>();
-    private CancellationTokenSource? _preloadCts;
     private CancellationTokenSource? _exifCts;
     private AppSettings              _settings = new();
+    private readonly object          _rotationPersistGate = new();
+    private readonly Queue<RotationPersistRequest> _rotationPersistQueue = new();
+    private bool                     _rotationPersistWorkerRunning;
+    private int                      _rotateSequence = 0;
+
+    public event EventHandler<RotationPersistedEventArgs>? RotationPersisted;
+    public event EventHandler<RotationPersistFailedEventArgs>? RotationPersistFailed;
 
     // ── Undo stack ──────────────────────────────────────────────────────────
 
@@ -121,6 +138,11 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
 
     [ObservableProperty] public partial bool CanGoPrevious { get; set; }
     [ObservableProperty] public partial bool CanGoNext     { get; set; }
+
+    // ── Rotation state ──────────────────────────────────────────────────────
+
+    /// <summary>Whether the current file format supports EXIF-orientation write-back.</summary>
+    [ObservableProperty] public partial bool CanRotate { get; private set; }
 
     // ── UI panel states ─────────────────────────────────────────────────────
 
@@ -197,12 +219,14 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
         ThumbnailService              thumbnail,
         ExifService                   exif,
         ScanService                   scan,
+        ThumbnailRefreshService       thumbnailRefresh,
         ILogger<PhotoDetailViewModel> logger)
     {
         _db        = db;
         _thumbnail = thumbnail;
         _exif      = exif;
         _scan      = scan;
+        _thumbnailRefresh = thumbnailRefresh;
         _logger    = logger;
     }
 
@@ -238,10 +262,7 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
 
         await NavigateToIndexAsync(initialIndex, ct);
 
-        // Kick off background filmstrip thumbnail loading
-        _preloadCts?.Cancel();
-        _preloadCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        _ = LoadFilmStripThumbsAsync(dispatcher, _preloadCts.Token);
+        // Filmstrip thumbnails now load on demand via container virtualization.
     }
 
     // ── Initialise from single file ──────────────────────────────────────────
@@ -433,18 +454,26 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
 
     /// <summary>
     /// Returns the index at which <paramref name="photo"/> should be inserted into
-    /// <paramref name="sortedPhotos"/> to maintain FileName-ascending order
-    /// (matching the TakenAt → FileName ordering used by the DB query).
+    /// <paramref name="sortedPhotos"/> to maintain TakenAt → FileName ascending order
+    /// (matching the DB query used to load sibling photos).
     /// </summary>
     private static int FindSortedInsertPosition(List<Photo> sortedPhotos, Photo photo)
     {
         for (int i = 0; i < sortedPhotos.Count; i++)
         {
-            if (string.Compare(sortedPhotos[i].FileName, photo.FileName,
-                    StringComparison.OrdinalIgnoreCase) > 0)
+            if (ComparePhotoOrdering(sortedPhotos[i], photo) > 0)
                 return i;
         }
         return sortedPhotos.Count;
+    }
+
+    private static int ComparePhotoOrdering(Photo left, Photo right)
+    {
+        int takenAtOrder = string.Compare(left.TakenAt, right.TakenAt, StringComparison.Ordinal);
+        if (takenAtOrder != 0)
+            return takenAtOrder;
+
+        return string.Compare(left.FileName, right.FileName, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -523,6 +552,7 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
         CurrentImagePath = CurrentPhoto.FilePath;
         CanGoPrevious    = index > 0;
         CanGoNext        = index < _photos.Count - 1;
+        CanRotate        = ExifOrientationWriter.IsRotatableFormat(CurrentPhoto.FilePath);
 
         // Update filmstrip selection — only toggle the previous and new items
         if (_previousSelectedIndex >= 0 && _previousSelectedIndex < FilmStripItems.Count)
@@ -653,31 +683,134 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
     // ── Rotation ────────────────────────────────────────────────────────────
 
     [RelayCommand]
-    public async Task RotateAsync(bool clockwise, CancellationToken ct = default)
+    public Task RotateAsync(bool clockwise, CancellationToken ct = default)
     {
-        if (CurrentPhoto is null) return;
+        if (CurrentPhoto is null || !CanRotate) return Task.CompletedTask;
 
+        ct.ThrowIfCancellationRequested();
+
+        int sequence = Interlocked.Increment(ref _rotateSequence);
+        int oldOrientation = CurrentPhoto.Orientation ?? 1;
+        int newOrientation = clockwise
+            ? ExifOrientationWriter.RotateCw(oldOrientation)
+            : ExifOrientationWriter.RotateCcw(oldOrientation);
+
+        CurrentPhoto.Orientation = newOrientation;
+        InfoOrientation = FormatOrientation(newOrientation);
+
+        _logger.LogDebug(
+            "RotateAsync queued: seq={Sequence}, path={Path}, clockwise={Clockwise}, oldOrientation={OldOrientation}, newOrientation={NewOrientation}",
+            sequence,
+            CurrentPhoto.FilePath,
+            clockwise,
+            oldOrientation,
+            newOrientation);
+
+        EnqueueRotationPersist(new RotationPersistRequest(ClonePhoto(CurrentPhoto), newOrientation, sequence));
+        return Task.CompletedTask;
+    }
+
+    private void EnqueueRotationPersist(RotationPersistRequest request)
+    {
+        lock (_rotationPersistGate)
+        {
+            _rotationPersistQueue.Enqueue(request);
+            if (_rotationPersistWorkerRunning)
+                return;
+
+            _rotationPersistWorkerRunning = true;
+            _ = Task.Run(ProcessRotationPersistQueueAsync);
+        }
+    }
+
+    private async Task ProcessRotationPersistQueueAsync()
+    {
+        while (true)
+        {
+            RotationPersistRequest request;
+            lock (_rotationPersistGate)
+            {
+                if (_rotationPersistQueue.Count == 0)
+                {
+                    _rotationPersistWorkerRunning = false;
+                    return;
+                }
+
+                request = _rotationPersistQueue.Dequeue();
+            }
+
+            await PersistRotationRequestAsync(request).ConfigureAwait(false);
+        }
+    }
+
+    private async Task PersistRotationRequestAsync(RotationPersistRequest request)
+    {
         try
         {
-            int oldOrientation = CurrentPhoto.Orientation ?? 1;
-            int newOrientation = clockwise
-                ? RotateCw(oldOrientation)
-                : RotateCcw(oldOrientation);
+            _logger.LogDebug(
+                "RotateAsync persist begin: seq={Sequence}, path={Path}, orientation={Orientation}",
+                request.Sequence,
+                request.PhotoSnapshot.FilePath,
+                request.Orientation);
 
-            await WriteExifOrientationAsync(CurrentPhoto.FilePath, newOrientation, ct);
+            await ExifOrientationWriter.WriteAsync(request.PhotoSnapshot.FilePath, request.Orientation).ConfigureAwait(false);
 
-            CurrentPhoto.Orientation = newOrientation;
-            await _db.UpdatePhotoAsync(CurrentPhoto, ct);
+            request.PhotoSnapshot.Orientation = request.Orientation;
+            request.PhotoSnapshot.ModifiedAt = File.GetLastWriteTimeUtc(request.PhotoSnapshot.FilePath).ToString("O");
+            await _db.UpdatePhotoAsync(request.PhotoSnapshot).ConfigureAwait(false);
 
-            var path = CurrentImagePath;
-            CurrentImagePath = null;
-            CurrentImagePath = path;
+            var thumbPath = await _thumbnail.RegenerateThumbnailAsync(request.PhotoSnapshot).ConfigureAwait(false);
+
+            _logger.LogDebug(
+                "RotateAsync persist complete: seq={Sequence}, path={Path}, orientation={Orientation}, thumbPath={ThumbPath}",
+                request.Sequence,
+                request.PhotoSnapshot.FilePath,
+                request.Orientation,
+                thumbPath);
+
+            if (CurrentPhoto?.Id == request.PhotoSnapshot.Id)
+                CurrentPhoto.ModifiedAt = request.PhotoSnapshot.ModifiedAt;
+
+            _thumbnailRefresh.NotifyThumbnailRefreshed(
+                request.PhotoSnapshot.Id,
+                request.PhotoSnapshot.FilePath,
+                thumbPath,
+                request.PhotoSnapshot.ModifiedAt);
+
+            RotationPersisted?.Invoke(
+                this,
+                new RotationPersistedEventArgs(
+                    request.PhotoSnapshot.Id,
+                    request.PhotoSnapshot.FilePath,
+                    thumbPath,
+                    request.PhotoSnapshot.ModifiedAt));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Rotate failed for {Path}", CurrentPhoto?.FilePath);
+            _logger.LogError(ex, "Rotate failed for {Path}", request.PhotoSnapshot.FilePath);
+            RotationPersistFailed?.Invoke(this, new RotationPersistFailedEventArgs(request.PhotoSnapshot.FilePath, ex));
         }
     }
+
+    private static Photo ClonePhoto(Photo photo) => new()
+    {
+        Id = photo.Id,
+        FilePath = photo.FilePath,
+        FileName = photo.FileName,
+        FileSize = photo.FileSize,
+        Width = photo.Width,
+        Height = photo.Height,
+        TakenAt = photo.TakenAt,
+        CreatedAt = photo.CreatedAt,
+        ModifiedAt = photo.ModifiedAt,
+        Latitude = photo.Latitude,
+        Longitude = photo.Longitude,
+        CameraModel = photo.CameraModel,
+        CameraMake = photo.CameraMake,
+        Orientation = photo.Orientation,
+        AlbumId = photo.AlbumId,
+        IsPinned = photo.IsPinned,
+    };
 
     // ── Delete ──────────────────────────────────────────────────────────────
 
@@ -732,10 +865,10 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
         }
 
         // Rebuild photo list
-        var newList = _photos.Where(p => p.Id != photo.Id).ToList();
+        var newList = _photos.Where(p => !ReferenceEquals(p, photo)).ToList();
         _photos = newList;
 
-        var filmItem = FilmStripItems.FirstOrDefault(f => f.Photo.Id == photo.Id);
+        var filmItem = FilmStripItems.FirstOrDefault(f => ReferenceEquals(f.Photo, photo));
         if (filmItem is not null) FilmStripItems.Remove(filmItem);
 
         if (newList.Count == 0)
@@ -832,80 +965,6 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
     [RelayCommand]
     private void ToggleInfoPanel() => IsInfoPanelOpen = !IsInfoPanelOpen;
 
-    // ── Background filmstrip thumbnail loader ───────────────────────────────
-
-    /// <summary>
-    /// Lazy-loads filmstrip thumbnails on demand via ContainerContentChanging.
-    /// This method is kept for backward compatibility but now mainly manages
-    /// the preload CTS lifecycle.
-    /// </summary>
-    private Task LoadFilmStripThumbsAsync(DispatcherQueue dispatcher, CancellationToken ct)
-        => Task.CompletedTask;
-
-    // ── EXIF orientation write-back ─────────────────────────────────────────
-
-    private static async Task WriteExifOrientationAsync(
-        string filePath, int newOrientation, CancellationToken ct)
-    {
-        var tempPath = Path.Combine(
-            Path.GetTempPath(),
-            Guid.NewGuid().ToString("N") + Path.GetExtension(filePath));
-
-        try
-        {
-            await using var srcStream = File.OpenRead(filePath);
-            var srcRas  = srcStream.AsRandomAccessStream();
-            var decoder = await BitmapDecoder.CreateAsync(srcRas).AsTask(ct);
-
-            using var memRas = new Windows.Storage.Streams.InMemoryRandomAccessStream();
-            var encoder = await BitmapEncoder
-                .CreateForTranscodingAsync(memRas, decoder).AsTask(ct);
-
-            var props = new BitmapPropertySet
-            {
-                {
-                    "System.Photo.Orientation",
-                    new BitmapTypedValue(
-                        (ushort)newOrientation,
-                        Windows.Foundation.PropertyType.UInt16)
-                }
-            };
-            await encoder.BitmapProperties.SetPropertiesAsync(props).AsTask(ct);
-            await encoder.FlushAsync().AsTask(ct);
-
-            // Write to a temp file first, then atomically rename over the original.
-            // This ensures the original is never left in a truncated/corrupt state
-            // if the process crashes or is cancelled mid-write.
-            memRas.Seek(0);
-            await using (var dstStream = File.Create(tempPath))
-                await memRas.AsStreamForRead().CopyToAsync(dstStream, ct);
-
-            File.Move(tempPath, filePath, overwrite: true);
-        }
-        catch
-        {
-            if (File.Exists(tempPath)) FileGuard.DeleteTempFile(tempPath);
-            throw;
-        }
-    }
-
-    // ── Orientation rotation helpers ────────────────────────────────────────
-
-    private static readonly int[] RotCwTable  = { 0, 6, 7, 8, 5, 2, 3, 4, 1 };
-    private static readonly int[] RotCcwTable = { 0, 8, 5, 6, 7, 4, 1, 2, 3 };
-
-    private static int RotateCw(int orientation)
-    {
-        var idx = Math.Clamp(orientation, 1, 8);
-        return RotCwTable[idx];
-    }
-
-    private static int RotateCcw(int orientation)
-    {
-        var idx = Math.Clamp(orientation, 1, 8);
-        return RotCcwTable[idx];
-    }
-
     // ── Formatting helpers ──────────────────────────────────────────────────
 
     /// <summary>
@@ -963,9 +1022,6 @@ public sealed partial class PhotoDetailViewModel : ObservableObject
 
     public void Dispose()
     {
-        _preloadCts?.Cancel();
-        _preloadCts?.Dispose();
-        _preloadCts = null;
         _exifCts?.Cancel();
         _exifCts?.Dispose();
         _exifCts = null;

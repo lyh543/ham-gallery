@@ -29,7 +29,7 @@
     <!-- Windows App SDK: provides Windows.Graphics.Imaging and WinRT interop for ThumbnailService tests -->
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260317003" />
     <!-- Magick.NET: needed by MagickImageDecoder (HEIC/HEIF built-in decoder) -->
-    <PackageReference Include="Magick.NET-Q8-AnyCPU" Version="14.11.1" />
+    <PackageReference Include="Magick.NET-Q8-AnyCPU" Version="14.12.0" />
     <!-- MetadataExtractor: needed by ExifService (pulled in via ScanService → SettingsViewModel) -->
     <PackageReference Include="MetadataExtractor" Version="2.8.1" />
   </ItemGroup>
@@ -70,6 +70,7 @@
     <Compile Include="..\FluentGallery\Helpers\ThreadGuard.cs" />
     <Compile Include="..\FluentGallery\Helpers\FileGuard.cs" />
     <Compile Include="..\FluentGallery\Helpers\FileAssociationHelper.cs" />
+    <Compile Include="..\FluentGallery\Helpers\ExifOrientationWriter.cs" />
   </ItemGroup>
 
   <!-- Test data: images used as regression fixtures -->

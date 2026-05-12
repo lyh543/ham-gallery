@@ -116,7 +116,7 @@ public sealed partial class PhotoDetailPage
                 {
                     if (index < ViewModel.FilmStripItems.Count)
                     {
-                        ViewModel.FilmStripItems[index].ThumbPath = thumbPath;
+                        ViewModel.FilmStripItems[index].ThumbPath = PhotoThumbItem.CreateDisplayThumbPath(thumbPath);
                     }
                 });
             }

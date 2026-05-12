@@ -11,13 +11,20 @@ public sealed class StringToImageSourceConverter : IValueConverter
 {
     public object? Convert(object value, Type targetType, object parameter, string language)
     {
-        if (value is not string path || string.IsNullOrEmpty(path) || !File.Exists(path))
+        if (value is not string rawPath || string.IsNullOrEmpty(rawPath))
+            return null;
+
+        var filePath = rawPath.Split('#')[0];
+        if (!File.Exists(filePath))
             return null;
 
         try
         {
-            // new Uri(absolutePath) produces a file:/// URI that BitmapImage accepts.
-            return new BitmapImage(new Uri(path));
+            return new BitmapImage
+            {
+                CreateOptions = BitmapCreateOptions.IgnoreImageCache,
+                UriSource = new Uri(rawPath)
+            };
         }
         catch
         {

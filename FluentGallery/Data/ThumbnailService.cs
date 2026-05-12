@@ -148,6 +148,62 @@ public sealed class ThumbnailService
     }
 
     /// <summary>
+    /// Forces thumbnail regeneration for <paramref name="photo"/>, bypassing any
+    /// up-to-date checks and overwriting the existing cached file if present.
+    /// </summary>
+    public async Task<string?> RegenerateThumbnailAsync(Photo photo, CancellationToken ct = default)
+    {
+        ThreadGuard.EnsureBackground();
+
+        if (!_pipeline.CanDecode(photo.FilePath))
+            return null;
+
+        bool isGif           = IsGif(photo.FilePath);
+        var sourceModifiedAt = photo.ModifiedAt;
+
+        await _semaphore.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            if (isGif)
+            {
+                await _db.UpsertThumbnailAsync(new Thumbnail
+                {
+                    PhotoId           = photo.Id,
+                    ThumbPath         = "",
+                    ThumbnailDisabled = true,
+                    SourceModifiedAt  = sourceModifiedAt,
+                }, ct).ConfigureAwait(false);
+                return null;
+            }
+
+            var thumbPath = GetThumbPath(photo.FilePath);
+            await GenerateViaDecoderAsync(photo.FilePath, thumbPath, ThumbSize, ct).ConfigureAwait(false);
+
+            await _db.UpsertThumbnailAsync(new Thumbnail
+            {
+                PhotoId          = photo.Id,
+                ThumbPath        = thumbPath,
+                SourceModifiedAt = sourceModifiedAt,
+            }, ct).ConfigureAwait(false);
+
+            return thumbPath;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Thumbnail regeneration failed for {Path}", photo.FilePath);
+            return null;
+        }
+        finally
+        {
+            _semaphore.Release();
+        }
+    }
+
+    /// <summary>
     /// Generates thumbnails for all <paramref name="photos"/> that don't already have a
     /// valid cached thumbnail, reporting progress after each photo completes.
     ///

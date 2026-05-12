@@ -14,6 +14,7 @@ namespace FluentGallery.ViewModels;
 public sealed partial class PhotoItemViewModel : ObservableObject
 {
     private readonly Photo _photo;
+    private string? _preferredThumbnailPath;
 
     // ── Read-only accessors ───────────────────────────────────────────────────
 
@@ -52,7 +53,9 @@ public sealed partial class PhotoItemViewModel : ObservableObject
         bool cancelled = false;
         try
         {
-            var path = await Task.Run(() => thumbService.GetOrCreateThumbnailAsync(_photo, ct), ct);
+            var path = _preferredThumbnailPath;
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                path = await Task.Run(() => thumbService.GetOrCreateThumbnailAsync(_photo, ct), ct);
 
             // GIF thumbnails are disabled (ThumbnailDisabled=true in DB); fall back
             // to the source file so the animated GIF displays in the grid.
@@ -62,6 +65,7 @@ public sealed partial class PhotoItemViewModel : ObservableObject
 
             if (displayPath is null || !File.Exists(displayPath)) return;
 
+            _preferredThumbnailPath = path;
             ThumbnailSource = CreateThumbnailSource(displayPath);
         }
         catch (OperationCanceledException)
@@ -83,7 +87,35 @@ public sealed partial class PhotoItemViewModel : ObservableObject
 
     /// <summary>Creates an <see cref="ImageSource"/> for a thumbnail at the given path.</summary>
     private static ImageSource CreateThumbnailSource(string path) =>
-        new BitmapImage(new Uri(path));
+        new BitmapImage
+        {
+            CreateOptions = BitmapCreateOptions.IgnoreImageCache,
+            UriSource = new Uri(path)
+        };
+
+    public void RefreshThumbnail(string? thumbPath, string modifiedAt)
+    {
+        _photo.ModifiedAt = modifiedAt;
+        OnPropertyChanged(nameof(ModifiedAt));
+
+        var displayPath = thumbPath ?? (string.Equals(
+            Path.GetExtension(_photo.FilePath), ".gif",
+            StringComparison.OrdinalIgnoreCase) ? _photo.FilePath : null);
+
+        _preferredThumbnailPath = thumbPath;
+
+        if (displayPath is null || !File.Exists(displayPath))
+            return;
+
+        var old = ThumbnailSource;
+        ThumbnailSource = CreateThumbnailSource(displayPath);
+        if (old is IDisposable disposable)
+        {
+            Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread()
+                ?.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                    () => { try { disposable.Dispose(); } catch { } });
+        }
+    }
 
     /// <summary>Clears the loaded thumbnail (called when an item is recycled by the GridView).</summary>
     public void ClearThumbnail()

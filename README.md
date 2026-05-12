@@ -122,14 +122,15 @@ make install INSTALL_DIR="C:\Apps\FluentGallery"
 
 安装完成后，在目标目录找到 `FluentGallery.exe`，右键 → **发送到桌面快捷方式** 即可从桌面启动。
 
-> 本应用以 unpackaged 模式运行（`WindowsPackageType=None`），不会注册到开始菜单，也不支持 Windows 控制面板卸载。若要卸载，直接删除安装目录即可。
+> `make && make install` 以 unpackaged 模式运行（`WindowsPackageType=None`），不会注册到开始菜单，也不支持 Windows 控制面板卸载。若要卸载，直接删除安装目录即可。
+> GitHub Action 构建的 Release 版本会提供 MSIX 和 ZIP 两种格式。
 
 ## TODO
 
-[] 图片旋转还有 bug
-
 [] 支持多种格式 mp4 mov heic heif gif bmp 透明底
    - 支持 mvimg 格式（Live Photo）
+[] 相册管理：移除、删除（移动到回收站）、移动、复制、批量选择
+[] 图片管理：重命名、删除（移动到回收站）、批量选择、移动、复制
 [] 编写 README，添加宣传视频
 
 

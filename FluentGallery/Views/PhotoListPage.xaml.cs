@@ -1,6 +1,7 @@
 using FluentGallery.Data;
 using FluentGallery.Helpers;
 using FluentGallery.Models;
+using FluentGallery.Services;
 using FluentGallery.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
@@ -30,12 +31,15 @@ public sealed partial class PhotoListPage : Page
     // ── Toast state ───────────────────────────────────────────────────────────
 
     private CancellationTokenSource? _toastCts;
+    private readonly ThumbnailRefreshService _thumbnailRefreshService;
+    private bool _thumbnailRefreshSubscribed;
 
     // ── Construction ──────────────────────────────────────────────────────────
 
     public PhotoListPage()
     {
         ViewModel = App.Current.Services.GetRequiredService<PhotoListViewModel>();
+        _thumbnailRefreshService = App.Current.Services.GetRequiredService<ThumbnailRefreshService>();
         this.InitializeComponent();
 
         // Update GridView item size when card width changes
@@ -66,6 +70,12 @@ public sealed partial class PhotoListPage : Page
         _pageCts = new CancellationTokenSource();
         _cumulativeScale = 1.0;
 
+        if (!_thumbnailRefreshSubscribed)
+        {
+            _thumbnailRefreshService.ThumbnailRefreshed += OnThumbnailRefreshed;
+            _thumbnailRefreshSubscribed = true;
+        }
+
         if (e.Parameter is long albumId)
         {
             Loaded += async (_, _) =>
@@ -82,8 +92,24 @@ public sealed partial class PhotoListPage : Page
     protected override void OnNavigatedFrom(NavigationEventArgs e)
     {
         base.OnNavigatedFrom(e);
+
+        if (_thumbnailRefreshSubscribed)
+        {
+            _thumbnailRefreshService.ThumbnailRefreshed -= OnThumbnailRefreshed;
+            _thumbnailRefreshSubscribed = false;
+        }
+
         _pageCts.Cancel();
         _pageCts.Dispose();
+    }
+
+    private void OnThumbnailRefreshed(object? sender, ThumbnailRefreshEventArgs e)
+    {
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            var item = ViewModel.Photos.FirstOrDefault(photo => photo.Id == e.PhotoId);
+            item?.RefreshThumbnail(e.ThumbPath, e.ModifiedAt);
+        });
     }
 
     // ── GridView: lazy thumbnail loading ─────────────────────────────────────

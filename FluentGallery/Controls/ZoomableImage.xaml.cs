@@ -150,12 +150,47 @@ public sealed partial class ZoomableImage : UserControl
     private void ApplyRotation(double degrees)
     {
         MainImage.RenderTransformOrigin = new Point(0.5, 0.5);
-        MainImage.RenderTransform = new Microsoft.UI.Xaml.Media.RotateTransform
+
+        var rotateTransform = MainImage.RenderTransform as RotateTransform;
+        if (rotateTransform is null)
         {
-            Angle = degrees
+            rotateTransform = new RotateTransform { Angle = 0 };
+            MainImage.RenderTransform = rotateTransform;
+            if (degrees == 0)
+            {
+                FitToWindow();
+                return;
+            }
+        }
+
+        double from = rotateTransform.Angle;
+        double delta = degrees - from;
+        if (delta > 180)
+            from += 360;
+        else if (delta < -180)
+            from -= 360;
+
+        rotateTransform.Angle = from;
+
+        var animation = new DoubleAnimation
+        {
+            From = from,
+            To = degrees,
+            Duration = TimeSpan.FromMilliseconds(180),
+            EnableDependentAnimation = true,
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
         };
-        // Re-fit after rotation to keep the image in view
-        FitToWindow();
+
+        var storyboard = new Storyboard();
+        storyboard.Children.Add(animation);
+        Storyboard.SetTarget(animation, rotateTransform);
+        Storyboard.SetTargetProperty(animation, nameof(RotateTransform.Angle));
+        storyboard.Completed += (_, _) =>
+        {
+            rotateTransform.Angle = degrees;
+            FitToWindow();
+        };
+        storyboard.Begin();
     }
 
     // ── Constructor ──────────────────────────────────────────────────────────
@@ -468,8 +503,6 @@ public sealed partial class ZoomableImage : UserControl
 
     private void SwapPendingToMain()
     {
-        _logger.LogDebug("[MEM] SwapPendingToMain: disposing current={HasCurrent}, pending→main",
-            _currentDisposable is not null);
         DeferDispose(_currentDisposable);
         _currentDisposable = _pendingDisposable;
         _pendingDisposable = null;

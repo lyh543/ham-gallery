@@ -59,6 +59,13 @@ public interface IImageLoader
     void ClearCache();
 
     /// <summary>
+    /// Removes the cache entry for <paramref name="filePath"/> if present.
+    /// Call before reloading a file whose on-disk content has changed (e.g. after EXIF write-back)
+    /// so the next <see cref="LoadAsync"/> reads fresh bytes from disk.
+    /// </summary>
+    void InvalidatePath(string filePath);
+
+    /// <summary>
     /// Maximum number of entries kept in the internal preload cache.
     /// Set to <c>PreloadCountBack + PreloadCountForward + 1</c>.
     /// </summary>

@@ -64,7 +64,7 @@ public sealed class WicImageLoader : IImageLoader
         ct.ThrowIfCancellationRequested();
         if (_preloadCache.ContainsKey(filePath)) return Task.CompletedTask;
 
-        var bmp = new BitmapImage(new Uri(filePath));
+        var bmp = CreateBitmapImage(filePath);
         AddToPreloadCache(filePath, bmp);
         return Task.CompletedTask;
     }
@@ -83,7 +83,7 @@ public sealed class WicImageLoader : IImageLoader
         }
         else
         {
-            bmp = new BitmapImage(new Uri(filePath));
+            bmp = CreateBitmapImage(filePath);
         }
 
         // Return current pixel dimensions: > 0 means already decoded (show immediately),
@@ -100,7 +100,7 @@ public sealed class WicImageLoader : IImageLoader
         // Non-destructive: create a fresh BitmapImage without touching the preload cache.
         // XAML framework deduplicates URI-based BitmapImage decodes internally,
         // so this is cheap even if the image is already preloaded.
-        var bmp = new BitmapImage(new Uri(filePath));
+        var bmp = CreateBitmapImage(filePath);
         return Task.FromResult<LoadedImage?>(
             new LoadedImage(bmp, bmp.PixelWidth, bmp.PixelHeight));
     }
@@ -111,7 +111,13 @@ public sealed class WicImageLoader : IImageLoader
         // BitmapImage is not IDisposable — just drop the references and let GC handle it.
         _preloadCache.Clear();
         _insertionOrder.Clear();
-        _logger.LogDebug("WicImageLoader: preload cache cleared");
+    }
+
+    /// <inheritdoc/>
+    public void InvalidatePath(string filePath)
+    {
+        _preloadCache.Remove(filePath);
+        _insertionOrder.Remove(filePath);
     }
 
     // ── Cache helpers ─────────────────────────────────────────────────────────
@@ -131,12 +137,16 @@ public sealed class WicImageLoader : IImageLoader
             _preloadCache.Remove(oldest);
         }
 
-        _logger.LogDebug(
-            "WicCache [{Count}/{Max}] First={First} Last={Last} Added={Added}",
-            _insertionOrder.Count,
-            MaxCacheSize,
-            Path.GetFileName(_insertionOrder[0]),
-            Path.GetFileName(_insertionOrder[^1]),
-            Path.GetFileName(path));
+
+    }
+
+    private static BitmapImage CreateBitmapImage(string filePath)
+    {
+        var bmp = new BitmapImage
+        {
+            CreateOptions = BitmapCreateOptions.IgnoreImageCache,
+            UriSource = new Uri(filePath)
+        };
+        return bmp;
     }
 }

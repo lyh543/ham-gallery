@@ -66,6 +66,9 @@ public sealed partial class PhotoDetailPage : Page
 
         InitializeChromeState();
 
+        ViewModel.RotationPersisted += ViewModel_RotationPersisted;
+        ViewModel.RotationPersistFailed += ViewModel_RotationPersistFailed;
+
         // Preload debounce: 1 s after last navigation, compute diff and launch tasks.
         _preloadDebounce = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _preloadDebounce.Tick += (_, _) =>
@@ -197,6 +200,8 @@ public sealed partial class PhotoDetailPage : Page
         base.OnNavigatedFrom(e);
 
         _cts.Cancel();
+        ViewModel.RotationPersisted -= ViewModel_RotationPersisted;
+        ViewModel.RotationPersistFailed -= ViewModel_RotationPersistFailed;
         
         CleanupChrome();
         CleanupGestures();
@@ -294,6 +299,40 @@ public sealed partial class PhotoDetailPage : Page
                 HandleDebugKeepChromeVisibleChanged();
                 break;
         }
+    }
+
+    private void ViewModel_RotationPersisted(object? sender, RotationPersistedEventArgs e)
+    {
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            var filmStripItem = ViewModel.FilmStripItems.FirstOrDefault(item => item.Photo.Id == e.PhotoId);
+            if (filmStripItem is not null)
+                filmStripItem.ThumbPath = PhotoThumbItem.CreateDisplayThumbPath(e.ThumbPath);
+
+            if (ViewModel.CurrentPhoto?.Id == e.PhotoId)
+                ViewModel.InfoModifiedAt = ViewModel.CurrentPhoto.ModifiedAt;
+        });
+    }
+
+    private void ViewModel_RotationPersistFailed(object? sender, RotationPersistFailedEventArgs e)
+    {
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            _logger.LogWarning(e.Exception, "Rotation persistence failed for {Path}", e.FilePath);
+            ShowToast(GetRotationFailureMessage(e.FilePath, e.Exception), ToastKind.Error, showUndo: false);
+        });
+    }
+
+    private static string GetRotationFailureMessage(string filePath, Exception exception)
+    {
+        var extension = Path.GetExtension(filePath);
+        if (string.Equals(extension, ".heic", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(extension, ".heif", StringComparison.OrdinalIgnoreCase))
+        {
+            return "HEIC 旋转保存失败，当前环境可能不支持写回。";
+        }
+
+        return "图片旋转保存失败，原文件未更新。";
     }
 
     private void ApplyPreloadCount(int back, int forward)

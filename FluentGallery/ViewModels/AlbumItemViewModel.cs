@@ -118,7 +118,11 @@ public sealed partial class AlbumItemViewModel : ObservableObject
             // UriSource triggers a background decode without blocking the UI thread,
             // unlike SetSourceAsync(File.OpenRead(...).AsRandomAccessStream()) which
             // pins the stream to the STA and causes WIC to marshal every read back.
-            CoverThumbnailSource = new BitmapImage(new Uri(displayPath));
+            CoverThumbnailSource = new BitmapImage
+            {
+                CreateOptions = BitmapCreateOptions.IgnoreImageCache,
+                UriSource = new Uri(displayPath)
+            };
         }
         catch (OperationCanceledException) { throw; }
         catch { CoverThumbnailSource = null; }

@@ -174,6 +174,7 @@ public partial class App : Application
 
         // Services
         services.AddSingleton<IThemeService, WinUiThemeService>();
+        services.AddSingleton<ThumbnailRefreshService>();
 
         // ViewModels
         // AlbumListViewModel is Singleton so it can hold a long-lived ScanService subscription
