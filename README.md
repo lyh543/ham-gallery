@@ -99,30 +99,55 @@ make test FILTER=DeletePhoto_CascadeDeletesThumbnail
 dotnet test FluentGallery.Tests\FluentGallery.Tests.csproj -p:Platform=x64 --runtime win-x64 -c Debug --filter "FullyQualifiedName~DeletePhoto_CascadeDeletesThumbnail"
 ```
 
-## Release & Install
+## Publish & Install
 
-### 一键构建并安装到本机
+### MSIX 安装链路
 
 ```powershell
 make && make install
 ```
 
-默认安装到 `C:\Tools\FluentGallery`，可通过 `INSTALL_DIR` 覆盖：
+等价于：
 
 ```powershell
-make install INSTALL_DIR="C:\Apps\FluentGallery"
+make msix-signed && make install-msix
+```
+
+- `make` 默认执行 `make msix-signed`
+- `make msix-signed` 会先执行幂等的 `make cert-create`，再生成已签名 MSIX
+- `make install` 默认执行 `make install-msix`
+- `make install-msix` 只安装现有 MSIX 产物，不会重新编译
+
+### 便携目录复制链路
+
+```powershell
+make publish && make install-publish
+```
+
+默认复制到 `C:\Tools\FluentGallery`，可通过 `INSTALL_DIR` 覆盖：
+
+```powershell
+make install-publish INSTALL_DIR="C:\Apps\FluentGallery"
 ```
 
 ### 分步说明
 
 | 命令 | 说明 |
 | ---- | ---- |
-| `make` | Release 构建（等同于 `make release ENV=prod`） |
-| `make install` | 将已构建的文件镜像复制到 `INSTALL_DIR`（默认 `C:\Tools\FluentGallery`） |
+| `make` | 默认生成已签名 MSIX（等同于 `make msix-signed`） |
+| `make install` | 默认执行 `make install-msix` |
+| `make cert-create` | 生成或复用本地 MSIX 签名证书 |
+| `make msix-signed` | 先执行 `cert-create`，再构建已签名 MSIX |
+| `make install-msix` | 信任证书并安装现有 MSIX 产物，不重新编译 |
+| `make publish` | 自包含发布，可配合 `ARCH` 或 `ENV` 使用 |
+| `make install-publish` | 将已发布文件镜像复制到 `INSTALL_DIR`（默认 `C:\Tools\FluentGallery`） |
+| `make zip` | 从 `make publish` 的输出生成便携 ZIP |
 
-安装完成后，在目标目录找到 `FluentGallery.exe`，右键 → **发送到桌面快捷方式** 即可从桌面启动。
+MSIX 安装完成后，应用会注册到系统，可从开始菜单启动和卸载。
 
-> `make && make install` 以 unpackaged 模式运行（`WindowsPackageType=None`），不会注册到开始菜单，也不支持 Windows 控制面板卸载。若要卸载，直接删除安装目录即可。
+便携目录复制安装完成后，在目标目录找到 `FluentGallery.exe`，右键 → **发送到桌面快捷方式** 即可从桌面启动。
+
+> `make publish && make install-publish` 以 unpackaged 模式运行（`WindowsPackageType=None`），不会注册到开始菜单，也不支持 Windows 控制面板卸载。若要卸载，直接删除安装目录即可。
 > GitHub Action 构建的 Release 版本会提供 MSIX 和 ZIP 两种格式。
 
 ## TODO
