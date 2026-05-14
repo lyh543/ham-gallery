@@ -334,6 +334,7 @@ public sealed partial class MainWindow : Window
         {
             "AlbumList" => typeof(AlbumListPage),
             "AllPhotos" => typeof(AllPhotosPage),
+            "Search"    => typeof(SearchPage),
             "Settings"  => typeof(SettingsPage),
             _           => null,
         };
@@ -378,6 +379,7 @@ public sealed partial class MainWindow : Window
         {
             nameof(AlbumListPage) => AlbumsNavItem,
             nameof(AllPhotosPage) => AllPhotosNavItem,
+            nameof(SearchPage)    => SearchNavItem,
             nameof(SettingsPage)  => SettingsNavItem,
             _                     => null,
         };
