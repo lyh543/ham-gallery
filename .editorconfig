@@ -46,3 +46,6 @@ dotnet_diagnostic.CAC001.severity = none
 
 [FluentGallery/App.xaml.cs]
 dotnet_diagnostic.CAC001.severity = none
+
+[FluentGallery/MainWindow.xaml.cs]
+dotnet_diagnostic.CAC001.severity = none
