@@ -22,6 +22,26 @@ dotnet build FluentGallery\FluentGallery.csproj -p:Platform=x64 --runtime win-x6
 - 若终端输出只有 `XamlCompiler.exe 已退出，代码为 1`，而无具体行号，先修复所有 C# 错误再重新编译——XAML 编译器错误常为 CS 错误的级联结果。
 - 若需要查看 XAML 编译器详细输出，读取：`FluentGallery\obj\x64\Debug\net10.0-windows10.0.19041.0\win-x64\output.json`
 
+#### `dotnet build` 看不到 WMC 错误的原因与解决
+
+**背景**：`dotnet build` 使用 .NET Core MSBuild，WinUI XAML 编译通过 out-of-process 的 `Exec` 任务调用 `XamlCompiler.exe`（由 `UseXamlCompilerExecutable=true` 控制）。当 XamlCompiler.exe 退出码为 1 时，`Exec` 任务立即报 MSB3073 失败，后续的 `OutputDeserializer`（负责将 output.json 中的 WMC 错误转为 MSBuild error）不会执行，导致具体的 WMC 错误信息丢失。
+
+**Visual Studio** 使用 .NET Framework MSBuild，走 in-process 的 `CompileXaml` task，WMC 错误直接作为 MSBuild error 输出，因此 VS 始终能看到详细报错。
+
+**解决方法**：用 VS 安装附带的 `MSBuild.exe` 来编译，即可在命令行获取完整 WMC 错误：
+
+```powershell
+# 查找 VS MSBuild 路径
+$vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+$vsPath = & $vswhere -latest -property installationPath
+$msbuild = "$vsPath\MSBuild\Current\Bin\amd64\MSBuild.exe"
+
+# 用 VS MSBuild 编译，获取 WMC 错误
+& $msbuild FluentGallery\FluentGallery.csproj /p:Platform=x64 /p:Configuration=Debug /p:RuntimeIdentifier=win-x64 /p:DevBuild=true /restore 2>&1 | Select-String "WMC|error "
+```
+
+> **注意**：`-p:UseXamlCompilerExecutable=false` 在 `dotnet build` 下**不可用**（CompileXaml task 与 .NET Core MSBuild 不兼容，会报 MSB4061）。只能用 VS 的 `MSBuild.exe`。
+
 ### Step 2 — 诊断常见错误
 
 #### CS0104：命名空间歧义
@@ -73,6 +93,23 @@ using AppDataPaths = FluentGallery.Helpers.AppDataPaths;
 ```
 
 > `x:Bind` 在 `<ctk:SettingsExpander.Items>` 内的 `SettingsCard` 中可正常绑定页面 ViewModel，无需 `x:DataType`。
+
+---
+
+#### WMC0055：枚举值不匹配
+
+**症状**：`XamlCompiler error WMC0055: Cannot assign text value 'X' into property 'Y' of type 'Z'`
+
+**根本原因**：XAML 中给属性赋了一个不存在于目标枚举的值。常见于混淆了相似枚举：
+
+| 属性 | 所属控件 | 枚举类型 | 可选值 |
+|---|---|---|---|
+| `LabelPosition` | `AppBarButton` | `CommandBarLabelPosition` | `Default`, `Collapsed` |
+| `DefaultLabelPosition` | `CommandBar` | `CommandBarDefaultLabelPosition` | `Bottom`, `Right`, `Collapsed` |
+
+**典型错误**：在 `AppBarButton` 上写 `LabelPosition="Right"`——`Right` 属于 `CommandBarDefaultLabelPosition`，不属于 `CommandBarLabelPosition`。
+
+**修复**：将 `LabelPosition="Right"` 改为 `DefaultLabelPosition="Right"` 并移到父级 `CommandBar` 上；或从 `AppBarButton` 上移除该属性。
 
 ---
 

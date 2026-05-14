@@ -4,6 +4,7 @@ using FluentGallery.Data;
 using FluentGallery.Helpers;
 using FluentGallery.Models;
 using Microsoft.Extensions.Logging;
+using Microsoft.UI.Dispatching;
 using System.Collections.ObjectModel;
 
 namespace FluentGallery.ViewModels;
@@ -16,6 +17,7 @@ namespace FluentGallery.ViewModels;
 public sealed partial class AllPhotosViewModel : ObservableObject
 {
     private readonly DatabaseService  _db;
+    private readonly ScanService      _scan;
     private readonly ThumbnailService _thumbs;
     private readonly ExifService      _exif;
     private readonly ILogger<AllPhotosViewModel> _logger;
@@ -59,11 +61,13 @@ public sealed partial class AllPhotosViewModel : ObservableObject
 
     public AllPhotosViewModel(
         DatabaseService              db,
+        ScanService                  scan,
         ThumbnailService             thumbs,
         ExifService                  exif,
         ILogger<AllPhotosViewModel>  logger)
     {
         _db     = db;
+        _scan   = scan;
         _thumbs = thumbs;
         _exif   = exif;
         _logger = logger;
@@ -384,6 +388,195 @@ public sealed partial class AllPhotosViewModel : ObservableObject
 
     public Task<IReadOnlyList<Album>> GetAlbumsAsync(CancellationToken ct = default)
         => _db.GetAlbumsAsync(ct);
+
+    public async Task<IReadOnlyList<(string Name, string DirectoryPath)>> GetAlbumDirectoriesAsync(
+        CancellationToken ct = default)
+    {
+        var albums = await _db.GetAlbumsAsync(ct);
+        return albums
+            .Where(a => !string.IsNullOrWhiteSpace(a.DirectoryPath))
+            .Select(a => (Name: a.Name, DirectoryPath: a.DirectoryPath!))
+            .DistinctBy(a => a.DirectoryPath, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    public async Task MovePhotosToDirectoryAsync(
+        IEnumerable<PhotoItemViewModel> items,
+        string targetDir,
+        CancellationToken ct = default)
+    {
+        var list = items.ToList();
+        if (list.Count == 0 || string.IsNullOrWhiteSpace(targetDir)) return;
+
+        await RunWithScanPausedAsync(async () =>
+        {
+            Directory.CreateDirectory(targetDir);
+            var targetAlbumId = await _db.GetOrCreateDirectoryAlbumAsync(targetDir, ct);
+
+            foreach (var vm in list)
+            {
+                ct.ThrowIfCancellationRequested();
+
+                var photo = vm.GetPhoto();
+                var targetPath = GetTargetPath(targetDir, photo.FileName);
+                await Task.Run(() => File.Move(photo.FilePath, targetPath), ct);
+
+                var modifiedAt = File.GetLastWriteTimeUtc(targetPath).ToString("O");
+                photo.FilePath = targetPath;
+                photo.FileName = Path.GetFileName(targetPath);
+                photo.AlbumId = targetAlbumId;
+                photo.ModifiedAt = modifiedAt;
+                await _db.UpdatePhotoAsync(photo, ct);
+                vm.UpdateFileLocation(targetPath, photo.FileName, targetAlbumId, modifiedAt);
+            }
+        });
+
+        await RefreshCurrentViewAsync(ct);
+    }
+
+    public async Task CopyPhotosToDirectoryAsync(
+        IEnumerable<PhotoItemViewModel> items,
+        string targetDir,
+        CancellationToken ct = default)
+    {
+        var list = items.ToList();
+        if (list.Count == 0 || string.IsNullOrWhiteSpace(targetDir)) return;
+        var copiedItems = new List<PhotoItemViewModel>();
+
+        var settings = await _db.LoadSettingsAsync(ct);
+        bool shouldIndex = settings.ScanDirectories.Any(scanDir => IsSameDirectoryOrChild(targetDir, scanDir));
+        bool excluded = settings.ExcludeDirectories.Any(excludedDir => IsSameDirectoryOrChild(targetDir, excludedDir));
+        long? targetAlbumId = shouldIndex && !excluded
+            ? await _db.GetOrCreateDirectoryAlbumAsync(targetDir, ct)
+            : null;
+
+        await RunWithScanPausedAsync(async () =>
+        {
+            Directory.CreateDirectory(targetDir);
+            foreach (var vm in list)
+            {
+                ct.ThrowIfCancellationRequested();
+                var targetPath = GetTargetPath(targetDir, vm.FileName);
+                await Task.Run(() => File.Copy(vm.FilePath, targetPath), ct);
+
+                if (targetAlbumId.HasValue)
+                {
+                    var source = vm.GetPhoto();
+                    var copied = new Photo
+                    {
+                        FilePath = targetPath,
+                        FileName = Path.GetFileName(targetPath),
+                        FileSize = new FileInfo(targetPath).Length,
+                        Width = source.Width,
+                        Height = source.Height,
+                        TakenAt = source.TakenAt,
+                        CreatedAt = DateTime.UtcNow.ToString("O"),
+                        ModifiedAt = File.GetLastWriteTimeUtc(targetPath).ToString("O"),
+                        Latitude = source.Latitude,
+                        Longitude = source.Longitude,
+                        CameraMake = source.CameraMake,
+                        CameraModel = source.CameraModel,
+                        Orientation = source.Orientation,
+                        AlbumId = targetAlbumId,
+                        IsPinned = source.IsPinned,
+                    };
+
+                    copied.Id = await _db.InsertPhotoAsync(copied, ct);
+                    copiedItems.Add(new PhotoItemViewModel(copied));
+                }
+            }
+        });
+
+        if (copiedItems.Count > 0)
+            _allPhotos.AddRange(copiedItems);
+
+        await RefreshCurrentViewAsync(ct);
+    }
+
+    public void OpenPhotoInExplorer(PhotoItemViewModel vm)
+    {
+        if (!File.Exists(vm.FilePath)) return;
+
+        try
+        {
+            var directory = Path.GetDirectoryName(vm.FilePath);
+            if (string.IsNullOrWhiteSpace(directory)) return;
+
+            WindowsApiHelper.SHParseDisplayName(directory, IntPtr.Zero, out var pidlFolder, 0, out _);
+            if (pidlFolder == IntPtr.Zero) return;
+
+            try
+            {
+                WindowsApiHelper.SHParseDisplayName(vm.FilePath, IntPtr.Zero, out var pidlFile, 0, out _);
+                if (pidlFile == IntPtr.Zero) return;
+
+                try
+                {
+                    int hResult = WindowsApiHelper.SHOpenFolderAndSelectItems(pidlFolder, 1, [pidlFile], 0);
+                    if (hResult != 0)
+                        _logger.LogWarning("SHOpenFolderAndSelectItems failed with HRESULT: {HResult:X8}", hResult);
+                }
+                finally
+                {
+                    WindowsApiHelper.CoTaskMemFree(pidlFile);
+                }
+            }
+            finally
+            {
+                WindowsApiHelper.CoTaskMemFree(pidlFolder);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to show file in explorer {Path}", vm.FilePath);
+        }
+    }
+
+    private async Task RefreshCurrentViewAsync(CancellationToken ct)
+    {
+        if (IsSearchActive)
+            await SearchAsync(ct);
+        else
+            RebuildGroups(ApplySort(_allPhotos).ToList());
+    }
+
+    private static string GetTargetPath(string targetDir, string fileName)
+    {
+        var destination = Path.Combine(targetDir, fileName);
+        if (!File.Exists(destination)) return destination;
+
+        var name = Path.GetFileNameWithoutExtension(fileName);
+        var ext = Path.GetExtension(fileName);
+        for (int i = 1; ; i++)
+        {
+            destination = Path.Combine(targetDir, $"{name} ({i}){ext}");
+            if (!File.Exists(destination)) return destination;
+        }
+    }
+
+    private async Task RunWithScanPausedAsync(Func<Task> action)
+    {
+        var settings = await _db.LoadSettingsAsync();
+        await _scan.StopAsync();
+
+        try
+        {
+            await action();
+        }
+        finally
+        {
+            await _scan.StartAsync(settings, DispatcherQueue.GetForCurrentThread());
+        }
+    }
+
+    private static bool IsSameDirectoryOrChild(string path, string root)
+    {
+        var normalizedPath = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var normalizedRoot = root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+        return string.Equals(normalizedPath, normalizedRoot, StringComparison.OrdinalIgnoreCase)
+            || normalizedPath.StartsWith(normalizedRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+    }
 
     /// <summary>Collects all photos from all groups in order, for photo detail navigation.</summary>
     public List<Photo> GetAllPhotosForDetail()

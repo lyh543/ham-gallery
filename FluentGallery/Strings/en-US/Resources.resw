@@ -154,6 +154,15 @@
   <data name="AllPhotos_DeleteButton.Label" xml:space="preserve">
     <value>Delete</value>
   </data>
+  <data name="AllPhotos_SelectAllButton.Label" xml:space="preserve">
+    <value>Select All</value>
+  </data>
+  <data name="AllPhotos_MoveButton.Label" xml:space="preserve">
+    <value>Move</value>
+  </data>
+  <data name="AllPhotos_CopyButton.Label" xml:space="preserve">
+    <value>Copy</value>
+  </data>
   <data name="AllPhotos_MoveToAlbumButton.Label" xml:space="preserve">
     <value>Move to Album</value>
   </data>
@@ -177,6 +186,12 @@
   </data>
   <data name="AllPhotos_SortDescToggle.Text" xml:space="preserve">
     <value>Ascending</value>
+  </data>
+  <data name="AllPhotos_SortAscending.Text" xml:space="preserve">
+    <value>Ascending</value>
+  </data>
+  <data name="AllPhotos_SortDescending.Text" xml:space="preserve">
+    <value>Descending</value>
   </data>
   <data name="AllPhotos_ZoomInButton.Label" xml:space="preserve">
     <value>Zoom In</value>
@@ -217,6 +232,15 @@
   <data name="PhotoList_DeleteButton.Label" xml:space="preserve">
     <value>Delete</value>
   </data>
+  <data name="PhotoList_SelectAllButton.Label" xml:space="preserve">
+    <value>Select All</value>
+  </data>
+  <data name="PhotoList_MoveButton.Label" xml:space="preserve">
+    <value>Move</value>
+  </data>
+  <data name="PhotoList_CopyButton.Label" xml:space="preserve">
+    <value>Copy</value>
+  </data>
   <data name="PhotoList_MoveToAlbumButton.Label" xml:space="preserve">
     <value>Move to Album</value>
   </data>
@@ -244,6 +268,12 @@
   <data name="PhotoList_SortDescToggle.Text" xml:space="preserve">
     <value>Ascending</value>
   </data>
+  <data name="PhotoList_SortAscending.Text" xml:space="preserve">
+    <value>Ascending</value>
+  </data>
+  <data name="PhotoList_SortDescending.Text" xml:space="preserve">
+    <value>Descending</value>
+  </data>
   <data name="PhotoList_MultiSelectToggle.Label" xml:space="preserve">
     <value>Multi-Select</value>
   </data>
@@ -260,7 +290,7 @@
     <value>No photos in this album yet</value>
   </data>
   <data name="PhotoList_EmptySubtitle.Text" xml:space="preserve">
-    <value>Click "Add Photos" to add photos to this album</value>
+    <value>No photos to display yet</value>
   </data>
 
   <!-- ==================== Photo Detail Page ==================== -->
@@ -481,6 +511,16 @@
   <data name="AlbumList_BatchMoveConfirm_Content" xml:space="preserve"><value>Move {1} photos from {0} albums to "{2}"?</value></data>
   <data name="AlbumList_BatchCopyConfirm_Content" xml:space="preserve"><value>Copy {1} photos from {0} albums to "{2}"?</value></data>
   <data name="AlbumList_Toast_SameDirectory" xml:space="preserve"><value>Source and target directory are the same, please choose another</value></data>
+  <data name="AlbumList_SortAscending.Text" xml:space="preserve"><value>Ascending</value></data>
+  <data name="AlbumList_SortDescending.Text" xml:space="preserve"><value>Descending</value></data>
+  <data name="PhotoList_Metadata_Unknown" xml:space="preserve"><value>Unknown</value></data>
+  <data name="PhotoList_Metadata_TakenAt" xml:space="preserve"><value>Taken at {0}</value></data>
+  <data name="Photo_DeleteConfirm_Single" xml:space="preserve"><value>Move "{0}" to Recycle Bin?</value></data>
+  <data name="Photo_DeleteConfirm_Multi" xml:space="preserve"><value>Move "{0}" and {1} selected photos to Recycle Bin?</value></data>
+  <data name="Photo_MoveConfirm_Single" xml:space="preserve"><value>Move "{0}" to "{1}"?</value></data>
+  <data name="Photo_MoveConfirm_Multi" xml:space="preserve"><value>Move "{0}" and {1} selected photos to "{2}"?</value></data>
+  <data name="Photo_CopyConfirm_Single" xml:space="preserve"><value>Copy "{0}" to "{1}"?</value></data>
+  <data name="Photo_CopyConfirm_Multi" xml:space="preserve"><value>Copy "{0}" and {1} selected photos to "{2}"?</value></data>
   <data name="AllPhotos_DeleteConfirm_Title" xml:space="preserve"><value>Delete Photos</value></data>
   <data name="AllPhotos_DeleteConfirm_Content" xml:space="preserve"><value>Move {0} selected photos to Recycle Bin?</value></data>
   <data name="AllPhotos_DeleteConfirm_Confirm" xml:space="preserve"><value>Move to Recycle Bin</value></data>

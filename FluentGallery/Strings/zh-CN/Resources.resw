@@ -154,6 +154,15 @@
   <data name="AllPhotos_DeleteButton.Label" xml:space="preserve">
     <value>删除</value>
   </data>
+  <data name="AllPhotos_SelectAllButton.Label" xml:space="preserve">
+    <value>全选</value>
+  </data>
+  <data name="AllPhotos_MoveButton.Label" xml:space="preserve">
+    <value>移动</value>
+  </data>
+  <data name="AllPhotos_CopyButton.Label" xml:space="preserve">
+    <value>复制</value>
+  </data>
   <data name="AllPhotos_MoveToAlbumButton.Label" xml:space="preserve">
     <value>移到相册</value>
   </data>
@@ -177,6 +186,12 @@
   </data>
   <data name="AllPhotos_SortDescToggle.Text" xml:space="preserve">
     <value>升序</value>
+  </data>
+  <data name="AllPhotos_SortAscending.Text" xml:space="preserve">
+    <value>升序</value>
+  </data>
+  <data name="AllPhotos_SortDescending.Text" xml:space="preserve">
+    <value>降序</value>
   </data>
   <data name="AllPhotos_ZoomInButton.Label" xml:space="preserve">
     <value>放大</value>
@@ -217,6 +232,15 @@
   <data name="PhotoList_DeleteButton.Label" xml:space="preserve">
     <value>删除</value>
   </data>
+  <data name="PhotoList_SelectAllButton.Label" xml:space="preserve">
+    <value>全选</value>
+  </data>
+  <data name="PhotoList_MoveButton.Label" xml:space="preserve">
+    <value>移动</value>
+  </data>
+  <data name="PhotoList_CopyButton.Label" xml:space="preserve">
+    <value>复制</value>
+  </data>
   <data name="PhotoList_MoveToAlbumButton.Label" xml:space="preserve">
     <value>移到相册</value>
   </data>
@@ -244,6 +268,12 @@
   <data name="PhotoList_SortDescToggle.Text" xml:space="preserve">
     <value>升序</value>
   </data>
+  <data name="PhotoList_SortAscending.Text" xml:space="preserve">
+    <value>升序</value>
+  </data>
+  <data name="PhotoList_SortDescending.Text" xml:space="preserve">
+    <value>降序</value>
+  </data>
   <data name="PhotoList_MultiSelectToggle.Label" xml:space="preserve">
     <value>多选</value>
   </data>
@@ -260,7 +290,7 @@
     <value>相册中还没有照片</value>
   </data>
   <data name="PhotoList_EmptySubtitle.Text" xml:space="preserve">
-    <value>点击「添加照片」将照片加入此相册</value>
+    <value>暂时没有可显示的照片</value>
   </data>
 
   <!-- ==================== 照片详情页 ==================== -->
@@ -481,6 +511,16 @@
   <data name="AlbumList_BatchMoveConfirm_Content" xml:space="preserve"><value>确认将 {0} 个相册共 {1} 张照片移动到「{2}」吗？</value></data>
   <data name="AlbumList_BatchCopyConfirm_Content" xml:space="preserve"><value>确认将 {0} 个相册共 {1} 张照片复制到「{2}」吗？</value></data>
   <data name="AlbumList_Toast_SameDirectory" xml:space="preserve"><value>源目录与目标目录相同，请重新选择</value></data>
+  <data name="AlbumList_SortAscending.Text" xml:space="preserve"><value>升序</value></data>
+  <data name="AlbumList_SortDescending.Text" xml:space="preserve"><value>降序</value></data>
+  <data name="PhotoList_Metadata_Unknown" xml:space="preserve"><value>未知</value></data>
+  <data name="PhotoList_Metadata_TakenAt" xml:space="preserve"><value>拍摄于 {0}</value></data>
+  <data name="Photo_DeleteConfirm_Single" xml:space="preserve"><value>确认将「{0}」移到回收站吗？</value></data>
+  <data name="Photo_DeleteConfirm_Multi" xml:space="preserve"><value>确认将「{0}」等 {1} 张已选照片移到回收站吗？</value></data>
+  <data name="Photo_MoveConfirm_Single" xml:space="preserve"><value>确认将「{0}」移动到「{1}」吗？</value></data>
+  <data name="Photo_MoveConfirm_Multi" xml:space="preserve"><value>确认将「{0}」等 {1} 张已选照片移动到「{2}」吗？</value></data>
+  <data name="Photo_CopyConfirm_Single" xml:space="preserve"><value>确认将「{0}」复制到「{1}」吗？</value></data>
+  <data name="Photo_CopyConfirm_Multi" xml:space="preserve"><value>确认将「{0}」等 {1} 张已选照片复制到「{2}」吗？</value></data>
   <data name="AllPhotos_DeleteConfirm_Title" xml:space="preserve"><value>删除照片</value></data>
   <data name="AllPhotos_DeleteConfirm_Content" xml:space="preserve"><value>确定要将选中的 {0} 张照片移入回收站吗？</value></data>
   <data name="AllPhotos_DeleteConfirm_Confirm" xml:space="preserve"><value>移入回收站</value></data>

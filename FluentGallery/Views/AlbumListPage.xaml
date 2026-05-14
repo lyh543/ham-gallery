@@ -88,146 +88,148 @@
         </Grid.RowDefinitions>
 
         <!-- ── Toolbar ── -->
-        <Grid Grid.Row="0" ColumnSpacing="12" Padding="0,0,0,4">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
+        <CommandBar
+            Grid.Row="0"
+            DefaultLabelPosition="Right"
+            Background="Transparent"
+            OverflowButtonVisibility="Collapsed">
 
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right">
-                <StackPanel x:Name="BrowseCommandsPanel" Orientation="Horizontal" Spacing="4">
-                    <AppBarButton x:Name="AddFolderButton"
-                                  x:Uid="AlbumList_AddFolderButton"
-                                  Label="添加文件夹"
-                                  Click="AddFolder_Click">
-                        <AppBarButton.Icon>
-                            <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8F4;"/>
-                        </AppBarButton.Icon>
-                    </AppBarButton>
+            <AppBarButton
+                x:Name="SelectAllButton"
+                x:Uid="AlbumList_SelectAllButton"
+                Label="全选"
+                Visibility="Collapsed"
+                Click="SelectAll_Click">
+                <AppBarButton.Icon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8B3;"/>
+                </AppBarButton.Icon>
+            </AppBarButton>
+            <AppBarButton
+                x:Name="BatchMoveButton"
+                x:Uid="AlbumList_BatchMoveButton"
+                Label="移动"
+                Visibility="Collapsed"
+                Click="BatchMove_Click">
+                <AppBarButton.Icon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8DE;"/>
+                </AppBarButton.Icon>
+            </AppBarButton>
+            <AppBarButton
+                x:Name="BatchCopyButton"
+                x:Uid="AlbumList_BatchCopyButton"
+                Label="复制"
+                Visibility="Collapsed"
+                Click="BatchCopy_Click">
+                <AppBarButton.Icon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8C8;"/>
+                </AppBarButton.Icon>
+            </AppBarButton>
+            <AppBarButton
+                x:Name="BatchExcludeButton"
+                x:Uid="AlbumList_BatchExcludeButton"
+                Label="排除目录"
+                Visibility="Collapsed"
+                Click="BatchExclude_Click">
+                <AppBarButton.Icon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE738;"/>
+                </AppBarButton.Icon>
+            </AppBarButton>
+            <AppBarButton
+                x:Name="BatchDeleteButton"
+                x:Uid="AlbumList_BatchDeleteButton"
+                Label="删除"
+                Visibility="Collapsed"
+                Click="BatchDelete_Click">
+                <AppBarButton.Icon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE74D;"/>
+                </AppBarButton.Icon>
+            </AppBarButton>
 
-                    <Border Width="1" Height="24" Margin="4,0"
-                            VerticalAlignment="Center"
-                            Background="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+            <AppBarSeparator x:Name="BatchCommandSeparator" Visibility="Collapsed"/>
 
-                    <AppBarButton x:Name="SortButton"
-                                  x:Uid="AlbumList_SortButton"
-                                  Icon="Sort" Label="排序" Click="SortButton_Click">
-                        <AppBarButton.Flyout>
-                            <MenuFlyout x:Name="SortFlyout" Opening="SortFlyout_Opening">
-                                <RadioMenuFlyoutItem x:Name="SortByName" x:Uid="AlbumList_SortByName" Text="名称" GroupName="AlbumSort" Tag="Name" Click="SortMenuItem_Click">
-                                    <RadioMenuFlyoutItem.Icon>
-                                        <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8A5;"/>
-                                    </RadioMenuFlyoutItem.Icon>
-                                </RadioMenuFlyoutItem>
-                                <RadioMenuFlyoutItem x:Name="SortByCreated" x:Uid="AlbumList_SortByCreated" Text="创建时间" GroupName="AlbumSort" Tag="CreatedAt" Click="SortMenuItem_Click">
-                                    <RadioMenuFlyoutItem.Icon>
-                                        <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE74E;"/>
-                                    </RadioMenuFlyoutItem.Icon>
-                                </RadioMenuFlyoutItem>
-                                <RadioMenuFlyoutItem x:Name="SortByModified" x:Uid="AlbumList_SortByModified" Text="修改时间" GroupName="AlbumSort" Tag="ModifiedAt" Click="SortMenuItem_Click">
-                                    <RadioMenuFlyoutItem.Icon>
-                                        <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xEB9E;"/>
-                                    </RadioMenuFlyoutItem.Icon>
-                                </RadioMenuFlyoutItem>
-                                <RadioMenuFlyoutItem x:Name="SortByTakenAt" x:Uid="AlbumList_SortByTakenAt" Text="拍摄时间" GroupName="AlbumSort" Tag="TakenAt" Click="SortMenuItem_Click">
-                                    <RadioMenuFlyoutItem.Icon>
-                                        <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE722;"/>
-                                    </RadioMenuFlyoutItem.Icon>
-                                </RadioMenuFlyoutItem>
-                                <RadioMenuFlyoutItem x:Name="SortByPhotoCount" x:Uid="AlbumList_SortByPhotoCount" Text="照片数量" GroupName="AlbumSort" Tag="PhotoCount" Click="SortMenuItem_Click">
-                                    <RadioMenuFlyoutItem.Icon>
-                                        <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE7C5;"/>
-                                    </RadioMenuFlyoutItem.Icon>
-                                </RadioMenuFlyoutItem>
-                                <MenuFlyoutSeparator/>
-                                <ToggleMenuFlyoutItem x:Name="SortDescToggle" x:Uid="AlbumList_SortDescToggle" Text="升序" Click="SortDescToggle_Click">
-                                    <ToggleMenuFlyoutItem.Icon>
-                                        <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE74A;"/>
-                                    </ToggleMenuFlyoutItem.Icon>
-                                </ToggleMenuFlyoutItem>
-                            </MenuFlyout>
-                        </AppBarButton.Flyout>
-                    </AppBarButton>
-                </StackPanel>
+            <AppBarButton x:Name="AddFolderButton"
+                          x:Uid="AlbumList_AddFolderButton"
+                          Label="添加文件夹"
+                          Click="AddFolder_Click">
+                <AppBarButton.Icon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8F4;"/>
+                </AppBarButton.Icon>
+            </AppBarButton>
 
-                <StackPanel x:Name="BatchCommandsPanel" Orientation="Horizontal" Spacing="4" Visibility="Collapsed">
-                    <AppBarButton x:Name="BatchMoveButton"
-                                  x:Uid="AlbumList_BatchMoveButton"
-                                  Label="移动"
-                                  Click="BatchMove_Click">
-                        <AppBarButton.Icon>
-                            <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8DE;"/>
-                        </AppBarButton.Icon>
-                    </AppBarButton>
-                    <AppBarButton x:Name="BatchCopyButton"
-                                  x:Uid="AlbumList_BatchCopyButton"
-                                  Label="复制"
-                                  Click="BatchCopy_Click">
-                        <AppBarButton.Icon>
-                            <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8C8;"/>
-                        </AppBarButton.Icon>
-                    </AppBarButton>
-                    <AppBarButton x:Name="BatchExcludeButton"
-                                  x:Uid="AlbumList_BatchExcludeButton"
-                                  Label="排除目录"
-                                  Click="BatchExclude_Click">
-                        <AppBarButton.Icon>
-                            <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE738;"/>
-                        </AppBarButton.Icon>
-                    </AppBarButton>
-                    <AppBarButton x:Name="BatchDeleteButton"
-                                  x:Uid="AlbumList_BatchDeleteButton"
-                                  Label="删除"
-                                  Click="BatchDelete_Click">
-                        <AppBarButton.Icon>
-                            <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE74D;"/>
-                        </AppBarButton.Icon>
-                    </AppBarButton>
+            <AppBarButton x:Name="SortButton"
+                          x:Uid="AlbumList_SortButton"
+                          Icon="Sort" Label="排序" Click="SortButton_Click">
+                <AppBarButton.Flyout>
+                    <MenuFlyout x:Name="SortFlyout" Opening="SortFlyout_Opening">
+                        <RadioMenuFlyoutItem x:Name="SortByName" x:Uid="AlbumList_SortByName" Text="名称" GroupName="AlbumSort" Tag="Name" Click="SortMenuItem_Click">
+                            <RadioMenuFlyoutItem.Icon>
+                                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8A5;"/>
+                            </RadioMenuFlyoutItem.Icon>
+                        </RadioMenuFlyoutItem>
+                        <RadioMenuFlyoutItem x:Name="SortByCreated" x:Uid="AlbumList_SortByCreated" Text="创建时间" GroupName="AlbumSort" Tag="CreatedAt" Click="SortMenuItem_Click">
+                            <RadioMenuFlyoutItem.Icon>
+                                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE74E;"/>
+                            </RadioMenuFlyoutItem.Icon>
+                        </RadioMenuFlyoutItem>
+                        <RadioMenuFlyoutItem x:Name="SortByModified" x:Uid="AlbumList_SortByModified" Text="修改时间" GroupName="AlbumSort" Tag="ModifiedAt" Click="SortMenuItem_Click">
+                            <RadioMenuFlyoutItem.Icon>
+                                <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xEB9E;"/>
+                            </RadioMenuFlyoutItem.Icon>
+                        </RadioMenuFlyoutItem>
+                        <RadioMenuFlyoutItem x:Name="SortByTakenAt" x:Uid="AlbumList_SortByTakenAt" Text="拍摄时间" GroupName="AlbumSort" Tag="TakenAt" Click="SortMenuItem_Click">
+                            <RadioMenuFlyoutItem.Icon>
+                                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE722;"/>
+                            </RadioMenuFlyoutItem.Icon>
+                        </RadioMenuFlyoutItem>
+                        <RadioMenuFlyoutItem x:Name="SortByPhotoCount" x:Uid="AlbumList_SortByPhotoCount" Text="照片数量" GroupName="AlbumSort" Tag="PhotoCount" Click="SortMenuItem_Click">
+                            <RadioMenuFlyoutItem.Icon>
+                                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE7C5;"/>
+                            </RadioMenuFlyoutItem.Icon>
+                        </RadioMenuFlyoutItem>
+                        <MenuFlyoutSeparator/>
+                        <RadioMenuFlyoutItem x:Name="SortAscendingItem" Text="升序" GroupName="AlbumSortDirection" Tag="Ascending" Click="SortDirectionMenuItem_Click">
+                            <RadioMenuFlyoutItem.Icon>
+                                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE74A;"/>
+                            </RadioMenuFlyoutItem.Icon>
+                        </RadioMenuFlyoutItem>
+                        <RadioMenuFlyoutItem x:Name="SortDescendingItem" Text="降序" GroupName="AlbumSortDirection" Tag="Descending" Click="SortDirectionMenuItem_Click">
+                            <RadioMenuFlyoutItem.Icon>
+                                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE74B;"/>
+                            </RadioMenuFlyoutItem.Icon>
+                        </RadioMenuFlyoutItem>
+                    </MenuFlyout>
+                </AppBarButton.Flyout>
+            </AppBarButton>
 
-                    <Border Width="1" Height="24" Margin="4,0"
-                            VerticalAlignment="Center"
-                            Background="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+            <AppBarToggleButton x:Name="MultiSelectToggle"
+                                x:Uid="AlbumList_MultiSelectToggle"
+                                Label="多选"
+                                IsChecked="{x:Bind ViewModel.IsMultiSelectMode, Mode=OneWay}"
+                                Click="MultiSelectToggle_Click">
+                <AppBarToggleButton.Icon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE762;"/>
+                </AppBarToggleButton.Icon>
+            </AppBarToggleButton>
 
-                    <AppBarButton x:Name="SelectAllButton"
-                                  x:Uid="AlbumList_SelectAllButton"
-                                  Label="全选"
-                                  Click="SelectAll_Click">
-                        <AppBarButton.Icon>
-                            <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8B3;"/>
-                        </AppBarButton.Icon>
-                    </AppBarButton>
-                </StackPanel>
-
-                <AppBarToggleButton x:Name="MultiSelectToggle"
-                                    x:Uid="AlbumList_MultiSelectToggle"
-                                    Label="多选"
-                                    IsChecked="{x:Bind ViewModel.IsMultiSelectMode, Mode=OneWay}"
-                                    Click="MultiSelectToggle_Click">
-                    <AppBarToggleButton.Icon>
-                        <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE762;"/>
-                    </AppBarToggleButton.Icon>
-                </AppBarToggleButton>
-
-                <AppBarButton x:Name="ZoomInButton"
-                              x:Uid="AlbumList_ZoomInButton"
-                              Label="放大"
-                              IsEnabled="{x:Bind ViewModel.CanZoomIn, Mode=OneWay}"
-                              Click="ZoomInButton_Click">
-                    <AppBarButton.Icon>
-                        <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8A3;"/>
-                    </AppBarButton.Icon>
-                </AppBarButton>
-                <AppBarButton x:Name="ZoomOutButton"
-                              x:Uid="AlbumList_ZoomOutButton"
-                              Label="缩小"
-                              IsEnabled="{x:Bind ViewModel.CanZoomOut, Mode=OneWay}"
-                              Click="ZoomOutButton_Click">
-                    <AppBarButton.Icon>
-                        <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE71F;"/>
-                    </AppBarButton.Icon>
-                </AppBarButton>
-            </StackPanel>
-        </Grid>
+            <AppBarButton x:Name="ZoomInButton"
+                          x:Uid="AlbumList_ZoomInButton"
+                          Label="放大"
+                          IsEnabled="{x:Bind ViewModel.CanZoomIn, Mode=OneWay}"
+                          Click="ZoomInButton_Click">
+                <AppBarButton.Icon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8A3;"/>
+                </AppBarButton.Icon>
+            </AppBarButton>
+            <AppBarButton x:Name="ZoomOutButton"
+                          x:Uid="AlbumList_ZoomOutButton"
+                          Label="缩小"
+                          IsEnabled="{x:Bind ViewModel.CanZoomOut, Mode=OneWay}"
+                          Click="ZoomOutButton_Click">
+                <AppBarButton.Icon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE71F;"/>
+                </AppBarButton.Icon>
+            </AppBarButton>
+        </CommandBar>
 
         <!-- ── Album grid ── -->
         <ScrollViewer x:Name="AlbumScrollViewer" Grid.Row="1" Padding="8 4 8 0"

@@ -17,6 +17,8 @@ namespace FluentGallery.Views;
 
 public sealed partial class AlbumListPage : Page
 {
+    private const double ContextMenuMaxWidth = ContextMenuHelper.DefaultMaxWidth;
+
     public AlbumListViewModel ViewModel { get; }
 
     private readonly DatabaseService  _db;
@@ -179,8 +181,8 @@ public sealed partial class AlbumListPage : Page
         SortByModified.IsChecked   = ViewModel.SortField == AlbumSortField.ModifiedAt;
         SortByPhotoCount.IsChecked = ViewModel.SortField == AlbumSortField.PhotoCount;
         SortByTakenAt.IsChecked    = ViewModel.SortField == AlbumSortField.TakenAt;
-        // Toggle shows "升序"; checked = ascending (non-default), unchecked = descending (default)
-        SortDescToggle.IsChecked   = ViewModel.SortDirection == SortDirection.Ascending;
+        SortAscendingItem.IsChecked  = ViewModel.SortDirection == SortDirection.Ascending;
+        SortDescendingItem.IsChecked = ViewModel.SortDirection == SortDirection.Descending;
     }
 
     private void SortMenuItem_Click(object sender, RoutedEventArgs e)
@@ -196,11 +198,12 @@ public sealed partial class AlbumListPage : Page
         };
     }
 
-    private void SortDescToggle_Click(object sender, RoutedEventArgs e)
+    private void SortDirectionMenuItem_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not ToggleMenuFlyoutItem t) return;
-        // Checked = ascending, unchecked = descending
-        ViewModel.SortDirection = t.IsChecked ? SortDirection.Ascending : SortDirection.Descending;
+        if (sender is not MenuFlyoutItem item) return;
+        ViewModel.SortDirection = string.Equals(item.Tag?.ToString(), "Ascending", StringComparison.Ordinal)
+            ? SortDirection.Ascending
+            : SortDirection.Descending;
     }
 
     // ── Multi-select ─────────────────────────────────────────────────────────
@@ -244,12 +247,22 @@ public sealed partial class AlbumListPage : Page
 
     private void ApplyToolbarMode()
     {
-        BrowseCommandsPanel.Visibility = ViewModel.IsMultiSelectMode
-            ? Visibility.Collapsed
-            : Visibility.Visible;
-        BatchCommandsPanel.Visibility = ViewModel.IsMultiSelectMode
+        Visibility batchVisibility = ViewModel.IsMultiSelectMode
             ? Visibility.Visible
             : Visibility.Collapsed;
+        Visibility browseVisibility = ViewModel.IsMultiSelectMode
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+
+        SelectAllButton.Visibility = batchVisibility;
+        BatchMoveButton.Visibility = batchVisibility;
+        BatchCopyButton.Visibility = batchVisibility;
+        BatchExcludeButton.Visibility = batchVisibility;
+        BatchDeleteButton.Visibility = batchVisibility;
+        BatchCommandSeparator.Visibility = batchVisibility;
+
+        AddFolderButton.Visibility = browseVisibility;
+        SortButton.Visibility = browseVisibility;
     }
 
     private void SelectAll_Click(object sender, RoutedEventArgs e)
@@ -413,7 +426,8 @@ public sealed partial class AlbumListPage : Page
         flyout.Items.Add(excludeItem);
         flyout.Items.Add(delete);
         flyout.Items.Add(new MenuFlyoutSeparator());
-        flyout.Items.Add(CreateInfoItem(vm));
+        foreach (var item in CreateInfoItems(vm))
+            flyout.Items.Add(item);
         flyout.ShowAt(anchor, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
         {
             Position  = point,
@@ -451,6 +465,7 @@ public sealed partial class AlbumListPage : Page
 
         int deletedCount = await ViewModel.DeleteAlbumsAsync(items, _pageCts.Token);
         ClearSelectionSafely();
+        ExitMultiSelectMode();
         if (deletedCount > 0)
             await ShowTransientToastAsync(L10n.Get("AlbumList_Toast_Deleted"));
         UpdateEmptyState();
@@ -474,6 +489,7 @@ public sealed partial class AlbumListPage : Page
 
         await ViewModel.ExcludeAlbumsAsync(items, _pageCts.Token);
         ClearSelectionSafely();
+        ExitMultiSelectMode();
         await ShowTransientToastAsync(L10n.Format("AlbumList_Toast_Excluded", items.Count));
         UpdateEmptyState();
         await RefreshPinnedAlbumsAsync();
@@ -534,6 +550,12 @@ public sealed partial class AlbumListPage : Page
         {
             // WinUI may throw while the backing selection vector is changing after item removal.
         }
+    }
+
+    private void ExitMultiSelectMode()
+    {
+        if (ViewModel.IsMultiSelectMode)
+            ViewModel.ToggleMultiSelectModeCommand.Execute(null);
     }
 
     private MenuFlyoutSubItem BuildDirectorySubMenu(
@@ -637,6 +659,7 @@ public sealed partial class AlbumListPage : Page
         }
 
         ClearSelectionSafely();
+        ExitMultiSelectMode();
         await ShowTransientToastAsync(L10n.Format(
             isMove ? "AlbumList_Toast_Moved" : "AlbumList_Toast_Copied",
             totalPhotos,
@@ -671,11 +694,7 @@ public sealed partial class AlbumListPage : Page
     }
 
     private static MenuFlyoutItem CreateDirectoryMenuItem(string name, string directoryPath)
-    {
-        var item = new MenuFlyoutItem { Text = name };
-        ToolTipService.SetToolTip(item, directoryPath);
-        return item;
-    }
+        => ContextMenuHelper.CreateDirectoryMenuItem(name, directoryPath, ContextMenuMaxWidth);
 
     private async Task ShowRenameDialogAsync(AlbumItemViewModel vm)
     {
@@ -725,15 +744,11 @@ public sealed partial class AlbumListPage : Page
         }
     }
 
-    private MenuFlyoutItem CreateInfoItem(AlbumItemViewModel vm)
-    {
-        return new MenuFlyoutItem
-        {
-            Text = $"{vm.PhotoCountFormatted}  ·  {vm.TotalSizeFormatted}  ·  {vm.CreatedAtFormatted}",
-            IsEnabled = false,
-            Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
-        };
-    }
+    private IReadOnlyList<MenuFlyoutItem> CreateInfoItems(AlbumItemViewModel vm)
+        => ContextMenuHelper.CreateInfoItems(
+            vm.Name,
+            [vm.PhotoCountFormatted, vm.TotalSizeFormatted, vm.CreatedAtFormatted],
+            ContextMenuMaxWidth);
 
     private static bool IsSameDirectory(string? left, string? right)
         => !string.IsNullOrWhiteSpace(left)

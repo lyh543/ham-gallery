@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Navigation;
 using Windows.Foundation;
@@ -16,6 +17,8 @@ namespace FluentGallery.Views;
 
 public sealed partial class AllPhotosPage : Page
 {
+    private const double ContextMenuMaxWidth = ContextMenuHelper.DefaultMaxWidth;
+
     // ── ViewModel ─────────────────────────────────────────────────────────────
 
     public AllPhotosViewModel ViewModel { get; }
@@ -52,8 +55,13 @@ public sealed partial class AllPhotosPage : Page
                     _ = ShowCardSizeToastAsync($"{ViewModel.AllPhotosCardWidth} px");
             }
             else if (e.PropertyName == nameof(AllPhotosViewModel.IsMultiSelectMode))
+            {
                 ApplySelectionMode();
+                ApplyToolbarMode();
+            }
         };
+
+        ApplyToolbarMode();
     }
 
     // ── Navigation ────────────────────────────────────────────────────────────
@@ -201,6 +209,19 @@ public sealed partial class AllPhotosPage : Page
         ViewModel.ToggleMultiSelectModeCommand.Execute(null);
     }
 
+    private void ApplyToolbarMode()
+    {
+        var batchVisibility = ViewModel.IsMultiSelectMode ? Visibility.Visible : Visibility.Collapsed;
+        var browseVisibility = ViewModel.IsMultiSelectMode ? Visibility.Collapsed : Visibility.Visible;
+
+        SelectAllButton.Visibility = batchVisibility;
+        DeleteButton.Visibility = batchVisibility;
+        MoveButton.Visibility = batchVisibility;
+        CopyButton.Visibility = batchVisibility;
+        BatchCommandSeparator.Visibility = batchVisibility;
+        SortButton.Visibility = browseVisibility;
+    }
+
     private void ApplySelectionMode()
     {
         if (ViewModel.IsMultiSelectMode)
@@ -220,58 +241,65 @@ public sealed partial class AllPhotosPage : Page
 
     private async void Delete_Click(object sender, RoutedEventArgs e)
     {
-        var selected = PhotoGridView.SelectedItems
-            .OfType<PhotoItemViewModel>()
-            .ToList();
-
-        if (selected.Count == 0) return;
-
-        if (ViewModel.ConfirmBeforeDelete)
-        {
-            if (!await ConfirmDialogHelper.ShowAsync(
-                    XamlRoot,
-                    L10n.Get("AllPhotos_DeleteConfirm_Title"),
-                    L10n.Format("AllPhotos_DeleteConfirm_Content", selected.Count),
-                    L10n.Get("AllPhotos_DeleteConfirm_Confirm"),
-                    confirmStyle: DialogButtonStyle.Danger)) return;
-        }
+        var selected = GetSelectedPhotos();
+        if (!await ConfirmDeleteAsync(selected)) return;
 
         await ViewModel.DeletePhotosAsync(selected, _pageCts.Token);
-        PhotoGridView.SelectedItems.Clear();
+        ClearSelectionSafely();
+        ExitMultiSelectMode();
+        await ShowTransientToastAsync(L10n.Format("AlbumList_Toast_Deleted"));
         UpdateEmptyState();
     }
 
-    // ── Move to album ─────────────────────────────────────────────────────────
+    // ── Move / copy ──────────────────────────────────────────────────────────
 
-    private async void MoveToAlbum_Click(object sender, RoutedEventArgs e)
+    private void SelectAll_Click(object sender, RoutedEventArgs e)
     {
-        var selected = PhotoGridView.SelectedItems
-            .OfType<PhotoItemViewModel>()
-            .ToList();
+        if (ViewModel.AllPhotoItems.Count > 0)
+            PhotoGridView.SelectAll();
+    }
 
+    private async void MovePhotos_Click(object sender, RoutedEventArgs e)
+        => await ShowBatchDirectoryFlyoutAsync(MoveButton, isMove: true);
+
+    private async void CopyPhotos_Click(object sender, RoutedEventArgs e)
+        => await ShowBatchDirectoryFlyoutAsync(CopyButton, isMove: false);
+
+    private async Task ShowBatchDirectoryFlyoutAsync(AppBarButton anchor, bool isMove)
+    {
+        var selected = GetSelectedPhotos();
         if (selected.Count == 0) return;
 
-        var albums = await ViewModel.GetAlbumsAsync(_pageCts.Token);
+        var directories = await ViewModel.GetAlbumDirectoriesAsync(_pageCts.Token);
+        var excluded = selected
+            .Select(photo => Path.GetDirectoryName(photo.FilePath))
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        // Build a flyout with one item per album
         var flyout = new MenuFlyout();
-        foreach (var album in albums)
+        foreach (var directory in directories.Where(d => !excluded.Contains(d.DirectoryPath)))
         {
-            var item = new MenuFlyoutItem { Text = album.Name };
-            long targetId = album.Id;
-            item.Click += async (_, _) =>
-            {
-                await ViewModel.MoveToAlbumAsync(selected, targetId, _pageCts.Token);
-                PhotoGridView.SelectedItems.Clear();
-                UpdateEmptyState();
-            };
+            var item = CreateDirectoryMenuItem(directory.Name, directory.DirectoryPath);
+            item.Click += async (_, _) => await ExecuteBatchDirectoryActionAsync(selected, directory.DirectoryPath, isMove);
             flyout.Items.Add(item);
         }
 
-        if (flyout.Items.Count == 0)
-            flyout.Items.Add(new MenuFlyoutItem { Text = L10n.Get("AllPhotos_MoveToAlbum_Empty"), IsEnabled = false });
+        if (flyout.Items.Count > 0)
+            flyout.Items.Add(new MenuFlyoutSeparator());
 
-        flyout.ShowAt(MoveToAlbumButton);
+        var otherItem = new MenuFlyoutItem
+        {
+            Text = L10n.Get("AlbumList_Context_Other"),
+            Icon = new FontIcon { Glyph = "\uE8F4" },
+        };
+        otherItem.Click += async (_, _) =>
+        {
+            var targetDir = await PickSingleFolderAsync();
+            if (string.IsNullOrWhiteSpace(targetDir)) return;
+            await ExecuteBatchDirectoryActionAsync(selected, targetDir, isMove);
+        };
+        flyout.Items.Add(otherItem);
+        flyout.ShowAt(anchor);
     }
 
     // ── Sort ──────────────────────────────────────────────────────────────────
@@ -284,8 +312,8 @@ public sealed partial class AllPhotosPage : Page
         SortByCreated.IsChecked  = ViewModel.SortField == PhotoSortField.CreatedAt;
         SortByModified.IsChecked = ViewModel.SortField == PhotoSortField.ModifiedAt;
         SortByTakenAt.IsChecked  = ViewModel.SortField == PhotoSortField.TakenAt;
-        // Toggle shows "升序"; checked = ascending (non-default), unchecked = descending (default)
-        SortDescToggle.IsChecked = ViewModel.SortDirection == SortDirection.Ascending;
+        SortAscendingItem.IsChecked  = ViewModel.SortDirection == SortDirection.Ascending;
+        SortDescendingItem.IsChecked = ViewModel.SortDirection == SortDirection.Descending;
     }
 
     private void SortMenuItem_Click(object sender, RoutedEventArgs e)
@@ -301,11 +329,12 @@ public sealed partial class AllPhotosPage : Page
         };
     }
 
-    private void SortDescToggle_Click(object sender, RoutedEventArgs e)
+    private void SortDirectionMenuItem_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not ToggleMenuFlyoutItem t) return;
-        // Checked = ascending, unchecked = descending
-        ViewModel.SortDirection = t.IsChecked ? SortDirection.Ascending : SortDirection.Descending;
+        if (sender is not MenuFlyoutItem item) return;
+        ViewModel.SortDirection = string.Equals(item.Tag?.ToString(), "Ascending", StringComparison.Ordinal)
+            ? SortDirection.Ascending
+            : SortDirection.Descending;
     }
 
     // ── Search ────────────────────────────────────────────────────────────────
@@ -383,8 +412,272 @@ public sealed partial class AllPhotosPage : Page
     // ── Card size toast ───────────────────────────────────────────────────────
 
     private async Task ShowCardSizeToastAsync(string text)
+        => await ShowTransientToastAsync(text);
+
+    protected override void OnRightTapped(RightTappedRoutedEventArgs e)
     {
-        // Cancel any previous auto-dismiss so only one timer runs at a time
+        base.OnRightTapped(e);
+
+        if (e.OriginalSource is not FrameworkElement src) return;
+        var vm = FindPhotoVm(src);
+        if (vm is null) return;
+
+        e.Handled = true;
+        _ = ShowContextMenuAsync(vm, src, e.GetPosition(src));
+    }
+
+    private void PhotoGridView_Holding(object sender, HoldingRoutedEventArgs e)
+    {
+        if (e.HoldingState != Microsoft.UI.Input.HoldingState.Started) return;
+        if (e.OriginalSource is not FrameworkElement src) return;
+
+        var vm = FindPhotoVm(src);
+        if (vm is null) return;
+
+        e.Handled = true;
+        _ = ShowContextMenuAsync(vm, src, e.GetPosition(src));
+    }
+
+    private static PhotoItemViewModel? FindPhotoVm(FrameworkElement element)
+    {
+        DependencyObject? current = element;
+        while (current is not null)
+        {
+            if (current is FrameworkElement fe && fe.DataContext is PhotoItemViewModel vm)
+                return vm;
+            current = VisualTreeHelper.GetParent(current);
+        }
+
+        return null;
+    }
+
+    private async Task ShowContextMenuAsync(PhotoItemViewModel vm, FrameworkElement anchor, Point point)
+    {
+        var directories = await ViewModel.GetAlbumDirectoriesAsync(_pageCts.Token);
+
+        var flyout = new MenuFlyout();
+        flyout.Items.Add(BuildDirectorySubMenu(vm, anchor, point, isMove: true, directories));
+        flyout.Items.Add(BuildDirectorySubMenu(vm, anchor, point, isMove: false, directories));
+
+        var openInExplorer = new MenuFlyoutItem
+        {
+            Text = L10n.Get("AlbumList_Context_OpenInExplorer"),
+            Icon = new FontIcon { Glyph = "\uE838" },
+            IsEnabled = File.Exists(vm.FilePath),
+        };
+        openInExplorer.Click += (_, _) => ViewModel.OpenPhotoInExplorer(vm);
+        flyout.Items.Add(openInExplorer);
+
+        flyout.Items.Add(new MenuFlyoutSeparator());
+
+        var delete = new MenuFlyoutItem
+        {
+            Text = L10n.Get("AlbumList_Context_Delete"),
+            Icon = new FontIcon { Glyph = "\uE74D" },
+            Foreground = (Brush)Application.Current.Resources["SystemFillColorCriticalBrush"],
+        };
+        delete.Click += async (_, _) =>
+        {
+            if (!await ConfirmDeleteAsync([vm])) return;
+            await ViewModel.DeletePhotosAsync([vm], _pageCts.Token);
+            await ShowTransientToastAsync(L10n.Format("AlbumList_Toast_Deleted"));
+            UpdateEmptyState();
+        };
+        flyout.Items.Add(delete);
+
+        flyout.Items.Add(new MenuFlyoutSeparator());
+        foreach (var item in CreateInfoItems(vm))
+            flyout.Items.Add(item);
+        flyout.ShowAt(anchor, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+        {
+            Position = point,
+            Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.BottomEdgeAlignedLeft,
+        });
+    }
+
+    private MenuFlyoutSubItem BuildDirectorySubMenu(
+        PhotoItemViewModel vm,
+        FrameworkElement anchor,
+        Point point,
+        bool isMove,
+        IReadOnlyList<(string Name, string DirectoryPath)> directories)
+    {
+        var subItem = new MenuFlyoutSubItem
+        {
+            Text = L10n.Get(isMove ? "AlbumList_Context_Move" : "AlbumList_Context_Copy"),
+            Icon = new FontIcon { Glyph = isMove ? "\uE8DE" : "\uE8C8" },
+        };
+
+        var sourceDir = Path.GetDirectoryName(vm.FilePath);
+        foreach (var directory in directories.Where(d => !IsSameDirectory(d.DirectoryPath, sourceDir)))
+        {
+            var item = CreateDirectoryMenuItem(directory.Name, directory.DirectoryPath);
+            item.Click += async (_, _) => await ExecuteSingleDirectoryActionAsync(vm, directory.DirectoryPath, isMove);
+            subItem.Items.Add(item);
+        }
+
+        if (subItem.Items.Count > 0)
+            subItem.Items.Add(new MenuFlyoutSeparator());
+
+        var otherItem = new MenuFlyoutItem
+        {
+            Text = L10n.Get("AlbumList_Context_Other"),
+            Icon = new FontIcon { Glyph = "\uE8F4" },
+        };
+        otherItem.Click += async (_, _) =>
+        {
+            var targetDir = await PickSingleFolderAsync();
+            if (string.IsNullOrWhiteSpace(targetDir)) return;
+
+            if (IsSameDirectory(sourceDir, targetDir))
+            {
+                await ShowTransientToastAsync(L10n.Get("AlbumList_Toast_SameDirectory"));
+                await ShowContextMenuAsync(vm, anchor, point);
+                return;
+            }
+
+            await ExecuteSingleDirectoryActionAsync(vm, targetDir, isMove);
+        };
+        subItem.Items.Add(otherItem);
+
+        return subItem;
+    }
+
+    private async Task ExecuteSingleDirectoryActionAsync(PhotoItemViewModel vm, string targetDir, bool isMove)
+    {
+        var sourceDir = Path.GetDirectoryName(vm.FilePath);
+        if (IsSameDirectory(sourceDir, targetDir))
+        {
+            await ShowTransientToastAsync(L10n.Get("AlbumList_Toast_SameDirectory"));
+            return;
+        }
+
+        var targetName = Path.GetFileName(targetDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        if (isMove)
+        {
+            await ViewModel.MovePhotosToDirectoryAsync([vm], targetDir, _pageCts.Token);
+            await ShowTransientToastAsync(L10n.Format("AlbumList_Toast_Moved", 1, targetName));
+        }
+        else
+        {
+            await ViewModel.CopyPhotosToDirectoryAsync([vm], targetDir, _pageCts.Token);
+            await ShowTransientToastAsync(L10n.Format("AlbumList_Toast_Copied", 1, targetName));
+        }
+
+        UpdateEmptyState();
+    }
+
+    private async Task ExecuteBatchDirectoryActionAsync(
+        IReadOnlyList<PhotoItemViewModel> items,
+        string targetDir,
+        bool isMove)
+    {
+        if (items.Count == 0) return;
+        if (items.Any(item => IsSameDirectory(Path.GetDirectoryName(item.FilePath), targetDir)))
+        {
+            await ShowTransientToastAsync(L10n.Get("AlbumList_Toast_SameDirectory"));
+            return;
+        }
+
+        var targetName = Path.GetFileName(targetDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        if (!await ConfirmDirectoryActionAsync(items, targetName, isMove)) return;
+
+        if (isMove)
+        {
+            await ViewModel.MovePhotosToDirectoryAsync(items, targetDir, _pageCts.Token);
+            await ShowTransientToastAsync(L10n.Format("AlbumList_Toast_Moved", items.Count, targetName));
+        }
+        else
+        {
+            await ViewModel.CopyPhotosToDirectoryAsync(items, targetDir, _pageCts.Token);
+            await ShowTransientToastAsync(L10n.Format("AlbumList_Toast_Copied", items.Count, targetName));
+        }
+
+        ClearSelectionSafely();
+        ExitMultiSelectMode();
+        UpdateEmptyState();
+    }
+
+    private async Task<bool> ConfirmDeleteAsync(IReadOnlyList<PhotoItemViewModel> items)
+    {
+        if (items.Count == 0) return false;
+        if (!ViewModel.ConfirmBeforeDelete) return true;
+
+        var content = items.Count == 1
+            ? L10n.Format("Photo_DeleteConfirm_Single", items[0].FileName)
+            : L10n.Format("Photo_DeleteConfirm_Multi", items[0].FileName, items.Count);
+
+        return await ConfirmDialogHelper.ShowAsync(
+            XamlRoot,
+            L10n.Get("AllPhotos_DeleteConfirm_Title"),
+            content,
+            L10n.Get("AllPhotos_DeleteConfirm_Confirm"),
+            confirmStyle: DialogButtonStyle.Danger);
+    }
+
+    private async Task<bool> ConfirmDirectoryActionAsync(
+        IReadOnlyList<PhotoItemViewModel> items,
+        string targetName,
+        bool isMove)
+    {
+        string contentKey = items.Count == 1
+            ? (isMove ? "Photo_MoveConfirm_Single" : "Photo_CopyConfirm_Single")
+            : (isMove ? "Photo_MoveConfirm_Multi" : "Photo_CopyConfirm_Multi");
+
+        var content = items.Count == 1
+            ? L10n.Format(contentKey, items[0].FileName, targetName)
+            : L10n.Format(contentKey, items[0].FileName, items.Count, targetName);
+
+        return await ConfirmDialogHelper.ShowAsync(
+            XamlRoot,
+            L10n.Get(isMove ? "AlbumList_MoveConfirm_Title" : "AlbumList_CopyConfirm_Title"),
+            content,
+            L10n.Get(isMove ? "AlbumList_MoveConfirm_Confirm" : "AlbumList_CopyConfirm_Confirm"),
+            confirmStyle: DialogButtonStyle.Primary);
+    }
+
+    private static MenuFlyoutItem CreateDirectoryMenuItem(string name, string directoryPath)
+        => ContextMenuHelper.CreateDirectoryMenuItem(name, directoryPath, ContextMenuMaxWidth);
+
+    private IReadOnlyList<MenuFlyoutItem> CreateInfoItems(PhotoItemViewModel vm)
+        => ContextMenuHelper.CreateInfoItems(
+            vm.FileName,
+            [vm.TakenAtTooltipText, vm.FileSizeFormatted, vm.ResolutionFormatted],
+            ContextMenuMaxWidth);
+
+    private IReadOnlyList<PhotoItemViewModel> GetSelectedPhotos()
+        => PhotoGridView.SelectedItems.OfType<PhotoItemViewModel>().ToList();
+
+    private void ClearSelectionSafely()
+    {
+        if (PhotoGridView.SelectionMode == ListViewSelectionMode.None) return;
+        if (PhotoGridView.SelectedItems.Count == 0) return;
+
+        PhotoGridView.SelectedItems.Clear();
+    }
+
+    private void ExitMultiSelectMode()
+    {
+        if (ViewModel.IsMultiSelectMode)
+            ViewModel.ToggleMultiSelectModeCommand.Execute(null);
+    }
+
+    private static bool IsSameDirectory(string? left, string? right)
+        => !string.IsNullOrWhiteSpace(left)
+        && !string.IsNullOrWhiteSpace(right)
+        && string.Equals(left.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+            right.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+            StringComparison.OrdinalIgnoreCase);
+
+    private static async Task<string?> PickSingleFolderAsync()
+    {
+        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.Current.MainWindow);
+        var paths = await MultiFolderPicker.PickAsync(hwnd);
+        return paths.FirstOrDefault();
+    }
+
+    private async Task ShowTransientToastAsync(string text)
+    {
         _toastCts?.Cancel();
         _toastCts = new CancellationTokenSource();
         var ct = _toastCts.Token;

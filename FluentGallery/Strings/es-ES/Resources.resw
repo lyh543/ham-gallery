@@ -69,6 +69,9 @@
   <data name='AllPhotos_EmptySubtitle.Text' xml:space='preserve'><value>No se han encontrado fotos coincidentes</value></data>
   <data name='PhotoList_AddPhotosButton.Label' xml:space='preserve'><value>Añadir fotos</value></data>
   <data name='PhotoList_DeleteButton.Label' xml:space='preserve'><value>Eliminar</value></data>
+  <data name='PhotoList_SelectAllButton.Label' xml:space='preserve'><value>Seleccionar todo</value></data>
+  <data name='PhotoList_MoveButton.Label' xml:space='preserve'><value>Mover</value></data>
+  <data name='PhotoList_CopyButton.Label' xml:space='preserve'><value>Copiar</value></data>
   <data name='PhotoList_MoveToAlbumButton.Label' xml:space='preserve'><value>Mover al álbum</value></data>
   <data name='PhotoList_RenameAlbumButton.Label' xml:space='preserve'><value>Renombrar</value></data>
   <data name='PhotoList_SortButton.Label' xml:space='preserve'><value>Ordenar</value></data>
@@ -83,7 +86,7 @@
   <data name='PhotoList_ZoomOutButton.Label' xml:space='preserve'><value>Reducir</value></data>
   <data name='PhotoList_SearchButton.Label' xml:space='preserve'><value>Buscar</value></data>
   <data name='PhotoList_EmptyTitle.Text' xml:space='preserve'><value>No hay fotos en el álbum</value></data>
-  <data name='PhotoList_EmptySubtitle.Text' xml:space='preserve'><value>Haz clic en "Añadir fotos" para llenar este álbum</value></data>
+  <data name='PhotoList_EmptySubtitle.Text' xml:space='preserve'><value>Todavía no hay fotos para mostrar</value></data>
   <data name='PhotoDetail_FileNotFound' xml:space='preserve'><value>El archivo se ha movido o eliminado.</value></data>
   <data name='PhotoDetail_HeicNotSupported' xml:space='preserve'><value>El formato HEIC requiere las extensiones de vídeo HEVC. Haz clic aquí para instalarlas desde la Microsoft Store.</value></data>
   <data name='PhotoDetail_ToastUndoText.Text' xml:space='preserve'><value>Deshacer</value></data>
@@ -185,6 +188,20 @@
   <data name='AlbumList_BatchMoveConfirm_Content' xml:space='preserve'><value>¿Mover {1} fotos de {0} álbumes a « {2} »?</value></data>
   <data name='AlbumList_BatchCopyConfirm_Content' xml:space='preserve'><value>¿Copiar {1} fotos de {0} álbumes a « {2} »?</value></data>
   <data name='AlbumList_Toast_SameDirectory' xml:space='preserve'><value>El directorio de origen y el de destino son el mismo. Elige otro.</value></data>
+  <data name='AlbumList_SortAscending.Text' xml:space='preserve'><value>Ascendente</value></data>
+  <data name='AlbumList_SortDescending.Text' xml:space='preserve'><value>Descendente</value></data>
+  <data name='AllPhotos_SortAscending.Text' xml:space='preserve'><value>Ascendente</value></data>
+  <data name='AllPhotos_SortDescending.Text' xml:space='preserve'><value>Descendente</value></data>
+  <data name='PhotoList_SortAscending.Text' xml:space='preserve'><value>Ascendente</value></data>
+  <data name='PhotoList_SortDescending.Text' xml:space='preserve'><value>Descendente</value></data>
+  <data name='PhotoList_Metadata_Unknown' xml:space='preserve'><value>Desconocido</value></data>
+  <data name='PhotoList_Metadata_TakenAt' xml:space='preserve'><value>Tomada el {0}</value></data>
+  <data name='Photo_DeleteConfirm_Single' xml:space='preserve'><value>¿Mover "{0}" a la Papelera?</value></data>
+  <data name='Photo_DeleteConfirm_Multi' xml:space='preserve'><value>¿Mover "{0}" y {1} fotos seleccionadas a la Papelera?</value></data>
+  <data name='Photo_MoveConfirm_Single' xml:space='preserve'><value>¿Mover "{0}" a "{1}"?</value></data>
+  <data name='Photo_MoveConfirm_Multi' xml:space='preserve'><value>¿Mover "{0}" y {1} fotos seleccionadas a "{2}"?</value></data>
+  <data name='Photo_CopyConfirm_Single' xml:space='preserve'><value>¿Copiar "{0}" a "{1}"?</value></data>
+  <data name='Photo_CopyConfirm_Multi' xml:space='preserve'><value>¿Copiar "{0}" y {1} fotos seleccionadas a "{2}"?</value></data>
   <data name='AllPhotos_DeleteConfirm_Title' xml:space='preserve'><value>Eliminar fotos</value></data>
   <data name='AllPhotos_DeleteConfirm_Content' xml:space='preserve'><value>¿Mover las {0} fotos seleccionadas a la papelera?</value></data>
   <data name='AllPhotos_DeleteConfirm_Confirm' xml:space='preserve'><value>A la papelera</value></data>
@@ -346,6 +363,9 @@
   <data name='PhotoList_MoveToAlbum_Text' xml:space='preserve'><value>Mover al álbum</value></data>
   <data name='AllPhotos_MultiSelectToggle.Label' xml:space='preserve'><value>Selección múltiple</value></data>
   <data name='AllPhotos_DeleteButton.Label' xml:space='preserve'><value>Eliminar</value></data>
+  <data name='AllPhotos_SelectAllButton.Label' xml:space='preserve'><value>Seleccionar todo</value></data>
+  <data name='AllPhotos_MoveButton.Label' xml:space='preserve'><value>Mover</value></data>
+  <data name='AllPhotos_CopyButton.Label' xml:space='preserve'><value>Copiar</value></data>
   <data name='AllPhotos_MoveToAlbumButton.Label' xml:space='preserve'><value>Mover al álbum</value></data>
   <data name='AllPhotos_SortButton.Label' xml:space='preserve'><value>Ordenar</value></data>
   <data name='AllPhotos_SortByName.Text' xml:space='preserve'><value>Nombre de archivo</value></data>

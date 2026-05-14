@@ -70,6 +70,9 @@
   <data name='AllPhotos_EmptySubtitle.Text' xml:space='preserve'><value>一致する写真が見つかりませんでした</value></data>
   <data name='PhotoList_AddPhotosButton.Label' xml:space='preserve'><value>写真を追加</value></data>
   <data name='PhotoList_DeleteButton.Label' xml:space='preserve'><value>削除</value></data>
+  <data name='PhotoList_SelectAllButton.Label' xml:space='preserve'><value>すべて選択</value></data>
+  <data name='PhotoList_MoveButton.Label' xml:space='preserve'><value>移動</value></data>
+  <data name='PhotoList_CopyButton.Label' xml:space='preserve'><value>コピー</value></data>
   <data name='PhotoList_MoveToAlbumButton.Label' xml:space='preserve'><value>アルバムへ移動</value></data>
   <data name='PhotoList_RenameAlbumButton.Label' xml:space='preserve'><value>名前の変更</value></data>
   <data name='PhotoList_SortButton.Label' xml:space='preserve'><value>並べ替え</value></data>
@@ -84,7 +87,7 @@
   <data name='PhotoList_ZoomOutButton.Label' xml:space='preserve'><value>縮小</value></data>
   <data name='PhotoList_SearchButton.Label' xml:space='preserve'><value>検索</value></data>
   <data name='PhotoList_EmptyTitle.Text' xml:space='preserve'><value>アルバム内に写真がありません</value></data>
-  <data name='PhotoList_EmptySubtitle.Text' xml:space='preserve'><value>「写真を追加」をクリックして追加してください</value></data>
+  <data name='PhotoList_EmptySubtitle.Text' xml:space='preserve'><value>現在表示できる写真はありません</value></data>
   <data name='PhotoDetail_FileNotFound' xml:space='preserve'><value>ファイルが移動または削除されています。</value></data>
   <data name='PhotoDetail_HeicNotSupported' xml:space='preserve'><value>HEIC 形式を表示するには HEVC ビデオ拡張機能が必要です。クリックして Microsoft Store からインストールしてください。</value></data>
   <data name='PhotoDetail_ToastUndoText.Text' xml:space='preserve'><value>元に戻す</value></data>
@@ -186,6 +189,20 @@
   <data name='AlbumList_BatchMoveConfirm_Content' xml:space='preserve'><value>{0} 個のアルバムから合計 {1} 枚の写真を「{2}」へ移動しますか？</value></data>
   <data name='AlbumList_BatchCopyConfirm_Content' xml:space='preserve'><value>{0} 個のアルバムから合計 {1} 枚の写真を「{2}」へコピーしますか？</value></data>
   <data name='AlbumList_Toast_SameDirectory' xml:space='preserve'><value>元のディレクトリと移動先が同じです。別のディレクトリを選択してください。</value></data>
+  <data name='AlbumList_SortAscending.Text' xml:space='preserve'><value>昇順</value></data>
+  <data name='AlbumList_SortDescending.Text' xml:space='preserve'><value>降順</value></data>
+  <data name='AllPhotos_SortAscending.Text' xml:space='preserve'><value>昇順</value></data>
+  <data name='AllPhotos_SortDescending.Text' xml:space='preserve'><value>降順</value></data>
+  <data name='PhotoList_SortAscending.Text' xml:space='preserve'><value>昇順</value></data>
+  <data name='PhotoList_SortDescending.Text' xml:space='preserve'><value>降順</value></data>
+  <data name='PhotoList_Metadata_Unknown' xml:space='preserve'><value>不明</value></data>
+  <data name='PhotoList_Metadata_TakenAt' xml:space='preserve'><value>撮影: {0}</value></data>
+  <data name='Photo_DeleteConfirm_Single' xml:space='preserve'><value>「{0}」をごみ箱に移動しますか？</value></data>
+  <data name='Photo_DeleteConfirm_Multi' xml:space='preserve'><value>「{0}」など {1} 枚の選択済み写真をごみ箱に移動しますか？</value></data>
+  <data name='Photo_MoveConfirm_Single' xml:space='preserve'><value>「{0}」を「{1}」に移動しますか？</value></data>
+  <data name='Photo_MoveConfirm_Multi' xml:space='preserve'><value>「{0}」など {1} 枚の選択済み写真を「{2}」に移動しますか？</value></data>
+  <data name='Photo_CopyConfirm_Single' xml:space='preserve'><value>「{0}」を「{1}」にコピーしますか？</value></data>
+  <data name='Photo_CopyConfirm_Multi' xml:space='preserve'><value>「{0}」など {1} 枚の選択済み写真を「{2}」にコピーしますか？</value></data>
   <data name='AllPhotos_DeleteConfirm_Title' xml:space='preserve'><value>写真を削除</value></data>
   <data name='AllPhotos_DeleteConfirm_Content' xml:space='preserve'><value>選択した {0} 枚の写真をゴミ箱に移動しますか？</value></data>
   <data name='AllPhotos_DeleteConfirm_Confirm' xml:space='preserve'><value>ゴミ箱へ</value></data>
@@ -347,6 +364,9 @@
   <data name='PhotoList_MoveToAlbum_Text' xml:space='preserve'><value>アルバムへ移動</value></data>
   <data name='AllPhotos_MultiSelectToggle.Label' xml:space='preserve'><value>複数選択</value></data>
   <data name='AllPhotos_DeleteButton.Label' xml:space='preserve'><value>削除</value></data>
+  <data name='AllPhotos_SelectAllButton.Label' xml:space='preserve'><value>すべて選択</value></data>
+  <data name='AllPhotos_MoveButton.Label' xml:space='preserve'><value>移動</value></data>
+  <data name='AllPhotos_CopyButton.Label' xml:space='preserve'><value>コピー</value></data>
   <data name='AllPhotos_MoveToAlbumButton.Label' xml:space='preserve'><value>アルバムへ移動</value></data>
   <data name='AllPhotos_SortButton.Label' xml:space='preserve'><value>並べ替え</value></data>
   <data name='AllPhotos_SortByName.Text' xml:space='preserve'><value>ファイル名</value></data>

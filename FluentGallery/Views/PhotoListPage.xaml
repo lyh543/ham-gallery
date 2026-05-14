@@ -15,6 +15,14 @@
         <!-- Photo thumbnail card -->
         <DataTemplate x:Key="PhotoCardTemplate" x:DataType="vm:PhotoItemViewModel">
             <Grid>
+                <ToolTipService.ToolTip>
+                    <StackPanel MaxWidth="320" Spacing="2">
+                        <TextBlock Text="{x:Bind FileName, Mode=OneWay}" TextWrapping="WrapWholeWords"/>
+                        <TextBlock Text="{x:Bind TakenAtTooltipText, Mode=OneWay}" Opacity="0.6"/>
+                        <TextBlock Text="{x:Bind FileSizeFormatted, Mode=OneWay}" Opacity="0.6"/>
+                        <TextBlock Text="{x:Bind ResolutionFormatted, Mode=OneWay}" Opacity="0.6"/>
+                    </StackPanel>
+                </ToolTipService.ToolTip>
                 <!-- Layer 1: background placeholder icon (always present; covered by image when loaded) -->
                 <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
                     <FontIcon
@@ -46,72 +54,56 @@
 
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/> <!-- Album title / inline rename -->
             <RowDefinition Height="Auto"/> <!-- CommandBar toolbar -->
             <RowDefinition Height="*"/>    <!-- Photo grid -->
         </Grid.RowDefinitions>
 
-        <!-- ── Inline rename TextBox (only visible during rename) ── -->
-        <Grid Grid.Row="0"
-              Padding="20 8 20 4"
-              Visibility="{x:Bind ViewModel.IsRenamingAlbum, Mode=OneWay,
-                                   Converter={StaticResource BoolToVisibility}}">
-            <TextBox
-                x:Name="AlbumRenameBox"
-                Text="{x:Bind ViewModel.EditAlbumName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                FontSize="20"
-                FontWeight="SemiBold"
-                BorderThickness="0 0 0 2"
-                Background="Transparent"
-                KeyDown="AlbumRenameBox_KeyDown"
-                LostFocus="AlbumRenameBox_LostFocus"/>
-        </Grid>
-
         <!-- ── Toolbar ── -->
         <CommandBar
-            Grid.Row="1"
+            Grid.Row="0"
             DefaultLabelPosition="Right"
             Background="Transparent"
             OverflowButtonVisibility="Collapsed">
 
-            <!-- Add photos -->
             <AppBarButton
-                x:Name="AddPhotosButton"
-                x:Uid="PhotoList_AddPhotosButton"
-                Icon="Add"
-                Label="添加照片"
-                Click="AddPhotos_Click"/>
-
-            <!-- Delete (enabled only in multi-select mode with ≥1 selection) -->
+                x:Name="SelectAllButton"
+                x:Uid="PhotoList_SelectAllButton"
+                Label="全选"
+                Visibility="Collapsed"
+                Click="SelectAll_Click">
+                <AppBarButton.Icon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8B3;"/>
+                </AppBarButton.Icon>
+            </AppBarButton>
             <AppBarButton
                 x:Name="DeleteButton"
                 x:Uid="PhotoList_DeleteButton"
                 Icon="Delete"
                 Label="删除"
                 Click="Delete_Click"
-                IsEnabled="{x:Bind ViewModel.IsMultiSelectMode, Mode=OneWay}"/>
-
-            <!-- Move to album -->
+                Visibility="Collapsed"/>
             <AppBarButton
-                x:Name="MoveToAlbumButton"
-                x:Uid="PhotoList_MoveToAlbumButton"
+                x:Name="MoveButton"
+                x:Uid="PhotoList_MoveButton"
                 Icon="MoveToFolder"
-                Label="移到相册"
-                IsEnabled="{x:Bind ViewModel.IsMultiSelectMode, Mode=OneWay}"
-                Click="MoveToAlbum_Click"/>
-
-            <AppBarSeparator/>
-
-            <!-- Rename album -->
+                Label="移动"
+                Visibility="Collapsed"
+                Click="MovePhotos_Click"/>
             <AppBarButton
-                x:Name="RenameAlbumButton"
-                x:Uid="PhotoList_RenameAlbumButton"
-                Icon="Rename"
-                Label="重命名"
-                Click="RenameAlbum_Click"/>
+                x:Name="CopyButton"
+                x:Uid="PhotoList_CopyButton"
+                Label="复制"
+                Visibility="Collapsed"
+                Click="CopyPhotos_Click">
+                <AppBarButton.Icon>
+                    <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE8C8;"/>
+                </AppBarButton.Icon>
+            </AppBarButton>
+
+            <AppBarSeparator x:Name="BatchCommandSeparator" Visibility="Collapsed"/>
 
             <!-- Sort -->
-            <AppBarButton x:Uid="PhotoList_SortButton" Icon="Sort" Label="排序">
+            <AppBarButton x:Name="SortButton" x:Uid="PhotoList_SortButton" Icon="Sort" Label="排序">
                 <AppBarButton.Flyout>
                     <MenuFlyout x:Name="SortFlyout" Opening="SortFlyout_Opening">
                         <RadioMenuFlyoutItem x:Name="SortByName" x:Uid="PhotoList_SortByName" Text="文件名" GroupName="PhotoSort" Tag="Name" Click="SortMenuItem_Click">
@@ -140,20 +132,20 @@
                             </RadioMenuFlyoutItem.Icon>
                         </RadioMenuFlyoutItem>
                         <MenuFlyoutSeparator/>
-                        <ToggleMenuFlyoutItem
-                            x:Name="SortDescToggle"
-                            x:Uid="PhotoList_SortDescToggle"
-                            Text="升序"
-                            Click="SortDescToggle_Click">
-                            <ToggleMenuFlyoutItem.Icon>
+                        <RadioMenuFlyoutItem x:Name="SortAscendingItem" Text="升序" GroupName="PhotoSortDirection" Tag="Ascending" Click="SortDirectionMenuItem_Click">
+                            <RadioMenuFlyoutItem.Icon>
                                 <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE74A;"/>
-                            </ToggleMenuFlyoutItem.Icon>
-                        </ToggleMenuFlyoutItem>
+                            </RadioMenuFlyoutItem.Icon>
+                        </RadioMenuFlyoutItem>
+                        <RadioMenuFlyoutItem x:Name="SortDescendingItem" Text="降序" GroupName="PhotoSortDirection" Tag="Descending" Click="SortDirectionMenuItem_Click">
+                            <RadioMenuFlyoutItem.Icon>
+                                <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE74B;"/>
+                            </RadioMenuFlyoutItem.Icon>
+                        </RadioMenuFlyoutItem>
                     </MenuFlyout>
                 </AppBarButton.Flyout>
             </AppBarButton>
 
-            <!-- Multi-select toggle -->
             <AppBarToggleButton
                 x:Name="MultiSelectToggle"
                 x:Uid="PhotoList_MultiSelectToggle"
@@ -206,11 +198,12 @@
         <!-- ── Photo grid ── -->
         <GridView
             x:Name="PhotoGridView"
-            Grid.Row="2"
+            Grid.Row="1"
             ItemsSource="{x:Bind ViewModel.Photos}"
             SelectionMode="None"
             IsItemClickEnabled="True"
             ItemClick="PhotoGridView_ItemClick"
+            Holding="PhotoGridView_Holding"
             ContainerContentChanging="PhotoGridView_ContainerContentChanging"
             SizeChanged="PhotoGridView_SizeChanged"
             ManipulationMode="Scale,System"
@@ -245,7 +238,7 @@
 
         <!-- Loading overlay -->
         <ProgressRing
-            Grid.Row="2"
+            Grid.Row="1"
             IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}"
             Width="48" Height="48"
             HorizontalAlignment="Center"
@@ -254,7 +247,7 @@
         <!-- Empty state -->
         <StackPanel
             x:Name="EmptyStatePanel"
-            Grid.Row="2"
+            Grid.Row="1"
             HorizontalAlignment="Center"
             VerticalAlignment="Center"
             Spacing="12"
@@ -271,7 +264,7 @@
                 Style="{ThemeResource SubtitleTextBlockStyle}"/>
             <TextBlock
                 x:Uid="PhotoList_EmptySubtitle"
-                Text="点击「添加照片」将照片加入此相册"
+                Text="暂时没有可显示的照片"
                 HorizontalAlignment="Center"
                 Style="{ThemeResource BodyTextBlockStyle}"
                 Opacity="0.6"/>
@@ -279,7 +272,7 @@
 
         <!-- Card size toast overlay -->
         <Border x:Name="CardSizeToast"
-                Grid.Row="0" Grid.RowSpan="3"
+            Grid.Row="0" Grid.RowSpan="2"
                 HorizontalAlignment="Center" VerticalAlignment="Center"
                 Padding="20,10" CornerRadius="8"
                 Background="{ThemeResource SystemControlBackgroundChromeMediumLowBrush}"
