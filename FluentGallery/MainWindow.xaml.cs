@@ -24,6 +24,8 @@ public sealed partial class MainWindow : Window
     // ── State ─────────────────────────────────────────────────────────────────
     private readonly MainWindowViewModel _vm;
     private readonly FrameworkElement? _themeRoot;
+    private long _albumsNavExpandedCallbackToken;
+    private bool _isSyncingNavSelection;
 
     // ── Dev Warning Toast ─────────────────────────────────────────────────────
 #if DEBUG
@@ -50,6 +52,10 @@ public sealed partial class MainWindow : Window
             _themeRoot.ActualThemeChanged += OnRootActualThemeChanged;
             ApplyTitleBarButtonTheme(_themeRoot.ActualTheme);
         }
+
+        _albumsNavExpandedCallbackToken = AlbumsNavItem.RegisterPropertyChangedCallback(
+            NavigationViewItem.IsExpandedProperty,
+            (_, _) => EnsureAlbumsNavExpanded());
 
         // Initial size and min-size enforcement (scale logical pixels to physical pixels)
         var hwndForDpi = WinRT.Interop.WindowNative.GetWindowHandle(this);
@@ -133,6 +139,10 @@ public sealed partial class MainWindow : Window
     {
         if (_themeRoot is not null)
             _themeRoot.ActualThemeChanged -= OnRootActualThemeChanged;
+
+        AlbumsNavItem.UnregisterPropertyChangedCallback(
+            NavigationViewItem.IsExpandedProperty,
+            _albumsNavExpandedCallbackToken);
 
         bool maximized = AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Maximized };
 
@@ -237,6 +247,20 @@ public sealed partial class MainWindow : Window
 
             AlbumsNavItem.MenuItems.Add(navItem);
         }
+
+        EnsureAlbumsNavExpanded();
+    }
+
+    private void EnsureAlbumsNavExpanded()
+    {
+        if (_vm.PinnedAlbums.Count == 0)
+            return;
+
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            if (AlbumsNavItem.MenuItems.Count > 0 && !AlbumsNavItem.IsExpanded)
+                AlbumsNavItem.IsExpanded = true;
+        });
     }
 
     // ── File-open navigation ──────────────────────────────────────────────────
@@ -286,6 +310,7 @@ public sealed partial class MainWindow : Window
 
     private void NavView_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
+        if (_isSyncingNavSelection) return;
         if (args.SelectedItem is not NavigationViewItem item) return;
 
         var tag = item.Tag?.ToString() ?? string.Empty;
@@ -294,6 +319,12 @@ public sealed partial class MainWindow : Window
         if (tag.StartsWith("Album:", StringComparison.Ordinal) &&
             long.TryParse(tag.AsSpan(6), out long albumId))
         {
+            if (TryGetCurrentPhotoListAlbumId() == albumId)
+            {
+                NavView.Header = item.Content?.ToString();
+                return;
+            }
+
             ContentFrame.Navigate(typeof(PhotoListPage), albumId);
             NavView.Header = item.Content?.ToString();
             return;
@@ -324,6 +355,21 @@ public sealed partial class MainWindow : Window
     /// </summary>
     public void SetNavHeader(string header) => NavView.Header = header;
 
+    public void SyncPhotoListNavigation(long albumId, string header)
+    {
+        NavView.Header = header;
+
+        var selectedItem = AlbumsNavItem.MenuItems
+            .OfType<NavigationViewItem>()
+            .FirstOrDefault(item => string.Equals(item.Tag?.ToString(), $"Album:{albumId}", StringComparison.Ordinal))
+            ?? AlbumsNavItem;
+
+        if (AlbumsNavItem.MenuItems.Count > 0)
+            AlbumsNavItem.IsExpanded = true;
+
+        SetNavSelectionWithoutNavigation(selectedItem);
+    }
+
     private void SyncNavSelection()
     {
         var currentType = ContentFrame.CurrentSourcePageType;
@@ -343,9 +389,25 @@ public sealed partial class MainWindow : Window
             // Full parameter tracking is deferred to the PhotoListPage step.
         }
 
-        NavView.SelectedItem = found;
+        SetNavSelectionWithoutNavigation(found);
         if (found is not null)
             NavView.Header = found.Content?.ToString();
+    }
+
+    private long? TryGetCurrentPhotoListAlbumId()
+        => ContentFrame.Content is PhotoListPage page ? page.ViewModel.AlbumId : null;
+
+    private void SetNavSelectionWithoutNavigation(object? selectedItem)
+    {
+        _isSyncingNavSelection = true;
+        try
+        {
+            NavView.SelectedItem = selectedItem;
+        }
+        finally
+        {
+            _isSyncingNavSelection = false;
+        }
     }
 
     // ── Photo detail overlay ──────────────────────────────────────────────────

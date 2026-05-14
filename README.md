@@ -129,8 +129,6 @@ make install INSTALL_DIR="C:\Apps\FluentGallery"
 
 [] 支持多种格式 mp4 mov heic heif gif bmp 透明底
    - 支持 mvimg 格式（Live Photo）
-[] 相册管理：移除、删除（移动到回收站）、移动、复制、批量选择
-[] 图片管理：重命名、删除（移动到回收站）、批量选择、移动、复制
 [] 编写 README，添加宣传视频
 
 

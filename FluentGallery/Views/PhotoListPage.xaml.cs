@@ -85,14 +85,24 @@ public sealed partial class PhotoListPage : Page
 
         if (e.Parameter is long albumId)
         {
-            Loaded += async (_, _) =>
+            async void OnPageLoaded(object sender, RoutedEventArgs args)
             {
-                ElasticScrollHelper.Attach(PhotoGridView);
-                await ViewModel.LoadAsync(albumId, _pageCts.Token);
-                UpdateEmptyState();
-                SyncNavHeader();
-                UpdateItemSize();
-            };
+                Loaded -= OnPageLoaded;
+
+                try
+                {
+                    ElasticScrollHelper.Attach(PhotoGridView);
+                    await ViewModel.LoadAsync(albumId, _pageCts.Token);
+                    UpdateEmptyState();
+                    SyncNavHeader();
+                    UpdateItemSize();
+                }
+                catch (OperationCanceledException) when (_pageCts.IsCancellationRequested)
+                {
+                }
+            }
+
+            Loaded += OnPageLoaded;
         }
     }
 
@@ -354,7 +364,7 @@ public sealed partial class PhotoListPage : Page
     private void SyncNavHeader()
     {
         if (App.Current.MainWindow is MainWindow mw)
-            mw.SetNavHeader(ViewModel.AlbumName);
+            mw.SyncPhotoListNavigation(ViewModel.AlbumId, ViewModel.AlbumName);
     }
 
     // ── Search within album ───────────────────────────────────────────────────
