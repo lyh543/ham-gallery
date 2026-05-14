@@ -37,6 +37,13 @@ public partial class App : Application
     {
         Services = ConfigureServices();
 
+        // FontAwesome6.Fonts.WinUI falls back to Directory.GetCurrentDirectory()
+        // in unpackaged mode. Pin the working directory to the executable folder
+        // so its extracted fonts are written and loaded from a stable location.
+        var appBaseDirectory = AppContext.BaseDirectory;
+        if (!string.IsNullOrEmpty(appBaseDirectory) && Directory.Exists(appBaseDirectory))
+            Directory.SetCurrentDirectory(appBaseDirectory);
+
         // Apply startup language before any XAML is initialized.
         // Setting PrimaryLanguageOverride after InitializeComponent can throw
         // InvalidOperationException in WinUI/WinRT.

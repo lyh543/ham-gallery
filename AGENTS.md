@@ -6,6 +6,8 @@ After modifying any code, run the build and verify it passes:
 make build
 ```
 
+Use `make build` directly for post-edit verification. Do not use `dotnet build` as the default verification command unless the user explicitly asks for it.
+
 If the build fails, read the error output, fix the issues, and rebuild. Repeat until the build succeeds before considering the task done.
 
 ## 日志路径
