@@ -2,6 +2,26 @@
 
 Ham Gallery is being implemented incrementally from [PROMPT.md](PROMPT.md).
 
+## 安装方法
+
+### 从应用商店安装
+
+暂时未提供商店链接。
+
+### 从 GitHub Release 下载
+从 [GitHub Releases](https://github.com/lyh543/ham-gallery/releases) 下载最新发布版本。
+
+- 选择 `.msix` 包可直接安装并注册到系统
+- 选择便携 `.zip` 包可解压后直接运行
+
+### Clone 代码后本地安装
+
+```powershell
+git clone https://github.com/lyh543/ham-gallery.git
+cd ham-gallery
+make && make install
+```
+
 ## 运行时数据目录
 
 应用以非打包模式（unpackaged）运行，所有运行时数据存放在 `%LocalAppData%\HamGallery\` 下：
@@ -116,7 +136,8 @@ make msix-signed && make install-msix
 - `make` 默认执行 `make msix-signed`
 - `make msix-signed` 会先执行幂等的 `make cert-create`，再生成已签名 MSIX
 - `make install` 默认执行 `make install-msix`
-- `make install-msix` 只安装现有 MSIX 产物，不会重新编译
+- `make install-msix` 会先执行幂等的 `make uninstall-msix`，再安装现有 MSIX 产物，不会重新编译
+- `make uninstall` 默认执行 `make uninstall-msix`
 
 ### 便携目录复制链路
 
@@ -136,9 +157,11 @@ make install-publish INSTALL_DIR="C:\Apps\FluentGallery"
 | ---- | ---- |
 | `make` | 默认生成已签名 MSIX（等同于 `make msix-signed`） |
 | `make install` | 默认执行 `make install-msix` |
+| `make uninstall` | 默认执行 `make uninstall-msix` |
 | `make cert-create` | 生成或复用本地 MSIX 签名证书 |
 | `make msix-signed` | 先执行 `cert-create`，再构建已签名 MSIX |
-| `make install-msix` | 信任证书并安装现有 MSIX 产物，不重新编译 |
+| `make install-msix` | 先卸载旧 MSIX，再信任证书并安装现有 MSIX 产物，不重新编译 |
+| `make uninstall-msix` | 卸载当前用户已安装的 Ham Gallery MSIX |
 | `make publish` | 自包含发布，可配合 `ARCH` 或 `ENV` 使用 |
 | `make install-publish` | 将已发布文件镜像复制到 `INSTALL_DIR`（默认 `C:\Tools\FluentGallery`） |
 | `make zip` | 从 `make publish` 的输出生成便携 ZIP |

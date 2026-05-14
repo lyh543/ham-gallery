@@ -24,7 +24,7 @@ INSTALL_DIR ?= C:\Tools\FluentGallery
 VERSION     ?= $(shell powershell -NoProfile -Command "([xml](Get-Content 'FluentGallery/FluentGallery.csproj')).Project.PropertyGroup.InformationalVersion | Select-Object -First 1")
 
 .DEFAULT_GOAL := msix-signed
-.PHONY: build run watch test-all test help kill publish install install-publish install-publish install-msix zip msix-unsigned msix-signed cert-create cert-trust clean
+.PHONY: build run watch test-all test help kill publish install uninstall install-publish install-msix uninstall-msix zip msix-unsigned msix-signed cert-create cert-trust clean
 
 PID_FILE = .run.pid
 RUN_PS   = powershell -NoProfile -ExecutionPolicy Bypass -File tools/run.ps1 -ExePath $(EXE) -PidFile $(PID_FILE)
@@ -50,7 +50,8 @@ watch:
 ## make install-publish [ARCH=...]               — 复制已发布文件到 INSTALL_DIR
 ## make msix-unsigned [ARCH=...] [ENV=dev]       — MSIX 打包（默认 prod，未签名）
 ## make msix-signed [ARCH=...]                   — 先确保证书，再生成已签名 MSIX
-## make install-msix [ARCH=...]                  — 信任证书并执行生成的 Install.ps1
+## make install-msix [ARCH=...]                  — 先卸载旧包，再信任证书并执行生成的 Install.ps1
+## make uninstall-msix                           — 卸载当前用户已安装的 Ham Gallery MSIX
 
 
 publish:
@@ -65,6 +66,8 @@ install-publish:
 	@echo Run: $(INSTALL_DIR)\FluentGallery.exe
 
 install: install-msix
+
+uninstall: uninstall-msix
 
 zip:
 	powershell -NoProfile -ExecutionPolicy Bypass -File tools/zip.ps1 -SourceDir "$(RELEASE_OUT)\$(ARCH)" -DestPath "$(RELEASE_DIR)\FluentGallery-$(VERSION)-portable-$(ARCH).zip"
@@ -106,8 +109,11 @@ msix-signed: cert-create
 	@echo
 	@echo Signed MSIX output: $(MSIX_OUTPUT_DIR)
 
-install-msix: cert-trust
-	pwsh -NoProfile -ExecutionPolicy Bypass -Command '$$script = Get-ChildItem -Path ''$(MSIX_OUTPUT_DIR)'' -Filter ''Install.ps1'' -Recurse | Sort-Object LastWriteTime -Descending | Select-Object -First 1 -ExpandProperty FullName; if (-not $$script) { throw ''Install.ps1 not found under $(MSIX_OUTPUT_DIR)'' }; Set-Location (Split-Path $$script -Parent); ./Install.ps1'
+uninstall-msix:
+	pwsh -NoProfile -ExecutionPolicy Bypass -Command '$$pkgName = ([xml](Get-Content ''FluentGallery/Package.appxmanifest'')).Package.Identity.Name; $$pkgs = Get-AppxPackage -Name $$pkgName -ErrorAction SilentlyContinue; if (-not $$pkgs) { Write-Host ''No installed MSIX package found for'' $$pkgName; exit 0 }; $$pkgs | Remove-AppxPackage; Write-Host ''Uninstalled MSIX package:'' $$pkgName'
+
+install-msix: uninstall-msix cert-trust
+	pwsh -NoProfile -ExecutionPolicy Bypass -Command '$$script = Get-ChildItem -Path ''$(MSIX_OUTPUT_DIR)'' -Filter ''Install.ps1'' -Recurse | Sort-Object LastWriteTime -Descending | Select-Object -First 1 -ExpandProperty FullName; if (-not $$script) { throw ''Install.ps1 not found under $(MSIX_OUTPUT_DIR)'' }; Set-Location (Split-Path $$script -Parent); ./Install.ps1 -SkipLoggingTelemetry'
 
 ## make test-all          — 运行全部测试（安静模式）
 ## make test              — 运行全部测试（详细输出）
@@ -140,7 +146,9 @@ help:
 	@echo   make msix-signed ENV=dev                Signed MSIX package (dev mode)
 	@echo   make msix-signed [ARCH=x64|arm64|x86]   Signed MSIX (prod, needs: make cert-create first)
 	@echo   make install                            Alias of install-msix
-	@echo   make install-msix [ARCH=x64|arm64|x86]  Trust cert and run generated Install.ps1
+	@echo   make uninstall                         Alias of uninstall-msix
+	@echo   make install-msix [ARCH=x64|arm64|x86]  Uninstall old MSIX, trust cert, and run generated Install.ps1
+	@echo   make uninstall-msix                    Uninstall installed MSIX for current user
 	@echo   make zip [ARCH=x64|arm64|x86]           Portable ZIP from published output
 	@echo   make test-all                           Run all tests (quiet)
 	@echo   make test                               Run all tests (verbose)
