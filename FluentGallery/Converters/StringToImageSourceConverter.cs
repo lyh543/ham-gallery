@@ -23,7 +23,7 @@ public sealed class StringToImageSourceConverter : IValueConverter
             return new BitmapImage
             {
                 CreateOptions = BitmapCreateOptions.IgnoreImageCache,
-                UriSource = new Uri(rawPath)
+                UriSource = new Uri(filePath)
             };
         }
         catch

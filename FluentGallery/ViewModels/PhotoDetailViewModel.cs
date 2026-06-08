@@ -78,8 +78,7 @@ public sealed partial class PhotoThumbItem : ObservableObject
         ThumbPath = CreateDisplayThumbPath(thumbPath);
     }
 
-    public static string? CreateDisplayThumbPath(string? thumbPath) =>
-        string.IsNullOrEmpty(thumbPath) ? thumbPath : $"{thumbPath}#v={DateTime.UtcNow.Ticks}";
+    public static string? CreateDisplayThumbPath(string? thumbPath) => thumbPath;
 }
 
 // ── Undo stack entry ────────────────────────────────────────────────────────
