@@ -188,7 +188,8 @@ public partial class App : Application
         services.AddTransient<MainWindowViewModel>();
         services.AddSingleton<AlbumListViewModel>();
         services.AddTransient<PhotoListViewModel>();
-        services.AddTransient<SettingsViewModel>();
+        // Singleton so thumbnail-generation progress survives page navigation
+        services.AddSingleton<SettingsViewModel>();
         // PhotoDetailViewModel is Transient: each navigation creates a fresh instance
         services.AddTransient<PhotoDetailViewModel>();
         // SearchViewModel is Transient: each navigation creates a fresh instance

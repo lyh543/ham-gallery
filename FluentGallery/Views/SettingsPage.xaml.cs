@@ -43,6 +43,11 @@ public sealed partial class SettingsPage : Page
     {
         Loaded -= OnPageLoaded;
         ElasticScrollHelper.Attach(SettingsScrollViewer);
+
+        // Restore thumbnail-generation UI state when returning to this page.
+        // The ViewModel is a singleton and may still be building or showing the
+        // "done" state from a previous visit.
+        SyncThumbGenUIFromViewModel();
     }
 
     // ────────────────────────────────────────────────────────────────────
@@ -246,6 +251,28 @@ public sealed partial class SettingsPage : Page
         sb.Children.Add(slideAnim);
 
         sb.Begin();
+    }
+
+    /// <summary>
+    /// Restores the thumbnail-generation UI (progress bar / done animation)
+    /// from the singleton ViewModel state. Needed because the ViewModel
+    /// outlives the page, but the XAML visibility is reset on each navigation.
+    /// </summary>
+    private void SyncThumbGenUIFromViewModel()
+    {
+        if (ViewModel.IsThumbnailBuildDone)
+        {
+            // Build completed while the page was hidden — replay the
+            // done animation with the correct sub-text.
+            ThumbDoneSubText.Text = ViewModel.ThumbnailBuildTotal == 0
+                ? L10n.Get("Settings_DoneSub_AllExist")
+                : L10n.Format("Settings_DoneSub_Generated", ViewModel.ThumbnailBuildTotal);
+            ShowAndAnimateThumbDone();
+        }
+        else
+        {
+            UpdateThumbGenArea();
+        }
     }
 
     private void HideThumbDonePanel()
