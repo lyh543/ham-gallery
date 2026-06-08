@@ -545,11 +545,11 @@
 
 再次扫描目录后照片将重新出现。确定要继续吗？</value></data>
   <data name="Settings_ClearDb_Confirm" xml:space="preserve"><value>清除</value></data>
-  <data name="Settings_ClearAll_Title" xml:space="preserve"><value>清除全部数据</value></data>
+  <data name="Settings_ClearAll_Title" xml:space="preserve"><value>清除应用数据</value></data>
   <data name="Settings_ClearAll_Content" xml:space="preserve"><value>这将删除所有照片记录、相册、缩略图文件和应用设置，应用将恢复出厂状态。
 
 此操作不可撤销，确定要继续吗？</value></data>
-  <data name="Settings_ClearAll_Confirm" xml:space="preserve"><value>清除全部数据</value></data>
+  <data name="Settings_ClearAll_Confirm" xml:space="preserve"><value>清除应用数据</value></data>
   <data name="Settings_DoneSub_AllExist" xml:space="preserve"><value>所有照片均已有缩略图，无需生成</value></data>
   <data name="Settings_DoneSub_Generated" xml:space="preserve"><value>共生成了 {0} 张缩略图</value></data>
   <data name="PhotoDetail_Delete_DontAsk" xml:space="preserve"><value>下次不再提示</value></data>
@@ -642,9 +642,9 @@
   <data name="SettingsPage_LogsCard.Header" xml:space="preserve"><value>应用日志</value></data>
   <data name="SettingsPage_LogsCard.Description" xml:space="preserve"><value>在文件管理器中打开日志目录（每天一个文件，保留最近 7 天）</value></data>
   <data name="SettingsPage_OpenLogsButton.Content" xml:space="preserve"><value>打开日志目录</value></data>
-  <data name="SettingsPage_ClearAllCard.Header" xml:space="preserve"><value>清除全部数据</value></data>
+  <data name="SettingsPage_ClearAllCard.Header" xml:space="preserve"><value>清除应用数据</value></data>
   <data name="SettingsPage_ClearAllCard.Description" xml:space="preserve"><value>删除所有应用数据（照片索引、缩略图、设置），恢复出厂状态，照片文件将安全保留</value></data>
-  <data name="SettingsPage_ClearAllButton.Content" xml:space="preserve"><value>清除全部数据</value></data>
+  <data name="SettingsPage_ClearAllButton.Content" xml:space="preserve"><value>清除应用数据</value></data>
   <data name="SettingsPage_PerfSectionTitle.Text" xml:space="preserve"><value>性能</value></data>
   <data name="SettingsPage_PreloadExpander.Header" xml:space="preserve"><value>预加载张数</value></data>
   <data name="SettingsPage_PreloadExpander.Description" xml:space="preserve"><value>预加载更多张数，快速翻看时更流畅，但会占用更多内存</value></data>

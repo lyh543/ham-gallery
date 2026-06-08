@@ -425,14 +425,14 @@
             <!-- Clear all data -->
             <ctk:SettingsCard
                 x:Uid="SettingsPage_ClearAllCard"
-                Header="清除全部数据"
+                Header="清除应用数据"
                 Description="删除所有应用数据（照片索引、缩略图、设置），恢复出厂状态，照片文件将安全保留">
                 <ctk:SettingsCard.HeaderIcon>
                     <FontIcon FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets" Glyph="&#xE894;" />
                 </ctk:SettingsCard.HeaderIcon>
                 <Button
                     x:Uid="SettingsPage_ClearAllButton"
-                    Content="清除全部数据"
+                    Content="清除应用数据"
                     Click="ClearAll_Click"
                     Foreground="White">
                     <Button.Resources>

@@ -222,7 +222,7 @@
   <data name='Settings_ClearDb_Title' xml:space='preserve'><value>Limpiar base de datos</value></data>
   <data name='Settings_ClearDb_Content' xml:space='preserve'><value>Esto borrará el índice, pero mantendrá los álbumes y la configuración. Las fotos reaparecerán tras un nuevo escaneo. ¿Continuar?</value></data>
   <data name='Settings_ClearDb_Confirm' xml:space='preserve'><value>Limpiar</value></data>
-  <data name='Settings_ClearAll_Title' xml:space='preserve'><value>Eliminar todos los datos</value></data>
+  <data name='Settings_ClearAll_Title' xml:space='preserve'><value>Eliminar datos de la aplicación</value></data>
   <data name='Settings_ClearAll_Content' xml:space='preserve'><value>Esto eliminará todo (índice, álbumes, miniaturas, configuración) y restablecerá la aplicación. No se puede deshacer. ¿Continuar?</value></data>
   <data name='Settings_ClearAll_Confirm' xml:space='preserve'><value>Restablecer</value></data>
   <data name='Settings_DoneSub_AllExist' xml:space='preserve'><value>Todas las fotos ya tienen miniaturas</value></data>
@@ -312,8 +312,8 @@
   <data name='SettingsPage_ClearDbButton.Content' xml:space='preserve'><value>Limpiar índice</value></data>
   <data name='SettingsPage_OpenLogsFolderCard.Header' xml:space='preserve'><value>Logs</value></data>
   <data name='SettingsPage_OpenLogsButton.Content' xml:space='preserve'><value>Ver logs</value></data>
-  <data name='SettingsPage_ClearAllCard.Header' xml:space='preserve'><value>Eliminar todo</value></data>
-  <data name='SettingsPage_ClearAllButton.Content' xml:space='preserve'><value>Eliminar todo</value></data>
+  <data name='SettingsPage_ClearAllCard.Header' xml:space='preserve'><value>Eliminar datos de app</value></data>
+  <data name='SettingsPage_ClearAllButton.Content' xml:space='preserve'><value>Eliminar datos de app</value></data>
   <data name='SettingsPage_PerfSectionTitle.Text' xml:space='preserve'><value>Rendimiento</value></data>
   <data name='SettingsPage_PreloadExpander.Header' xml:space='preserve'><value>Pre-carga</value></data>
   <data name='SettingsPage_PreloadBackCard.Header' xml:space='preserve'><value>Pre-carga atrás</value></data>

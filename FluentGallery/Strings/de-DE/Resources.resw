@@ -222,7 +222,7 @@
   <data name='Settings_ClearDb_Title' xml:space='preserve'><value>Datenbank leeren</value></data>
   <data name='Settings_ClearDb_Content' xml:space='preserve'><value>Dies löscht den Index, behält aber Alben und Einstellungen bei. Fotos erscheinen nach erneutem Scan wieder. Fortfahren?</value></data>
   <data name='Settings_ClearDb_Confirm' xml:space='preserve'><value>Leeren</value></data>
-  <data name='Settings_ClearAll_Title' xml:space='preserve'><value>Alle Daten löschen</value></data>
+  <data name='Settings_ClearAll_Title' xml:space='preserve'><value>App-Daten löschen</value></data>
   <data name='Settings_ClearAll_Content' xml:space='preserve'><value>Dies löscht alles (Index, Alben, Thumbnails, Einstellungen) und setzt die App zurück. Dies kann nicht rückgängig gemacht werden. Fortfahren?</value></data>
   <data name='Settings_ClearAll_Confirm' xml:space='preserve'><value>Zurücksetzen</value></data>
   <data name='Settings_DoneSub_AllExist' xml:space='preserve'><value>Alle Fotos haben bereits Thumbnails</value></data>
@@ -370,8 +370,8 @@
   <data name='SettingsPage_ClearDbButton.Content' xml:space='preserve'><value>Index leeren</value></data>
   <data name='SettingsPage_OpenLogsFolderCard.Header' xml:space='preserve'><value>Logs</value></data>
   <data name='SettingsPage_OpenLogsButton.Content' xml:space='preserve'><value>Logs ansehen</value></data>
-  <data name='SettingsPage_ClearAllCard.Header' xml:space='preserve'><value>Alles löschen</value></data>
-  <data name='SettingsPage_ClearAllButton.Content' xml:space='preserve'><value>Alles löschen</value></data>
+  <data name='SettingsPage_ClearAllCard.Header' xml:space='preserve'><value>App-Daten löschen</value></data>
+  <data name='SettingsPage_ClearAllButton.Content' xml:space='preserve'><value>App-Daten löschen</value></data>
   <data name='SettingsPage_PerfSectionTitle.Text' xml:space='preserve'><value>Performance</value></data>
   <data name='SettingsPage_PreloadExpander.Header' xml:space='preserve'><value>Vorabladen</value></data>
   <data name='SettingsPage_PreloadBackCard.Header' xml:space='preserve'><value>Vorabladen Rückwärts</value></data>

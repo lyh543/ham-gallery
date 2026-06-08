@@ -222,7 +222,7 @@
   <data name='Settings_ClearDb_Title' xml:space='preserve'><value>Vider la base de données</value></data>
   <data name='Settings_ClearDb_Content' xml:space='preserve'><value>Cela supprimera l'index, mais conservera les albums et les paramètres. Les photos réapparaîtront après une nouvelle analyse. Continuer ?</value></data>
   <data name='Settings_ClearDb_Confirm' xml:space='preserve'><value>Vider</value></data>
-  <data name='Settings_ClearAll_Title' xml:space='preserve'><value>Supprimer toutes les données</value></data>
+  <data name='Settings_ClearAll_Title' xml:space='preserve'><value>Supprimer les données de l'application</value></data>
   <data name='Settings_ClearAll_Content' xml:space='preserve'><value>Cela supprimera tout (index, albums, miniatures, paramètres) et réinitialisera l'application. Cette opération est irréversible. Continuer ?</value></data>
   <data name='Settings_ClearAll_Confirm' xml:space='preserve'><value>Réinitialiser</value></data>
   <data name='Settings_DoneSub_AllExist' xml:space='preserve'><value>Toutes les photos ont déjà des miniatures</value></data>
@@ -312,8 +312,8 @@
   <data name='SettingsPage_ClearDbButton.Content' xml:space='preserve'><value>Vider l'index</value></data>
   <data name='SettingsPage_OpenLogsFolderCard.Header' xml:space='preserve'><value>Logs</value></data>
   <data name='SettingsPage_OpenLogsButton.Content' xml:space='preserve'><value>Voir les logs</value></data>
-  <data name='SettingsPage_ClearAllCard.Header' xml:space='preserve'><value>Tout supprimer</value></data>
-  <data name='SettingsPage_ClearAllButton.Content' xml:space='preserve'><value>Tout supprimer</value></data>
+  <data name='SettingsPage_ClearAllCard.Header' xml:space='preserve'><value>Supprimer données app</value></data>
+  <data name='SettingsPage_ClearAllButton.Content' xml:space='preserve'><value>Supprimer données app</value></data>
   <data name='SettingsPage_PerfSectionTitle.Text' xml:space='preserve'><value>Performance</value></data>
   <data name='SettingsPage_PreloadExpander.Header' xml:space='preserve'><value>Préchargement</value></data>
   <data name='SettingsPage_PreloadBackCard.Header' xml:space='preserve'><value>Préchargement arrière</value></data>

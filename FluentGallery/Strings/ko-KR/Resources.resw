@@ -223,7 +223,7 @@
   <data name='Settings_ClearDb_Title' xml:space='preserve'><value>데이터베이스 지우기</value></data>
   <data name='Settings_ClearDb_Content' xml:space='preserve'><value>인덱스를 삭제합니다. 앨범과 설정은 유지됩니다.</value></data>
   <data name='Settings_ClearDb_Confirm' xml:space='preserve'><value>지우기</value></data>
-  <data name='Settings_ClearAll_Title' xml:space='preserve'><value>모든 데이터 삭제</value></data>
+  <data name='Settings_ClearAll_Title' xml:space='preserve'><value>앱 데이터 삭제</value></data>
   <data name='Settings_ClearAll_Content' xml:space='preserve'><value>모든 내용(인덱스, 앨범, 섬네일, 설정)을 삭제하고 앱을 초기화합니다.</value></data>
   <data name='Settings_ClearAll_Confirm' xml:space='preserve'><value>초기화</value></data>
   <data name='Settings_DoneSub_AllExist' xml:space='preserve'><value>모든 사진에 섬네일이 이미 있습니다</value></data>
@@ -313,8 +313,8 @@
   <data name='SettingsPage_ClearDbButton.Content' xml:space='preserve'><value>인덱스 지우기</value></data>
   <data name='SettingsPage_OpenLogsFolderCard.Header' xml:space='preserve'><value>로그</value></data>
   <data name='SettingsPage_OpenLogsButton.Content' xml:space='preserve'><value>로그 보기</value></data>
-  <data name='SettingsPage_ClearAllCard.Header' xml:space='preserve'><value>모든 데이터 삭제</value></data>
-  <data name='SettingsPage_ClearAllButton.Content' xml:space='preserve'><value>모두 삭제</value></data>
+  <data name='SettingsPage_ClearAllCard.Header' xml:space='preserve'><value>앱 데이터 삭제</value></data>
+  <data name='SettingsPage_ClearAllButton.Content' xml:space='preserve'><value>앱 데이터 삭제</value></data>
   <data name='SettingsPage_PerfSectionTitle.Text' xml:space='preserve'><value>성능</value></data>
   <data name='SettingsPage_PreloadExpander.Header' xml:space='preserve'><value>미리 읽기(Preload)</value></data>
   <data name='SettingsPage_PreloadBackCard.Header' xml:space='preserve'><value>이전 사진 미리 읽기</value></data>
